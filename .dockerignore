@@ -1,0 +1,36 @@
+# 根目录 .dockerignore：仅服务于 Dockerfile.static 的构建上下文
+# 根目录混有 uni-app 工程（node_modules 巨大），必须排除以免构建上下文爆炸
+
+# node 依赖（根目录是 uni-app 工程，与静态前端镜像无关）
+node_modules
+
+# uni-app 工程目录（本镜像不需要）
+uni-preset-vue-vite
+
+# 备份/评审目录
+_backup_20260809
+_backup_fix_20260809
+_review_diff
+_review_diff_gen.py
+
+# 后端与文档（后端单独构建 server/Dockerfile）
+server
+docs
+
+# 编辑器/工具目录
+.claude
+.github
+.trae
+.vite
+
+# 环境变量与密钥
+.env.claude-ds4
+.env
+.env.*
+
+# 本地开发用的 Python 静态服务器（nginx 场景不需要）
+server.py
+
+# 构建文件自身
+Dockerfile.static
+Dockerfile

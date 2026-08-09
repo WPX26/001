@@ -1,0 +1,34 @@
+# 密钥与配置（绝不提交）
+.env
+.env.claude-ds4
+server/.env
+
+# 依赖
+node_modules/
+uni-preset-vue-vite/node_modules/
+
+# 运行时产物
+server/uploads/
+server/logs/
+*.log
+
+# 备份与临时
+_backup*/
+_review_diff*/
+_backup_fix*/
+
+# 编译产物
+uni-preset-vue-vite/dist/
+uni-preset-vue-vite/unpackage/
+
+# uni-app 工程（ACR 构建不需要，体积大，如需另行推送）
+uni-preset-vue-vite/
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp

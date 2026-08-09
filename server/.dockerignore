@@ -1,0 +1,20 @@
+# 依赖与锁文件（镜像内通过 npm ci 重新安装）
+node_modules
+
+# 环境变量与密钥：绝不进镜像
+.env
+.env.*
+!.env.example
+
+# 运行时数据：照片由持久卷承载，不进镜像（Dockerfile 中 RUN mkdir 兜底建目录）
+uploads
+
+# 日志与杂项
+logs
+npm-debug.log*
+*.log
+
+# 构建文件自身
+Dockerfile
+.dockerignore
+README.md

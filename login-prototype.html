@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>移动端登录页面原型设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  .container {
+    display: flex;
+    gap: 40px;
+    max-width: 1100px;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ========== 左侧手机预览 ========== */
+  .phone-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .phone-frame {
+    width: 320px;
+    height: 680px;
+    background: #1C0F08;
+    border-radius: 42px;
+    padding: 14px;
+    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.45), 0 0 0 2px rgba(212, 165, 116, 0.25), inset 0 1px 0 rgba(212, 165, 116, 0.1);
+    position: relative;
+  }
+
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 28px;
+    background: #1C0F08;
+    border-radius: 0 0 18px 18px;
+    z-index: 10;
+  }
+
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(165deg, #F0B860 0%, #E89020 40%, #B85A10 100%);
+  }
+
+  /* 背景装饰圆 */
+  .phone-screen::before,
+  .phone-screen::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(50px);
+    opacity: 0.55;
+  }
+  .phone-screen::before {
+    width: 200px; height: 200px;
+    background: #FFE9B8;
+    top: -50px; right: -50px;
+  }
+  .phone-screen::after {
+    width: 160px; height: 160px;
+    background: #FFB84D;
+    bottom: -40px; left: -40px;
+  }
+
+  .status-bar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px 6px;
+    color: #1C0F08;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .status-icons svg { width: 16px; height: 11px; }
+
+  .login-container {
+    position: relative;
+    z-index: 2;
+    padding: 30px 28px 20px;
+    height: calc(100% - 50px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .login-header { text-align: center; margin-bottom: 28px; }
+  .login-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1C0F08;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+  .login-subtitle {
+    font-size: 13px;
+    color: #6B4423;
+  }
+
+  /* 毛玻璃卡片 */
+  .login-card {
+    background: rgba(250, 243, 231, 0.55);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: 20px;
+    padding: 28px 22px;
+    border: 1px solid rgba(255, 248, 235, 0.65);
+    box-shadow: 0 12px 40px rgba(28, 15, 8, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .input-group {
+    margin-bottom: 16px;
+  }
+
+  .input-label {
+    font-size: 12px;
+    color: #4A2C17;
+    margin-bottom: 6px;
+    display: block;
+    font-weight: 500;
+  }
+
+  .input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-wrapper svg {
+    position: absolute;
+    left: 14px;
+    width: 18px;
+    height: 18px;
+    color: #9B7B5A;
+    transition: color 0.3s;
+  }
+
+  .input-field {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px 0 42px;
+    background: rgba(255, 250, 242, 0.78);
+    border: 1.5px solid rgba(212, 165, 116, 0.35);
+    border-radius: 12px;
+    font-size: 14px;
+    color: #1C0F08;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+
+  .input-field::placeholder { color: #9B7B5A; }
+
+  .input-field:focus {
+    background: rgba(255, 250, 242, 0.95);
+    border-color: #E89020;
+    box-shadow: 0 0 0 4px rgba(232, 144, 32, 0.15);
+  }
+
+  .input-field:focus + .input-icon,
+  .input-wrapper:focus-within svg { color: #E89020; }
+
+  .form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0 22px;
+    font-size: 12px;
+  }
+
+  .remember-me {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: #4A2C17;
+    user-select: none;
+  }
+
+  .remember-me input { display: none; }
+
+  .checkbox {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid #9B7B5A;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+    background: rgba(255, 250, 242, 0.6);
+  }
+
+  .remember-me input:checked + .checkbox {
+    background: linear-gradient(135deg, #B8864A, #8B5E3C);
+    border-color: transparent;
+  }
+
+  .checkbox svg {
+    width: 10px; height: 10px;
+    color: white;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.25s ease;
+  }
+
+  .remember-me input:checked + .checkbox svg {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .forgot-link {
+    color: #E89020;
+    text-decoration: none;
+    transition: color 0.2s;
+    cursor: pointer;
+  }
+  .forgot-link:hover { color: #FFB84D; text-decoration: underline; }
+
+  .login-btn {
+    width: 100%;
+    height: 48px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.25s ease,
+                filter 0.2s ease,
+                background 0.3s ease;
+    box-shadow: 0 6px 24px rgba(232, 144, 32, 0.5),
+                inset 0 1px 0 rgba(255, 233, 184, 0.4),
+                inset 0 -2px 0 rgba(184, 90, 16, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .login-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 248, 235, 0.45), transparent);
+    transition: left 0.5s ease;
+    z-index: 1;
+  }
+
+  .login-btn:hover::before { left: 100%; }
+
+  .login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(232, 144, 32, 0.6),
+                inset 0 1px 0 rgba(255, 233, 184, 0.5),
+                inset 0 -2px 0 rgba(184, 90, 16, 0.2);
+    filter: brightness(1.08);
+  }
+
+  .login-btn:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 2px 8px rgba(232, 144, 32, 0.4),
+                inset 0 2px 4px rgba(184, 90, 16, 0.3),
+                inset 0 -1px 0 rgba(255, 233, 184, 0.15);
+    filter: brightness(0.95);
+    transition: transform 0.1s ease,
+                box-shadow 0.1s ease,
+                filter 0.1s ease;
+  }
+
+  /* 涟漪效果 */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 248, 235, 0.5);
+    transform: scale(0);
+    animation: rippleAnim 0.6s ease-out;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes rippleAnim {
+    to {
+      transform: scale(2.5);
+      opacity: 0;
+    }
+  }
+
+  .register-link {
+    text-align: center;
+    margin-top: 22px;
+    font-size: 13px;
+    color: #6B4423;
+  }
+
+  .register-link a {
+    color: #E89020;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .register-link a:hover { color: #FFB84D; text-decoration: underline; }
+
+  .home-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 4px;
+    background: rgba(28, 15, 8, 0.4);
+    border-radius: 2px;
+    z-index: 5;
+  }
+
+  /* 交互提示 */
+  .interaction-hint {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(28, 15, 8, 0.92);
+    color: #F5DFC0;
+    padding: 10px 22px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(28, 15, 8, 0.25);
+  }
+  .interaction-hint.show { opacity: 1; }
+
+  /* Toast 提示 */
+  .toast {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(250, 245, 236, 0.97);
+    backdrop-filter: blur(10px);
+    padding: 16px 28px;
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(28, 15, 8, 0.22);
+    font-size: 14px;
+    color: #1C0F08;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 20;
+    text-align: center;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .toast .toast-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    color: white;
+  }
+
+  /* 登录方式 Tab */
+  .login-tabs {
+    display: flex;
+    background: rgba(255, 250, 242, 0.3);
+    border-radius: 12px;
+    padding: 3px;
+    margin-bottom: 20px;
+    gap: 3px;
+  }
+  .login-tab {
+    flex: 1;
+    padding: 9px 0;
+    text-align: center;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(28, 15, 8, 0.55);
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  .login-tab svg { width: 14px; height: 14px; }
+  .login-tab.active {
+    background: white;
+    color: #1C0F08;
+    box-shadow: 0 2px 8px rgba(28, 15, 8, 0.12);
+  }
+
+  /* 密码可见切换 */
+  .pwd-toggle {
+    position: absolute;
+    right: 12px;
+    width: 28px; height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #9B7B5A;
+    border-radius: 50%;
+    transition: color 0.2s;
+    z-index: 2;
+  }
+  .pwd-toggle:hover { color: #E89020; }
+  .pwd-toggle svg { width: 16px; height: 16px; stroke-width: 2; }
+  .input-wrapper .input-field { padding-right: 40px; }
+
+  /* 验证码发送按钮 */
+  .code-row { display: flex; gap: 10px; }
+  .code-row .input-wrapper { flex: 1; }
+  .send-code-btn {
+    height: 46px;
+    padding: 0 16px;
+    background: rgba(255, 250, 242, 0.78);
+    border: 1.5px solid #E89020;
+    border-radius: 12px;
+    color: #E89020;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .send-code-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    color: white;
+  }
+  .send-code-btn:disabled {
+    background: rgba(212, 165, 116, 0.25);
+    border-color: rgba(155, 123, 90, 0.4);
+    color: #9B7B5A;
+    cursor: not-allowed;
+  }
+
+  /* 第三方登录 */
+  .divider {
+    display: flex;
+    align-items: center;
+    margin: 16px 0;
+    color: rgba(28, 15, 8, 0.35);
+    font-size: 11px;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(212, 165, 116, 0.3);
+  }
+  .divider span { padding: 0 12px; }
+  .social-login {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+  }
+  .social-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(212, 165, 116, 0.3);
+    background: rgba(255, 250, 242, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 18px;
+  }
+  .social-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(28, 15, 8, 0.12); }
+  .social-btn:active { transform: scale(0.95); }
+
+  /* 表单错误提示 */
+  .field-hint {
+    font-size: 11px;
+    margin-top: 4px;
+    padding-left: 4px;
+    display: none;
+  }
+  .field-hint.show { display: block; }
+  .field-hint.error { color: #E05A3A; }
+  .field-hint.ok { color: #4CAF50; }
+
+  /* 响应式 */
+  @media (max-width: 900px) {
+    .container { flex-direction: column; gap: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- 左侧：手机预览 -->
+  <div class="phone-wrapper">
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 18 12" fill="currentColor">
+              <path d="M1 8a1 1 0 011-1h1v4H2a1 1 0 01-1-1V8zm4-2a1 1 0 011-1h1v6H6a1 1 0 01-1-1V6zm4-3a1 1 0 011-1h1v9h-1a1 1 0 01-1-1V3zm4-2a1 1 0 011-1h1v12h-1a1 1 0 01-1-1V1z"/>
+            </svg>
+            <svg viewBox="0 0 16 12" fill="currentColor">
+              <path d="M8 2C5 2 2.5 3 1 4.5l1.5 1.5C3.5 5 5.5 4 8 4s4.5 1 5.5 2L15 4.5C13.5 3 11 2 8 2zm0 3c-2 0-3.5.8-4.5 1.8L5 8.3C5.8 7.5 6.8 7 8 7s2.2.5 3 1.3l1.5-1.5C11.5 5.8 10 5 8 5zm0 3l-2 2h4l-2-2z"/>
+            </svg>
+            <svg viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1">
+              <rect x="1" y="1" width="20" height="10" rx="2"/>
+              <rect x="3" y="3" width="14" height="6" rx="1" fill="currentColor"/>
+              <rect x="22" y="4" width="1.5" height="4" rx="0.5" fill="currentColor"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="login-container">
+          <div class="login-header">
+            <div class="login-title">欢迎回来</div>
+            <div class="login-subtitle">请登录您的账号</div>
+          </div>
+
+          <div class="login-card">
+            <!-- 登录方式 Tab -->
+            <div class="login-tabs" id="loginTabs">
+              <div class="login-tab active" data-mode="code">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
+                验证码登录
+              </div>
+              <div class="login-tab" data-mode="pwd">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                密码登录
+              </div>
+            </div>
+
+            <!-- 验证码登录面板 -->
+            <div class="login-panel" id="panelCode">
+              <div class="input-group">
+                <label class="input-label">手机号</label>
+                <div class="input-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                  </svg>
+                  <input type="tel" class="input-field" placeholder="请输入手机号" id="phoneLogin" maxlength="11">
+                </div>
+                <div class="field-hint" id="phoneLoginHint"></div>
+              </div>
+              <div class="input-group">
+                <label class="input-label">验证码</label>
+                <div class="code-row">
+                  <div class="input-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.68.94 6.36 2.64"/>
+                    </svg>
+                    <input type="text" class="input-field" placeholder="请输入验证码" id="codeLogin" maxlength="6">
+                  </div>
+                  <button class="send-code-btn" id="sendCodeLoginBtn">获取验证码</button>
+                </div>
+              </div>
+              <button class="login-btn" id="codeLoginBtn">登 录</button>
+            </div>
+
+            <!-- 密码登录面板 -->
+            <div class="login-panel" id="panelPwd" style="display:none;">
+              <div class="input-group">
+                <label class="input-label">用户名 / 手机号</label>
+                <div class="input-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <input type="text" class="input-field" placeholder="请输入用户名或手机号" id="username">
+                </div>
+              </div>
+              <div class="input-group">
+                <label class="input-label">密码</label>
+                <div class="input-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  <input type="password" class="input-field" placeholder="请输入密码" id="password">
+                  <div class="pwd-toggle" id="pwdToggle" title="显示密码">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div class="form-options">
+                <label class="remember-me">
+                  <input type="checkbox" id="remember" checked>
+                  <div class="checkbox">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <span>记住我</span>
+                </label>
+                <a class="forgot-link" id="forgotBtn">忘记密码?</a>
+              </div>
+              <button class="login-btn" id="loginBtn">登 录</button>
+            </div>
+
+            <!-- 第三方登录 -->
+            <div class="divider"><span>其他方式登录</span></div>
+            <div class="social-login">
+              <div class="social-btn" id="wechatLogin" title="微信登录">💬</div>
+              <div class="social-btn" id="qqLogin" title="QQ登录">🐧</div>
+            </div>
+
+            <div class="register-link">
+              还没有账号? <a id="registerBtn">立即注册</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="toast" id="toast">
+          <div class="toast-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <span id="toastMsg">登录成功!</span>
+        </div>
+
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="interaction-hint" id="hint">👆 试试点击输入框、按钮等交互元素</div>
+
+<script src="api.js"></script>
+<script>
+  var hint = document.getElementById('hint');
+  var hintTimer;
+  function showHint(msg, duration) { duration = duration || 2000; hint.textContent = msg; hint.classList.add('show'); clearTimeout(hintTimer); hintTimer = setTimeout(function() { hint.classList.remove('show'); }, duration); }
+
+  var toast = document.getElementById('toast');
+  var toastMsg = document.getElementById('toastMsg');
+  function showToast(msg, type, duration) {
+    duration = duration || 2000; toastMsg.textContent = msg;
+    toast.querySelector('.toast-icon').innerHTML = type === 'warning'
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function() { toast.classList.remove('show'); }, duration);
+  }
+
+  function ripple(e) {
+    var btn = e.currentTarget;
+    var rect = btn.getBoundingClientRect();
+    var size = Math.max(rect.width, rect.height);
+    var x = (e.clientX || rect.left + rect.width / 2) - rect.left - size / 2;
+    var y = (e.clientY || rect.top + rect.height / 2) - rect.top - size / 2;
+    var el = document.createElement('span'); el.className = 'ripple';
+    el.style.width = el.style.height = size + 'px'; el.style.left = x + 'px'; el.style.top = y + 'px';
+    btn.appendChild(el);
+    el.addEventListener('animationend', function() { el.remove(); });
+  }
+
+  // ========== Tab 切换 ==========
+  var panelCode = document.getElementById('panelCode');
+  var panelPwd = document.getElementById('panelPwd');
+  document.getElementById('loginTabs').addEventListener('click', function(e) {
+    var tab = e.target.closest('.login-tab');
+    if (!tab) return;
+    document.querySelectorAll('.login-tab').forEach(function(t) { t.classList.remove('active'); });
+    tab.classList.add('active');
+    var isCode = tab.dataset.mode === 'code';
+    panelCode.style.display = isCode ? '' : 'none';
+    panelPwd.style.display = isCode ? 'none' : '';
+  });
+
+  // ========== 密码可见切换 ==========
+  var pwdInput = document.getElementById('password');
+  var pwdToggle = document.getElementById('pwdToggle');
+  pwdToggle.addEventListener('click', function() {
+    var show = pwdInput.type === 'password';
+    pwdInput.type = show ? 'text' : 'password';
+    pwdToggle.innerHTML = show
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  });
+
+  // ========== 验证码登录（API 就绪） ==========
+  var phoneLogin = document.getElementById('phoneLogin');
+  var phoneLoginHint = document.getElementById('phoneLoginHint');
+  var codeLogin = document.getElementById('codeLogin');
+  var sendCodeLoginBtn = document.getElementById('sendCodeLoginBtn');
+  var codeLoginBtn = document.getElementById('codeLoginBtn');
+  var loginGeneratedCode = '';
+  var loginCodeCountdown = 0;
+  var loginCountdownTimer = null;
+
+  phoneLogin.addEventListener('input', function() { phoneLogin.value = phoneLogin.value.replace(/\D/g, ''); });
+
+  // 验证码：优先调真实后端 POST /auth/send-code（开发模式响应 devCode 即真实后端生成的验证码）；
+  // 服务不可达时回退本地模拟生成，保证原型可离线演示。UI（toast/倒计时）完全不变。
+  function sendLoginCode(phone) {
+    if (typeof MemoAPI === 'undefined') return mockSendLoginCode(phone);
+    return MemoAPI.post('/auth/send-code', { phone: phone, scene: 'login' }).then(function(data) {
+      var devCode = data && data.devCode;
+      if (!devCode) { loginGeneratedCode = ''; return { ok: false, msg: '未获取到验证码，请重试' }; }
+      loginGeneratedCode = devCode;
+      showToast('验证码: ' + devCode + '（模拟短信）');
+      return { ok: true };
+    }).catch(function(e) {
+      if (e && e.business) return { ok: false, msg: e.message };
+      return mockSendLoginCode(phone);
+    });
+  }
+
+  // 后端不可达时的本地模拟：随机生成验证码并 toast 展示
+  function mockSendLoginCode(phone) {
+    var code = String(Math.floor(100000 + Math.random() * 900000));
+    loginGeneratedCode = code;
+    showToast('验证码: ' + code + '（模拟短信）');
+    return Promise.resolve({ ok: true });
+  }
+
+  sendCodeLoginBtn.addEventListener('click', function() {
+    var phone = phoneLogin.value.trim();
+    if (!/^1\d{10}$/.test(phone)) { showToast('请输入正确的手机号', 'warning'); return; }
+    sendLoginCode(phone).then(function(r) {
+      if (!r.ok) return;
+      loginCodeCountdown = 60;
+      sendCodeLoginBtn.disabled = true;
+      if (loginCountdownTimer) clearInterval(loginCountdownTimer);
+      loginCountdownTimer = setInterval(function() {
+        loginCodeCountdown--;
+        sendCodeLoginBtn.textContent = loginCodeCountdown + 's 后重发';
+        if (loginCodeCountdown <= 0) { clearInterval(loginCountdownTimer); sendCodeLoginBtn.disabled = false; sendCodeLoginBtn.textContent = '重新获取'; }
+      }, 1000);
+    });
+  });
+
+  // 登录：优先调真实后端 POST /auth/login（成功保存 token+user）；
+  // 服务不可达时回退本地模拟校验，跳转 memo-home.html 逻辑不变。
+  function loginByCode(phone, code) {
+    if (typeof MemoAPI !== 'undefined') {
+      return MemoAPI.post('/auth/login', { phone: phone, code: code }).then(function(data) {
+        if (data && data.token) {
+          MemoAPI.setAuth(data.token, data.user || {});
+          return { ok: true };
+        }
+        return { ok: false, msg: '登录失败，请重试' };
+      }).catch(function(e) {
+        if (e && e.business) return { ok: false, msg: e.message };
+        return mockLoginByCode(phone, code);
+      });
+    }
+    return mockLoginByCode(phone, code);
+  }
+
+  // 后端不可达时的本地模拟：与本地生成的验证码比对
+  function mockLoginByCode(phone, code) {
+    return new Promise(function(resolve) {
+      if (loginGeneratedCode && code === loginGeneratedCode) {
+        resolve({ ok: true, token: 'mock_jwt_' + Date.now() });
+      } else {
+        resolve({ ok: false, msg: '验证码不正确' });
+      }
+    });
+  }
+
+  codeLoginBtn.addEventListener('click', function(e) {
+    ripple(e);
+    var phone = phoneLogin.value.trim();
+    var code = codeLogin.value.trim();
+    if (!/^1\d{10}$/.test(phone)) { showToast('请输入正确的手机号', 'warning'); return; }
+    if (!code) { showToast('请输入验证码', 'warning'); return; }
+    loginByCode(phone, code).then(function(r) {
+      if (r.ok) { showToast('✅ 登录成功!'); setTimeout(function() { window.location.href = 'memo-home.html'; }, 1200); }
+      else { showToast(r.msg || '验证码错误', 'warning'); }
+    });
+  });
+
+  // ========== 密码登录 ==========
+  var loginBtn = document.getElementById('loginBtn');
+  loginBtn.addEventListener('click', function(e) {
+    ripple(e);
+    var username = document.getElementById('username').value.trim();
+    var password = pwdInput.value;
+    if (!username || !password) { showToast('请输入账号和密码', 'warning'); return; }
+    showToast('✅ 登录成功!');
+    setTimeout(function() { window.location.href = 'memo-home.html'; }, 1200);
+  });
+
+  // 回车提交
+  document.querySelectorAll('.input-field').forEach(function(input) {
+    input.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        if (panelCode.style.display !== 'none') codeLoginBtn.click();
+        else loginBtn.click();
+      }
+    });
+  });
+
+  // 记住我
+  document.getElementById('remember').addEventListener('change', function(e) {
+    showHint(e.target.checked ? '已勾选记住我' : '已取消记住我');
+  });
+
+  // 忘记密码
+  document.getElementById('forgotBtn').addEventListener('click', function() {
+    showToast('📧 重置密码链接已发送至注册邮箱');
+  });
+
+  // ========== 第三方登录跳转 ==========
+  // 微信公众号/开放平台 OAuth: https://open.weixin.qq.com/connect/qrconnect
+  // QQ互联 OAuth: https://connect.qq.com/
+  // 替换 APP_ID 和 REDIRECT_URI 为实际值即可上线
+  var REDIRECT_URI = encodeURIComponent('http://localhost:8080/memo-home.html');
+  var WECHAT_APP_ID = 'YOUR_WECHAT_APP_ID';
+  var QQ_APP_ID     = 'YOUR_QQ_APP_ID';
+
+  document.getElementById('wechatLogin').addEventListener('click', function() {
+    if (WECHAT_APP_ID === 'YOUR_WECHAT_APP_ID') {
+      showToast('请配置微信 AppID 后使用');
+      return;
+    }
+    var url = 'https://open.weixin.qq.com/connect/qrconnect'
+      + '?appid=' + WECHAT_APP_ID
+      + '&redirect_uri=' + REDIRECT_URI
+      + '&response_type=code'
+      + '&scope=snsapi_login'
+      + '&state=' + Date.now()
+      + '#wechat_redirect';
+    window.location.href = url;
+  });
+
+  document.getElementById('qqLogin').addEventListener('click', function() {
+    if (QQ_APP_ID === 'YOUR_QQ_APP_ID') {
+      showToast('请配置 QQ AppID 后使用');
+      return;
+    }
+    var url = 'https://graph.qq.com/oauth2.0/authorize'
+      + '?response_type=code'
+      + '&client_id=' + QQ_APP_ID
+      + '&redirect_uri=' + REDIRECT_URI
+      + '&state=' + Date.now()
+      + '&scope=get_user_info';
+    window.location.href = url;
+  });
+
+  // 立即注册
+  document.getElementById('registerBtn').addEventListener('click', function() { window.location.href = 'register-prototype.html'; });
+
+  setTimeout(function() { showHint('试试验证码登录和密码登录两种方式', 3000); }, 500);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>联机界面原型设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  .container {
+    display: flex;
+    gap: 40px;
+    max-width: 1100px;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ========== 左侧手机预览 ========== */
+  .phone-wrapper { display: flex; flex-direction: column; align-items: center; }
+
+  .phone-frame {
+    width: 320px;
+    height: 680px;
+    background: #1C0F08;
+    border-radius: 42px;
+    padding: 14px;
+    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.45), 0 0 0 2px rgba(212, 165, 116, 0.25), inset 0 1px 0 rgba(212, 165, 116, 0.1);
+    position: relative;
+  }
+
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #1C0F08;
+    border-radius: 0 0 18px 18px;
+    z-index: 10;
+  }
+
+  .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 状态栏 */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px 6px;
+    color: rgba(245, 223, 192, 0.9);
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .status-icons svg { width: 14px; height: 11px; }
+
+  /* 顶部操作栏 */
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 16px 12px;
+    flex-shrink: 0;
+  }
+
+  .top-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: rgba(240, 160, 64, 0.15);
+    border: 1px solid rgba(240, 160, 64, 0.3);
+    border-radius: 18px;
+    color: #F0A040;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .top-btn:hover { background: rgba(240, 160, 64, 0.25); }
+  .top-btn:active { transform: scale(0.96); }
+  .top-btn svg { width: 14px; height: 14px; }
+
+  .avatar-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(240, 160, 64, 0.4);
+    transition: transform 0.2s;
+  }
+  .avatar-btn:hover { transform: scale(1.05); }
+  .avatar-btn:active { transform: scale(0.95); }
+  .avatar-btn svg { width: 18px; height: 18px; color: white; }
+
+  /* 滚动内容区 */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .content::-webkit-scrollbar { width: 3px; }
+  .content::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2px; }
+
+  /* 连接状态 */
+  .connection-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 4px 16px;
+    color: rgba(245, 223, 192, 0.85);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .connection-status .cam-icon {
+    width: 26px; height: 26px;
+    color: rgba(245, 223, 192, 0.5);
+  }
+  .connection-status .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(245, 223, 192, 0.3);
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* 功能卡片 */
+  .feature-card {
+    background: linear-gradient(135deg, rgba(240, 160, 64, 0.12) 0%, rgba(212, 105, 28, 0.08) 100%);
+    border: 1px solid rgba(240, 160, 64, 0.2);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::after {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 100px; height: 100px;
+    background: radial-gradient(circle, rgba(240, 160, 64, 0.25), transparent 70%);
+    border-radius: 50%;
+  }
+
+  .feature-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #F5DFC0;
+    margin-bottom: 6px;
+    position: relative;
+    z-index: 1;
+  }
+  .feature-desc {
+    font-size: 12px;
+    color: rgba(245, 223, 192, 0.6);
+    line-height: 1.6;
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .feature-illustration {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .illus-phone, .illus-camera {
+    width: 80px; height: 80px;
+    border-radius: 12px;
+    background: rgba(28, 15, 8, 0.6);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .illus-phone svg, .illus-camera svg { width: 36px; height: 36px; color: rgba(240, 160, 64, 0.7); }
+
+  .illus-wave {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .illus-wave span {
+    width: 4px;
+    height: 20px;
+    background: rgba(240, 160, 64, 0.5);
+    border-radius: 2px;
+    animation: wave 1.2s ease-in-out infinite;
+  }
+  .illus-wave span:nth-child(2) { animation-delay: 0.15s; }
+  .illus-wave span:nth-child(3) { animation-delay: 0.3s; }
+  .illus-wave span:nth-child(4) { animation-delay: 0.45s; }
+  .illus-wave span:nth-child(5) { animation-delay: 0.6s; }
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1); }
+  }
+
+  /* 连接选项卡 */
+  .connect-options {
+    background: rgba(28, 15, 8, 0.5);
+    border: 1px solid rgba(212, 165, 116, 0.15);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .connect-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .connect-option:hover { background: rgba(240, 160, 64, 0.08); }
+  .connect-option:active { background: rgba(240, 160, 64, 0.15); }
+
+  .connect-option + .connect-option {
+    border-top: 1px solid rgba(212, 165, 116, 0.12);
+  }
+
+  .connect-option-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .connect-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: rgba(240, 160, 64, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .connect-icon svg { width: 18px; height: 18px; color: #F0A040; }
+
+  .connect-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #F5DFC0;
+  }
+
+  .connect-guide {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: rgba(240, 160, 64, 0.8);
+  }
+  .connect-guide svg { width: 12px; height: 12px; }
+
+  /* 检测按钮 */
+  .detect-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    border: none;
+    border-radius: 14px;
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(240, 160, 64, 0.35);
+    transition: all 0.2s;
+    margin-bottom: 14px;
+  }
+  .detect-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(240, 160, 64, 0.45); }
+  .detect-btn:active { transform: scale(0.98); box-shadow: 0 3px 12px rgba(240, 160, 64, 0.3); }
+
+  /* 客服入口 */
+  .service-entry {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: rgba(245, 223, 192, 0.6);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 10px;
+    transition: color 0.2s;
+    margin-bottom: 16px;
+  }
+  .service-entry:hover { color: #F0A040; }
+  .service-entry svg { width: 16px; height: 16px; }
+
+  /* 底部导航栏 */
+  .bottom-nav {
+    height: 62px;
+    background: rgba(28, 15, 8, 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(212, 165, 116, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    flex: 1;
+    max-width: 70px;
+    color: rgba(245, 223, 192, 0.5);
+  }
+  .nav-item:hover { background: rgba(240, 160, 64, 0.1); }
+  .nav-item.active .nav-label { color: #E89020; }
+  .nav-item.active svg { color: #E89020; }
+  .nav-item svg { width: 22px; height: 22px; transition: color 0.2s; }
+  .nav-label { font-size: 10px; transition: color 0.2s; }
+
+  .nav-center {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    margin-top: -22px;
+    flex-shrink: 0;
+  }
+  .nav-center-btn {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.5), inset 0 1px 0 rgba(255, 233, 184, 0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    color: white;
+  }
+  .nav-center-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(232, 144, 32, 0.6); }
+  .nav-center-btn:active { transform: translateY(0) scale(0.95); }
+  .nav-center-btn svg { width: 24px; height: 24px; }
+
+  .home-indicator {
+    position: absolute;
+    bottom: 4px; left: 50%;
+    transform: translateX(-50%);
+    width: 100px; height: 4px;
+    background: rgba(245, 223, 192, 0.3);
+    border-radius: 2px;
+    z-index: 5;
+  }
+
+  .interaction-hint {
+    position: fixed;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(28, 15, 8, 0.92);
+    color: #F5DFC0;
+    padding: 10px 22px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(28, 15, 8, 0.25);
+  }
+  .interaction-hint.show { opacity: 1; }
+
+  .toast {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(28, 15, 8, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 16px 28px;
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(28, 15, 8, 0.4);
+    font-size: 14px;
+    color: #F5DFC0;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 200;
+    text-align: center;
+    white-space: nowrap;
+    border: 1px solid rgba(240, 160, 64, 0.3);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  @media (max-width: 900px) {
+    .container { flex-direction: column; gap: 30px; }
+  }
+  /* ========== 联机工作台视图 (Tethered Workspace) ========== */
+  .workspace {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .workspace.active { transform: translateY(0); }
+
+  .ws-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .ws-cam-info { display: flex; align-items: center; gap: 8px; }
+  .ws-cam-info svg { width: 18px; height: 18px; color: #4CAF50; }
+  .ws-battery { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #888; }
+  
+  .ws-close { cursor: pointer; padding: 4px; }
+  .ws-close svg { width: 24px; height: 24px; color: white; }
+
+  .ws-viewfinder {
+    flex: 1;
+    background: #111;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ws-viewfinder-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: filter 0.3s ease;
+  }
+  /* 构图辅助线 */
+  .ws-grid { position: absolute; inset: 0; pointer-events: none; }
+  .ws-grid::before, .ws-grid::after { content: ''; position: absolute; }
+  .ws-grid::before { left: 33.33%; right: 33.33%; top: 0; bottom: 0; border-left: 1px solid rgba(255,255,255,0.2); border-right: 1px solid rgba(255,255,255,0.2); }
+  .ws-grid::after { top: 33.33%; bottom: 33.33%; left: 0; right: 0; border-top: 1px solid rgba(255,255,255,0.2); border-bottom: 1px solid rgba(255,255,255,0.2); }
+
+  /* 参数调节区 */
+  .ws-controls {
+    background: #1C1C1E;
+    padding: 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-radius: 20px 20px 0 0;
+    margin-top: -20px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .ws-params {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+  }
+  .ws-param-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: white;
+  }
+  .ws-param-label { font-size: 11px; color: #888; font-weight: 600; }
+  .ws-param-val { font-size: 15px; font-weight: 700; color: #F0A040; }
+
+  /* 色彩预设 */
+  .ws-presets {
+    display: flex;
+    gap: 12px;
+    padding: 0 20px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ws-presets::-webkit-scrollbar { display: none; }
+  .ws-preset {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .ws-preset-img {
+    width: 50px; height: 50px;
+    border-radius: 10px;
+    background: #333;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .ws-preset.active .ws-preset-img { border-color: #E89020; transform: scale(1.05); }
+  .ws-preset-name { font-size: 11px; color: #AAA; }
+  .ws-preset.active .ws-preset-name { color: #E89020; }
+
+  /* 底部快门区 */
+  .ws-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 30px 30px;
+    background: #1C1C1E;
+  }
+  
+  .ws-shutter {
+    width: 68px; height: 68px;
+    border-radius: 50%;
+    background: white;
+    border: 4px solid #333;
+    outline: 2px solid white;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .ws-shutter:active { transform: scale(0.9); background: #EEE; }
+
+  .ws-gallery {
+    width: 48px; height: 48px;
+    border-radius: 8px;
+    background: #333;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .ws-gallery img { width: 100%; height: 100%; object-fit: cover; }
+  .ws-gallery-badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    background: #F44336;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 10px;
+    display: none;
+  }
+  .ws-gallery-badge.show { display: block; animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+  /* 拍照闪屏 */
+  .ws-flash {
+    position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 100;
+  }
+  .ws-flash.active { animation: flashAnim 0.3s ease-out; }
+  @keyframes flashAnim { 0% { opacity: 0.8; } 100% { opacity: 0; } }
+
+</style>
+<script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- 左侧：手机预览 -->
+  <div class="phone-wrapper">
+    <div class="phone-frame">
+      <div class="phone-screen">
+
+        <!-- 状态栏 -->
+        <div class="status-bar">
+          <span>22:03</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7 3 2.73 5.11 0 8.5L12 21 24 8.5C21.27 5.11 17 3 12 3z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+          </div>
+        </div>
+
+        <!-- 顶部操作栏 -->
+        <div class="top-bar"></div>
+
+        <!-- 连接状态 -->
+        <div class="connection-status">
+          <svg class="cam-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span>未连接</span>
+          <span class="dot"></span>
+        </div>
+
+        <!-- 滚动内容区 -->
+        <div class="content">
+
+          <!-- 功能卡片 -->
+          <div class="feature-card">
+            <div class="feature-title">相机直连 极速修图</div>
+            <div class="feature-desc">WiFi或数据线联机，快门一按，照片实时导入修图。</div>
+            <div class="feature-illustration">
+              <div class="illus-phone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
+              </div>
+              <div class="illus-wave">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <div class="illus-camera">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- 连接选项 -->
+          <div class="connect-options">
+            <div class="connect-option" data-type="wired">
+              <div class="connect-option-left">
+                <div class="connect-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 2v6l-4 4v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8l-4-4V2"/>
+                    <line x1="9" y1="2" x2="15" y2="2"/>
+                  </svg>
+                </div>
+                <span class="connect-label">有线连接</span>
+              </div>
+              <div class="connect-guide">
+                <span>连接引导</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+            </div>
+            <div class="connect-option" data-type="wireless">
+              <div class="connect-option-left">
+                <div class="connect-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                    <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                    <line x1="12" y1="20" x2="12.01" y2="20"/>
+                  </svg>
+                </div>
+                <span class="connect-label">无线连接</span>
+              </div>
+              <div class="connect-guide">
+                <span>连接引导</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- 检测按钮 -->
+          <button class="detect-btn" id="detectBtn">开始检测相机</button>
+
+          <!-- 客服入口 -->
+          <div class="service-entry" id="serviceEntry">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span>人工客服</span>
+          </div>
+
+        </div>
+
+        <!-- 底部导航栏 -->
+        <div class="bottom-nav">
+          <div class="nav-item" data-tab="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="nav-label">首页</span>
+          </div>
+          <div class="nav-item active" data-tab="market">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            <span class="nav-label">联机</span>
+          </div>
+          <div class="nav-center">
+            <button class="nav-center-btn" id="cameraBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+          </div>
+          <div class="nav-item" data-tab="message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span class="nav-label">消息</span>
+          </div>
+          <div class="nav-item" data-tab="profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span class="nav-label">我</span>
+          </div>
+        </div>
+
+        <div class="home-indicator"></div>
+
+        <!-- 联机工作台 (隐藏状态) -->
+        <div class="workspace" id="workspace">
+          <div class="ws-header">
+            <div class="ws-cam-info">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span>Sony A7M4</span>
+              <div class="ws-battery">
+                <span>98%</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;color:#888;"><rect x="2" y="7" width="16" height="10" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
+              </div>
+            </div>
+            <div class="ws-close" id="wsClose">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+          </div>
+          
+          <div class="ws-viewfinder">
+            <!-- 使用高质量占位图模拟相机取景器画面 -->
+            <img src="https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=600&q=80" class="ws-viewfinder-img" id="wsViewfinderImg" alt="Live View">
+            <div class="ws-grid"></div>
+            <div class="ws-flash" id="wsFlash"></div>
+          </div>
+
+          <div class="ws-controls">
+            <!-- 参数面板 -->
+            <div class="ws-params">
+              <div class="ws-param-item"><span class="ws-param-label">ISO</span><span class="ws-param-val">100</span></div>
+              <div class="ws-param-item"><span class="ws-param-label">F</span><span class="ws-param-val">2.8</span></div>
+              <div class="ws-param-item"><span class="ws-param-label">S</span><span class="ws-param-val">1/200</span></div>
+              <div class="ws-param-item"><span class="ws-param-label">WB</span><span class="ws-param-val">5600K</span></div>
+              <div class="ws-param-item"><span class="ws-param-label">EV</span><span class="ws-param-val">0.0</span></div>
+            </div>
+            <!-- 色彩预设 -->
+            <div class="ws-presets">
+              <div class="ws-preset active" data-filter="none">
+                <div class="ws-preset-img" style="background: linear-gradient(135deg, #ccc, #888);"></div>
+                <span class="ws-preset-name">原生</span>
+              </div>
+              <div class="ws-preset" data-filter="contrast(1.2) saturate(1.1) sepia(0.8)">
+                <div class="ws-preset-img" style="background: linear-gradient(135deg, #FF9A9E, #FECFEF);"></div>
+                <span class="ws-preset-name">日系人像</span>
+              </div>
+              <div class="ws-preset" data-filter="sepia(0.3) hue-rotate(-30deg) contrast(1.1)">
+                <div class="ws-preset-img" style="background: linear-gradient(135deg, #a18cd1, #fbc2eb);"></div>
+                <span class="ws-preset-name">胶片色彩</span>
+              </div>
+              <div class="ws-preset" data-filter="grayscale(1) contrast(1.2)">
+                <div class="ws-preset-img" style="background: linear-gradient(135deg, #333, #666);"></div>
+                <span class="ws-preset-name">黑白质感</span>
+              </div>
+              <div class="ws-preset" data-filter="brightness(1.1) contrast(1.3) saturate(1.5)">
+                <div class="ws-preset-img" style="background: linear-gradient(135deg, #84fab0, #8fd3f4);"></div>
+                <span class="ws-preset-name">风光增强</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 底部控制区 -->
+          <div class="ws-bottom">
+            <div class="ws-gallery" id="wsGallery" title="查看相册">
+              <!-- 初始为空图 -->
+              <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" id="wsGalleryImg" alt="Gallery">
+              <div class="ws-gallery-badge" id="wsBadge">0</div>
+            </div>
+            <div class="ws-shutter" id="wsShutter" title="拍摄"></div>
+            <div style="width:48px;"></div> <!-- 占位保持快门居中 -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  var db = new Dexie('memoPhotos');
+  db.version(1).stores({ pendingPhotos: 'id, hour, lng, lat' });
+
+  const toast = document.getElementById('toast');
+  const showToast = (msg) => {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 2000);
+  };
+
+  // 连接选项
+  document.querySelectorAll('.connect-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const type = opt.dataset.type;
+      const names = { wired: '有线连接', wireless: '无线连接' };
+      showToast('🔗 ' + names[type] + ' - 连接引导');
+    });
+  });
+
+  // 检测按钮 - 模拟成功连接并进入工作台
+  document.getElementById('detectBtn').addEventListener('click', () => {
+    const btn = document.getElementById('detectBtn');
+    const original = btn.textContent;
+    btn.textContent = '正在连接 Sony A7M4...';
+    btn.style.opacity = '0.7';
+    
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.style.opacity = '1';
+      showToast('✅ 相机连接成功！');
+      
+      // 打开联机工作台
+      document.getElementById('workspace').classList.add('active');
+    }, 1500);
+  });
+
+  // ================= 联机工作台逻辑 =================
+  const wsClose = document.getElementById('wsClose');
+  const workspace = document.getElementById('workspace');
+  const wsPresets = document.querySelectorAll('.ws-preset');
+  const wsViewfinderImg = document.getElementById('wsViewfinderImg');
+  const wsShutter = document.getElementById('wsShutter');
+  const wsFlash = document.getElementById('wsFlash');
+  const wsGalleryImg = document.getElementById('wsGalleryImg');
+  const wsBadge = document.getElementById('wsBadge');
+  
+  let photoCount = 0;
+  var wsLastPhotoFile = null; // 系统相机捕获的真实照片文件缓存，快门管线优先读取
+
+  // 关闭工作台
+  wsClose.addEventListener('click', () => {
+    workspace.classList.remove('active');
+  });
+
+  // 切换滤镜 (像素蛋糕核心功能模拟)
+  wsPresets.forEach(preset => {
+    preset.addEventListener('click', () => {
+      wsPresets.forEach(p => p.classList.remove('active'));
+      preset.classList.add('active');
+      const filter = preset.dataset.filter;
+      wsViewfinderImg.style.filter = filter === 'none' ? '' : filter;
+      showToast('已应用：' + preset.querySelector('.ws-preset-name').textContent);
+    });
+  });
+
+  // 模拟拍摄
+  wsShutter.addEventListener('click', () => {
+    // 闪光屏效
+    wsFlash.classList.remove('active');
+    void wsFlash.offsetWidth; // trigger reflow
+    wsFlash.classList.add('active');
+
+    // 震动反馈 (支持的设备上)
+    if (navigator.vibrate) navigator.vibrate(50);
+
+    // 更新相册缩略图和计数
+    setTimeout(() => {
+      photoCount++;
+      wsBadge.textContent = photoCount;
+      wsBadge.classList.add('show');
+      
+      // 模拟一张新照片飞入图库
+      wsGalleryImg.src = 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=150&q=80';
+      wsGalleryImg.style.filter = wsViewfinderImg.style.filter; // 保持滤镜效果
+    }, 200);
+
+    // 追加：拍摄数据写入待归类管线（pendingPhotos）——EXIF 拍摄时间 + GPS + 缩略图 dataURL
+    // 上方白闪/震动/角标动画保持不动，仅数据侧异步追加
+    wsSaveShotToPending();
+  });
+
+  // ========== 系统相机捕获 ==========
+  function captureWithSystemCamera() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.setAttribute('capture', 'camera');
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', function() {
+      var file = input.files[0];
+      if (!file) { document.body.removeChild(input); return; }
+      wsLastPhotoFile = file; // 缓存真实照片文件，供联机工作台快门管线优先读取
+      var getThumbnail = new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            var canvas = document.createElement('canvas');
+            var scale = Math.min(200 / img.width, 200 / img.height, 1);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+      var getLocation = new Promise(function(resolve, reject) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        } else { reject(new Error('无定位能力')); }
+      });
+      Promise.all([getLocation, getThumbnail]).then(function(results) {
+        savePhotoToPending(results[0].coords.longitude, results[0].coords.latitude, results[1]);
+      }).catch(function() {
+        getThumbnail.then(function(thumb) {
+          savePhotoToPending(120.3826 + (Math.random() - 0.5) * 0.01, 36.0671 + (Math.random() - 0.5) * 0.01, thumb);
+        });
+      });
+    });
+    input.click();
+  }
+  function savePhotoToPending(lng, lat, thumbnail) {
+    var now = new Date();
+    var hour = now.getHours();
+    var photoData = {
+      id: 'photo_' + now.getTime(), color: '#F0A040', likes: 0, tips: 0, liked: false, tipped: false, collected: false, comments: [],
+      uploadTime: Math.floor(now.getTime() / 1000),
+      timeStr: String(hour).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
+      dateStr: now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日',
+      hour: hour, lng: +lng.toFixed(6), lat: +lat.toFixed(6), photoDataUrl: thumbnail
+    };
+    db.pendingPhotos.add(photoData).then(function() {
+      var oldInputs = document.querySelectorAll('input[type=file][capture=camera]');
+      oldInputs.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
+      window.location.href = 'memo-home.html';
+    });
+  }
+
+  // ========== 联机工作台拍摄 → 待归类管线（pendingPhotos） ==========
+  // 快门拍摄后：真实照片文件优先（复用系统相机捕获缓存），否则保持现有模拟图生成 dataURL；
+  // 解析 EXIF 拍摄时间（DateTimeOriginal）；GPS 超时 8s，失败用地图中心 ±0.0015 随机偏移（与 camera 页模拟一致）
+  function wsSaveShotToPending() {
+    var getShot = new Promise(function(resolve) {
+      if (wsLastPhotoFile) {
+        Promise.all([blobToThumbnail(wsLastPhotoFile), parseExifDateTime(wsLastPhotoFile)])
+          .then(function(r) { resolve({ thumb: r[0], exifDate: exifStringToDate(r[1]) }); })
+          .catch(function() { resolve({ thumb: null, exifDate: null }); });
+      } else {
+        // 无真实照片文件 → 保持现有模拟图（取景器/图库同一 Unsplash 静态图）生成缩略图 dataURL
+        fetch('https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=150&q=80')
+          .then(function(res) { return res.blob(); })
+          .then(function(blob) {
+            return Promise.all([blobToThumbnail(blob), parseExifDateTime(blob)])
+              .then(function(r) { return { thumb: r[0], exifDate: exifStringToDate(r[1]) }; });
+          })
+          .catch(function() { resolve({ thumb: null, exifDate: null }); }); // 离线兜底
+      }
+    });
+    var getLocation = new Promise(function(resolve, reject) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+      } else { reject(new Error('无定位能力')); }
+    });
+    Promise.all([getShot, getLocation]).then(function(r) {
+      wsWritePending(r[0].thumb, r[0].exifDate, r[1].coords.longitude, r[1].coords.latitude);
+    }).catch(function() {
+      getShot.then(function(r) {
+        wsWritePending(r.thumb, r.exifDate,
+          120.3826 + (Math.random() - 0.5) * 0.003, 36.0671 + (Math.random() - 0.5) * 0.003, 'approx');
+      });
+    });
+  }
+
+  // 按现有 pendingPhotos 字段格式写入（与 camera 页/首页 savePhotoToPending 完全一致）
+  function wsWritePending(thumb, exifDate, lng, lat, gpsSource) {
+    var now = new Date();
+    var capTime = exifDate || now; // EXIF 拍摄时间优先；失败/无 EXIF 用当前时间（保持现有行为）
+    var hour = capTime.getHours();
+    var photoData = {
+      id: 'photo_' + now.getTime() + '_' + Math.floor(Math.random() * 1e6),
+      color: '#F0A040', // color 作为后备显示字段
+      likes: 0, tips: 0, liked: false, tipped: false, collected: false, comments: [],
+      uploadTime: Math.floor(now.getTime() / 1000),
+      timeStr: String(hour).padStart(2, '0') + ':' + String(capTime.getMinutes()).padStart(2, '0'),
+      dateStr: capTime.getFullYear() + '年' + (capTime.getMonth() + 1) + '月' + capTime.getDate() + '日',
+      hour: hour,
+      lng: +lng.toFixed(6),
+      lat: +lat.toFixed(6),
+      photoDataUrl: thumb || solidThumbDataUrl()
+    };
+    // 标记近似定位来源（GPS 失败回退时写入；归类逻辑忽略该字段，仅作数据溯源）
+    if (gpsSource) photoData.gpsSource = gpsSource;
+    db.pendingPhotos.add(photoData).catch(function(e) { console.error('pendingPhotos add failed:', e); });
+  }
+
+  // Blob/File → 最长边 200px 的 JPEG 缩略图 dataURL
+  function blobToThumbnail(blob) {
+    return new Promise(function(resolve) {
+      if (!blob) { resolve(null); return; }
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function() {
+        try {
+          var canvas = document.createElement('canvas');
+          var scale = Math.min(200 / img.width, 200 / img.height, 1);
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        } catch (err) { resolve(null); }
+      };
+      img.onerror = function() { resolve(null); };
+      img.src = url;
+    });
+  }
+
+  // 兜底：按照片 color 生成纯色缩略图 dataURL（离线/图片解码失败时）
+  function solidThumbDataUrl(color) {
+    var canvas = document.createElement('canvas');
+    canvas.width = 200; canvas.height = 150;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = color || '#F0A040';
+    ctx.fillRect(0, 0, 200, 150);
+    return canvas.toDataURL('image/jpeg', 0.6);
+  }
+
+  // ========== 最小 EXIF 解析（JPEG APP1 "Exif\0\0" → DateTimeOriginal） ==========
+  // 读取 JPEG 前 64KB，定位 APP1 段；解析 TIFF IFD0 与 Exif SubIFD 中的
+  // DateTimeOriginal(0x9003) / DateTimeDigitized(0x9004) / DateTime(0x0132)，返回 'YYYY:MM:DD HH:MM:SS' 或 null
+  function parseExifDateTime(blob) {
+    return new Promise(function(resolve) {
+      if (!blob || !blob.slice) { resolve(null); return; }
+      var reader = new FileReader();
+      reader.onerror = function() { resolve(null); };
+      reader.onload = function(e) {
+        try { resolve(readExifDateTimeString(new DataView(e.target.result))); }
+        catch (err) { resolve(null); }
+      };
+      try { reader.readAsArrayBuffer(blob.slice(0, 65536)); } catch (err) { resolve(null); }
+    });
+  }
+
+  function readExifDateTimeString(view) {
+    var len = view.byteLength;
+    if (len < 4 || view.getUint8(0) !== 0xFF || view.getUint8(1) !== 0xD8) return null; // 非 JPEG
+    var off = 2;
+    while (off + 4 <= len) {
+      if (view.getUint8(off) !== 0xFF) break;
+      var marker = view.getUint8(off + 1);
+      if (marker === 0xD8 || (marker >= 0xD0 && marker <= 0xD7)) { off += 2; continue; } // SOI/RSTn 无长度
+      if (marker === 0xD9 || marker === 0xDA) break; // EOI / SOS
+      var segLen = view.getUint16(off + 2);
+      if (marker === 0xE1 && off + 12 <= len
+          && view.getUint32(off + 4) === 0x45786966 // "Exif"
+          && view.getUint16(off + 8) === 0) {        // "\0\0"
+        var t = readExifDateTimeFromTiff(view, off + 10, len);
+        if (t) return t;
+      }
+      off += 2 + segLen;
+    }
+    return null;
+  }
+
+  function readExifDateTimeFromTiff(view, start, limit) {
+    var mark = view.getUint16(start);
+    var little = mark === 0x4949; // 'II'
+    if (!little && mark !== 0x4D4D) return null;
+    var g16 = function(o) { return little ? view.getUint16(o, true) : view.getUint16(o, false); };
+    var g32 = function(o) { return little ? view.getUint32(o, true) : view.getUint32(o, false); };
+    if (g16(start + 2) !== 42) return null; // TIFF 魔术数
+    var out = { dtOriginal: null, dtDigitized: null, dt: null, sub: null };
+    scanIfd(g32(start + 4));            // IFD0
+    if (out.sub !== null) scanIfd(out.sub); // Exif SubIFD
+    return out.dtOriginal || out.dtDigitized || out.dt || null;
+
+    function scanIfd(ifdOffset) {
+      if (ifdOffset < 0 || start + ifdOffset + 2 > limit) return;
+      var count = g16(start + ifdOffset);
+      var base = start + ifdOffset + 2;
+      for (var i = 0; i < count; i++) {
+        var entry = base + i * 12;
+        if (entry + 12 > limit) break;
+        var tag = g16(entry);
+        var type = g16(entry + 2);
+        var n = g32(entry + 4);
+        if (tag === 0x8769 && type === 4 && n === 1) { out.sub = g32(entry + 8); continue; } // Exif IFD 指针
+        if (tag !== 0x9003 && tag !== 0x9004 && tag !== 0x0132) continue;
+        if (type !== 2 || n < 19 || n > 24) continue; // ASCII 且为日期长度
+        var s = readExifAscii(view, start + g32(entry + 8), Math.min(n, 24), limit);
+        if (!s) continue;
+        if (tag === 0x9003 && !out.dtOriginal) out.dtOriginal = s;
+        else if (tag === 0x9004 && !out.dtDigitized) out.dtDigitized = s;
+        else if (tag === 0x0132 && !out.dt) out.dt = s;
+      }
+    }
+  }
+
+  function readExifAscii(view, start, maxLen, limit) {
+    if (start < 0 || start >= limit) return null;
+    var n = Math.min(maxLen, limit - start);
+    if (n < 19) return null;
+    var chars = [];
+    for (var j = 0; j < n; j++) {
+      var c = view.getUint8(start + j);
+      if (c === 0) break;
+      chars.push(String.fromCharCode(c));
+    }
+    var s = chars.join('');
+    return /^\d{4}:\d{2}:\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(s) ? s : null;
+  }
+
+  // 'YYYY:MM:DD HH:MM:SS' → Date（EXIF 时间为拍摄地当地时间）
+  function exifStringToDate(str) {
+    if (!str) return null;
+    var m = str.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // 相机按钮 — 短按系统相机，长按（800ms）自定义专业相机
+  (function() {
+    var camBtn = document.getElementById('cameraBtn');
+    var longTimer = null, isLong = false;
+    function startLong() { isLong = false; longTimer = setTimeout(function() { isLong = true; window.location.href = 'camera-prototype.html'; }, 800); }
+    function cancelLong() { if (longTimer) clearTimeout(longTimer); }
+    camBtn.addEventListener('mousedown', startLong);
+    camBtn.addEventListener('touchstart', startLong);
+    camBtn.addEventListener('mouseup', cancelLong);
+    camBtn.addEventListener('mouseleave', cancelLong);
+    camBtn.addEventListener('touchend', cancelLong);
+    camBtn.addEventListener('touchcancel', cancelLong);
+    camBtn.addEventListener('click', function(e) { if (isLong) { isLong = false; return; } captureWithSystemCamera(); });
+  })();
+
+  // 客服
+  document.getElementById('serviceEntry').addEventListener('click', () => {
+    showToast('💬 正在连接人工客服...');
+  });
+
+  // 底部导航
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      var tab = item.dataset.tab;
+      if (tab === 'home') {
+        window.location.href = 'memo-home.html';
+        return;
+      }
+      if (tab === 'message') {
+        window.location.href = 'message-prototype.html';
+        return;
+      }
+      if (tab === 'profile') {
+        window.location.href = 'profile-prototype.html';
+        return;
+      }
+      document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+      item.classList.add('active');
+      var names = { home: '首页', market: '联机', message: '消息', profile: '个人中心' };
+      showToast('切换到：' + (names[tab] || tab));
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>消息界面原型设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  .container {
+    display: flex;
+    gap: 40px;
+    max-width: 1100px;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ========== 左侧手机预览 ========== */
+  .phone-wrapper { display: flex; flex-direction: column; align-items: center; }
+
+  .phone-frame {
+    width: 320px;
+    height: 680px;
+    background: #1C0F08;
+    border-radius: 42px;
+    padding: 14px;
+    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.45), 0 0 0 2px rgba(212, 165, 116, 0.25), inset 0 1px 0 rgba(212, 165, 116, 0.1);
+    position: relative;
+  }
+
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #1C0F08;
+    border-radius: 0 0 18px 18px;
+    z-index: 10;
+  }
+
+  .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: #FFF5E6;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 状态栏 */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px 6px;
+    color: #1C0F08;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .status-icons svg { width: 16px; height: 11px; }
+
+  /* 页面头部 */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px 12px;
+    flex-shrink: 0;
+  }
+  .page-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1C0F08;
+    letter-spacing: 0.5px;
+  }
+  .page-title-sub {
+    font-size: 11px;
+    color: #B89070;
+    margin-top: 2px;
+  }
+  .header-actions { display: flex; gap: 8px; }
+  .header-btn {
+    width: 34px; height: 34px;
+    background: rgba(255, 250, 242, 0.95);
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(28, 15, 8, 0.08);
+  }
+  .header-btn:hover { transform: translateY(-1px); }
+  .header-btn svg { width: 16px; height: 16px; color: #8B5E3C; }
+
+  /* 分类标签栏 */
+  .category-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 0 16px 12px;
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .category-tabs::-webkit-scrollbar { display: none; }
+  .category-tab {
+    padding: 6px 14px;
+    border-radius: 16px;
+    background: rgba(255, 245, 230, 0.7);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    font-size: 12px;
+    color: #9B7B5A;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .category-tab:hover { background: rgba(240, 160, 64, 0.1); }
+  .category-tab.active {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 3px 10px rgba(232, 144, 32, 0.4);
+  }
+  .category-tab .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 14px;
+    height: 14px;
+    background: #E85D3C;
+    color: white;
+    font-size: 9px;
+    border-radius: 7px;
+    padding: 0 4px;
+    margin-left: 4px;
+    font-weight: 600;
+  }
+  .category-tab.active .badge {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  /* 消息列表区域 */
+  .message-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 72px;
+  }
+  .message-list::-webkit-scrollbar { width: 3px; }
+  .message-list::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.4); border-radius: 2px; }
+
+  .message-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #B89070;
+    padding: 8px 4px 6px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+
+  .message-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 250, 242, 0.85);
+    border: 1px solid rgba(212, 165, 116, 0.15);
+    border-radius: 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  .message-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(28, 15, 8, 0.1);
+    border-color: rgba(212, 165, 116, 0.3);
+  }
+  .message-item:active { transform: scale(0.98); }
+
+  .message-item.unread {
+    background: rgba(255, 245, 230, 0.95);
+    border-color: rgba(240, 160, 64, 0.3);
+  }
+  .message-item.unread::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #E89020;
+  }
+
+  .msg-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+    position: relative;
+  }
+  .msg-avatar.system { background: linear-gradient(135deg, #F0A040, #D4691C); }
+  .msg-avatar.like { background: linear-gradient(135deg, #E89020, #B85E3C); }
+  .msg-avatar.comment { background: linear-gradient(135deg, #D4691C, #8B4513); }
+  .msg-avatar.follow { background: linear-gradient(135deg, #9B7B5A, #6B4423); }
+  .msg-avatar.notice { background: linear-gradient(135deg, #F5B870, #E89020); }
+
+  .msg-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .msg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 3px;
+  }
+  .msg-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1C0F08;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .msg-time {
+    font-size: 10px;
+    color: #B89070;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .msg-preview {
+    font-size: 12px;
+    color: #8B5E3C;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .msg-preview .highlight { color: #D4691C; font-weight: 500; }
+
+  .msg-thumb {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #EBC9A0, #D4A870);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #8B5E3C;
+  }
+
+  /* 底部导航栏 */
+  .bottom-nav {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 56px;
+    background: rgba(250, 243, 231, 0.97);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(212, 165, 116, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+    z-index: 20;
+    box-shadow: 0 -4px 20px rgba(28, 15, 8, 0.08);
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    flex: 1;
+    max-width: 70px;
+    color: #9B7B5A;
+  }
+  .nav-item:hover { background: rgba(240, 160, 64, 0.1); }
+  .nav-item.active .nav-label { color: #E89020; }
+  .nav-item.active svg { color: #E89020; }
+  .nav-item svg { width: 22px; height: 22px; transition: color 0.2s; }
+  .nav-label { font-size: 10px; transition: color 0.2s; }
+
+  .nav-center {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    margin-top: -22px;
+    flex-shrink: 0;
+  }
+  .nav-center-btn {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.5), inset 0 1px 0 rgba(255, 233, 184, 0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    color: white;
+  }
+  .nav-center-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(232, 144, 32, 0.6); }
+  .nav-center-btn:active { transform: translateY(0) scale(0.95); }
+  .nav-center-btn svg { width: 24px; height: 24px; }
+
+  .home-indicator {
+    position: absolute;
+    bottom: 4px; left: 50%;
+    transform: translateX(-50%);
+    width: 100px; height: 4px;
+    background: rgba(28, 15, 8, 0.4);
+    border-radius: 2px;
+    z-index: 5;
+  }
+
+  /* 未读红点 */
+  .nav-item .unread-dot {
+    position: absolute;
+    top: 2px;
+    right: 50%;
+    transform: translateX(14px);
+    width: 7px;
+    height: 7px;
+    background: #E85D3C;
+    border-radius: 50%;
+    border: 1.5px solid rgba(250, 243, 231, 1);
+  }
+  .nav-item { position: relative; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(28, 15, 8, 0.92);
+    color: #FFF5E6;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #B89070;
+  }
+  .empty-state-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+    opacity: 0.5;
+  }
+  .empty-state-text {
+    font-size: 13px;
+    color: #B89070;
+  }
+</style>
+<script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- ========== 左侧：手机预览 ========== -->
+    <div class="phone-wrapper">
+      <div class="phone-frame">
+        <div class="phone-screen">
+
+          <!-- 状态栏 -->
+          <div class="status-bar">
+            <span>9:41</span>
+            <div class="status-icons">
+              <svg viewBox="0 0 16 11" fill="currentColor">
+                <path d="M1 8h2v3H1zM5 6h2v5H5zM9 3h2v8H9zM13 0h2v11h-2z"/>
+              </svg>
+              <svg viewBox="0 0 14 11" fill="currentColor">
+                <path d="M7 1C4 1 1.5 2 0 3.5l1.5 1.5C2.8 4 4.8 3 7 3s4.2 1 5.5 2L14 3.5C12.5 2 10 1 7 1zm0 3C5.2 4 3.7 4.7 2.5 5.7L4 7.2c.9-.8 2.4-1.5 3-1.5s2.1.7 3 1.5l1.5-1.5C10.3 4.7 8.8 4 7 4zm0 3c-1 0-2 .5-2.5 1.5L7 11l2.5-2.5C9 7.5 8 7 7 7z"/>
+              </svg>
+              <svg viewBox="0 0 24 11" fill="none" stroke="currentColor" stroke-width="1">
+                <rect x="1" y="1" width="18" height="9" rx="2" ry="2"/>
+                <rect x="2.5" y="2.5" width="15" height="6" rx="1" fill="currentColor"/>
+                <rect x="20" y="3.5" width="2" height="4" rx="1" fill="currentColor"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- 页面头部 -->
+          <div class="page-header">
+            <div>
+              <div class="page-title">消息</div>
+              <div class="page-title-sub">2条未读 · 共 12 条</div>
+            </div>
+            <div class="header-actions">
+              <div class="header-btn" title="全部已读" id="markAllReadBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <div class="header-btn" title="设置" id="settingsBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- 分类标签 -->
+          <div class="category-tabs" id="categoryTabs">
+            <div class="category-tab active" data-cat="all">全部<span class="badge">2</span></div>
+            <div class="category-tab" data-cat="like">点赞<span class="badge">1</span></div>
+            <div class="category-tab" data-cat="comment">评论</div>
+            <div class="category-tab" data-cat="follow">关注</div>
+            <div class="category-tab" data-cat="system">通知</div>
+          </div>
+
+          <!-- 消息列表 -->
+          <div class="message-list" id="messageList">
+            <!-- 由 JS 动态生成 -->
+          </div>
+
+          <!-- 底部导航栏 -->
+          <div class="bottom-nav">
+            <div class="nav-item" data-tab="home">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              <span class="nav-label">首页</span>
+            </div>
+            <div class="nav-item" data-tab="market">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              <span class="nav-label">联机</span>
+            </div>
+
+            <div class="nav-center">
+              <button class="nav-center-btn" id="cameraBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="nav-item active" data-tab="message">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span class="nav-label">消息</span>
+            </div>
+            <div class="nav-item" data-tab="profile">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span class="nav-label">我</span>
+            </div>
+          </div>
+
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+<script>
+  var db = new Dexie('memoPhotos');
+  db.version(1).stores({ pendingPhotos: 'id, hour, lng, lat' });
+
+  // 消息数据
+  const messages = [
+    {
+      id: 1,
+      type: 'like',
+      category: 'like',
+      name: '小暖',
+      avatar: '暖',
+      avatarClass: 'like',
+      content: '赞了你的照片「西湖日落」',
+      time: '刚刚',
+      unread: true,
+      thumb: '🌅'
+    },
+    {
+      id: 2,
+      type: 'system',
+      category: 'system',
+      name: '系统通知',
+      avatar: '📢',
+      avatarClass: 'system',
+      content: '您的坐标点「雷峰塔」已成功备份至云端',
+      time: '10分钟前',
+      unread: true,
+      thumb: '☁️'
+    },
+    {
+      id: 3,
+      type: 'comment',
+      category: 'comment',
+      name: '阿柴',
+      avatar: '柴',
+      avatarClass: 'comment',
+      content: '在「断桥残雪」下评论："这个角度太美了，下次一起去吧！"',
+      time: '1小时前',
+      unread: false,
+      thumb: '🏯'
+    },
+    {
+      id: 4,
+      type: 'like',
+      category: 'like',
+      name: '旅行的鱼',
+      avatar: '鱼',
+      avatarClass: 'like',
+      content: '等3人赞了你的照片「白堤春柳」',
+      time: '3小时前',
+      unread: false,
+      thumb: '🌸'
+    },
+    {
+      id: 5,
+      type: 'follow',
+      category: 'follow',
+      name: '摄影师-Lumi',
+      avatar: 'L',
+      avatarClass: 'follow',
+      content: '关注了你',
+      time: '昨天',
+      unread: false,
+      thumb: '📷'
+    },
+    {
+      id: 6,
+      type: 'comment',
+      category: 'comment',
+      name: '咖啡豆',
+      avatar: '豆',
+      avatarClass: 'comment',
+      content: '在「万象城美食」下评论："这家店具体在哪里呀？求坐标～"',
+      time: '昨天',
+      unread: false,
+      thumb: '🍜'
+    },
+    {
+      id: 7,
+      type: 'system',
+      category: 'system',
+      name: '存储服务',
+      avatar: '💾',
+      avatarClass: 'system',
+      content: '您的存储空间已使用 68%，清理缓存可释放 2.3GB',
+      time: '2天前',
+      unread: false,
+      thumb: '📦'
+    },
+    {
+      id: 8,
+      type: 'like',
+      category: 'like',
+      name: '木子',
+      avatar: '木',
+      avatarClass: 'like',
+      content: '赞了你的坐标点「净慈寺」',
+      time: '3天前',
+      unread: false,
+      thumb: '🏛️'
+    },
+    {
+      id: 9,
+      type: 'system',
+      category: 'system',
+      name: '活动提醒',
+      avatar: '🎉',
+      avatarClass: 'notice',
+      content: '周年纪念活动：发布新坐标赢取限定徽章，活动截止 8/31',
+      time: '5天前',
+      unread: false,
+      thumb: '🎁'
+    },
+    {
+      id: 10,
+      type: 'follow',
+      category: 'follow',
+      name: '迷路的猫',
+      avatar: '猫',
+      avatarClass: 'follow',
+      content: '收藏了你的坐标点「孤山」',
+      time: '1周前',
+      unread: false,
+      thumb: '🐱'
+    }
+  ];
+
+  let currentCategory = 'all';
+
+  // 渲染消息列表
+  function renderMessages() {
+    const list = document.getElementById('messageList');
+    let filtered = currentCategory === 'all'
+      ? messages
+      : messages.filter(m => m.category === currentCategory);
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无此类消息</div></div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(m => `
+      <div class="message-item ${m.unread ? 'unread' : ''}" data-id="${m.id}">
+        <div class="msg-avatar ${m.avatarClass}">${m.avatar}</div>
+        <div class="msg-content">
+          <div class="msg-header">
+            <span class="msg-name">${m.name}</span>
+            <span class="msg-time">${m.time}</span>
+          </div>
+          <div class="msg-preview">${m.content}</div>
+        </div>
+        ${m.thumb ? `<div class="msg-thumb">${m.thumb}</div>` : ''}
+      </div>
+    `).join('');
+
+    // 绑定点击事件
+    list.querySelectorAll('.message-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = parseInt(item.dataset.id);
+        const msg = messages.find(m => m.id === id);
+        if (msg) {
+          msg.unread = false;
+          renderMessages();
+          showToast('📩 查看与「' + msg.name + '」的对话');
+        }
+      });
+    });
+  }
+
+  // 分类标签切换
+  document.getElementById('categoryTabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('.category-tab');
+    if (!tab) return;
+    document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentCategory = tab.dataset.cat;
+    renderMessages();
+  });
+
+  // 全部已读
+  document.getElementById('markAllReadBtn').addEventListener('click', () => {
+    messages.forEach(m => m.unread = false);
+    renderMessages();
+    updateBadges();
+    showToast('✓ 已将所有消息标记为已读');
+  });
+
+  // 更新徽章
+  function updateBadges() {
+    const unreadCount = messages.filter(m => m.unread).length;
+    const tabs = document.querySelectorAll('.category-tab');
+    tabs.forEach(tab => {
+      const cat = tab.dataset.cat;
+      const count = cat === 'all'
+        ? messages.filter(m => m.unread).length
+        : messages.filter(m => m.unread && m.category === cat).length;
+      const badge = tab.querySelector('.badge');
+      if (count > 0) {
+        if (badge) badge.textContent = count;
+        else {
+          const b = document.createElement('span');
+          b.className = 'badge';
+          b.textContent = count;
+          tab.appendChild(b);
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+    // 更新副标题
+    const sub = document.querySelector('.page-title-sub');
+    if (sub) {
+      sub.textContent = unreadCount > 0
+        ? `${unreadCount}条未读 · 共 ${messages.length} 条`
+        : `共 ${messages.length} 条消息`;
+    }
+  }
+
+  // 设置按钮
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    showToast('⚙️ 消息设置');
+  });
+
+  // 底部导航
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const tab = item.dataset.tab;
+      if (tab === 'home') {
+        window.location.href = 'memo-home.html';
+        return;
+      }
+      if (tab === 'market') {
+        window.location.href = 'connect-prototype.html';
+        return;
+      }
+      if (tab === 'profile') {
+        window.location.href = 'profile-prototype.html';
+        return;
+      }
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      showToast('已在消息页面');
+    });
+  });
+
+  // ========== 系统相机捕获 ==========
+  function captureWithSystemCamera() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.setAttribute('capture', 'camera');
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', function() {
+      var file = input.files[0];
+      if (!file) { document.body.removeChild(input); return; }
+      var getThumbnail = new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            var canvas = document.createElement('canvas');
+            var scale = Math.min(200 / img.width, 200 / img.height, 1);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+      var getLocation = new Promise(function(resolve, reject) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        } else { reject(new Error('无定位能力')); }
+      });
+      Promise.all([getLocation, getThumbnail]).then(function(results) {
+        savePhotoToPending(results[0].coords.longitude, results[0].coords.latitude, results[1]);
+      }).catch(function() {
+        getThumbnail.then(function(thumb) {
+          savePhotoToPending(120.3826 + (Math.random() - 0.5) * 0.01, 36.0671 + (Math.random() - 0.5) * 0.01, thumb);
+        });
+      });
+    });
+    input.click();
+  }
+  function savePhotoToPending(lng, lat, thumbnail) {
+    var now = new Date();
+    var hour = now.getHours();
+    var photoData = {
+      id: 'photo_' + now.getTime(), color: '#F0A040', likes: 0, tips: 0, liked: false, tipped: false, collected: false, comments: [],
+      uploadTime: Math.floor(now.getTime() / 1000),
+      timeStr: String(hour).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
+      dateStr: now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日',
+      hour: hour, lng: +lng.toFixed(6), lat: +lat.toFixed(6), photoDataUrl: thumbnail
+    };
+    db.pendingPhotos.add(photoData).then(function() {
+      var oldInputs = document.querySelectorAll('input[type=file][capture=camera]');
+      oldInputs.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
+      window.location.href = 'memo-home.html';
+    });
+  }
+  // 相机按钮 — 短按系统相机，长按（800ms）自定义专业相机
+  (function() {
+    var camBtn = document.getElementById('cameraBtn');
+    var longTimer = null, isLong = false;
+    function startLong() { isLong = false; longTimer = setTimeout(function() { isLong = true; window.location.href = 'camera-prototype.html'; }, 800); }
+    function cancelLong() { if (longTimer) clearTimeout(longTimer); }
+    camBtn.addEventListener('mousedown', startLong);
+    camBtn.addEventListener('touchstart', startLong);
+    camBtn.addEventListener('mouseup', cancelLong);
+    camBtn.addEventListener('mouseleave', cancelLong);
+    camBtn.addEventListener('touchend', cancelLong);
+    camBtn.addEventListener('touchcancel', cancelLong);
+    camBtn.addEventListener('click', function(e) { if (isLong) { isLong = false; return; } captureWithSystemCamera(); });
+  })();
+
+  // Toast
+  let toastTimer;
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+  }
+
+  // 初始化
+  renderMessages();
+</script>
+</body>
+</html>

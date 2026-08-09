@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>摄影师升级支付</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  .container {
+    display: flex;
+    gap: 40px;
+    max-width: 1100px;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ========== 左侧手机预览 ========== */
+  .phone-wrapper { display: flex; flex-direction: column; align-items: center; }
+
+  .phone-frame {
+    width: 320px;
+    height: 680px;
+    background: #1C0F08;
+    border-radius: 42px;
+    padding: 14px;
+    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.45), 0 0 0 2px rgba(212, 165, 116, 0.25), inset 0 1px 0 rgba(212, 165, 116, 0.1);
+    position: relative;
+  }
+
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #1C0F08;
+    border-radius: 0 0 18px 18px;
+    z-index: 10;
+  }
+
+  .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: #FFF5E6;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 状态栏 */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px 6px;
+    color: #1C0F08;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .status-icons svg { width: 14px; height: 11px; }
+
+  /* 顶部导航 */
+  .pay-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px 12px;
+    background: #FFF5E6;
+    flex-shrink: 0;
+  }
+  .pay-back {
+    width: 32px; height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #5C3D2E;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .pay-back:hover { background: rgba(240, 160, 64, 0.12); }
+  .pay-back svg { width: 20px; height: 20px; }
+  .pay-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1C0F08;
+    margin-left: 4px;
+  }
+
+  /* 内容滚动区 */
+  .pay-scroll {
+    flex: 1;
+    overflow-y: auto;
+    background: #FFF5E6;
+    padding: 0 16px 16px;
+  }
+  .pay-scroll::-webkit-scrollbar { width: 3px; }
+  .pay-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+
+  /* 套餐卡片 */
+  .package-card {
+    background: linear-gradient(135deg, #2A2018 0%, #0F0A06 100%);
+    border-radius: 16px;
+    padding: 22px 18px;
+    color: #FAF5EC;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(28, 15, 8, 0.25);
+  }
+  /* 金色光晕装饰 */
+  .package-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 140px; height: 140px;
+    background: radial-gradient(circle, rgba(232, 180, 80, 0.35) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .package-emblem {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFD98A 0%, #E8B450 50%, #C08020 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 14px rgba(232, 180, 80, 0.5);
+    position: relative;
+    z-index: 1;
+  }
+  .package-emblem svg { width: 24px; height: 24px; color: white; }
+  .package-title {
+    font-size: 19px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    position: relative;
+    z-index: 1;
+  }
+  .package-subtitle {
+    font-size: 11px;
+    color: rgba(255, 217, 138, 0.75);
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 1;
+  }
+  .package-price {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    position: relative;
+    z-index: 1;
+  }
+  .price-currency {
+    font-size: 16px;
+    font-weight: 600;
+    color: #FFD98A;
+  }
+  .price-amount {
+    font-size: 32px;
+    font-weight: 800;
+    color: #FFD98A;
+    letter-spacing: -0.5px;
+  }
+  .price-period {
+    font-size: 12px;
+    color: rgba(255, 217, 138, 0.6);
+    margin-left: 4px;
+  }
+  .price-original {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.35);
+    text-decoration: line-through;
+    margin-left: 8px;
+  }
+
+  /* 订单详情 */
+  .order-section {
+    background: rgba(250, 245, 236, 0.95);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .order-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    font-size: 13px;
+  }
+  .order-row + .order-row { border-top: 1px dashed rgba(212, 165, 116, 0.2); }
+  .order-label {
+    color: #8B5E3C;
+  }
+  .order-value {
+    color: #1C0F08;
+    font-weight: 600;
+  }
+  .order-row.total {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1.5px solid rgba(212, 165, 116, 0.3);
+    font-size: 15px;
+  }
+  .order-row.total .order-value {
+    color: #D4691C;
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  /* 支付方式 */
+  .pay-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #9B7B5A;
+    padding: 4px 4px 10px;
+    letter-spacing: 0.5px;
+  }
+  .pay-methods {
+    background: rgba(250, 245, 236, 0.95);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .pay-method {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: background 0.18s;
+    position: relative;
+  }
+  .pay-method:hover { background: rgba(240, 160, 64, 0.06); }
+  .pay-method + .pay-method { border-top: 1px solid rgba(212, 165, 116, 0.12); }
+  .pay-method-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .pay-method-icon svg { width: 22px; height: 22px; color: white; }
+  /* 微信 - 绿色 */
+  .pay-method[data-method="wechat"] .pay-method-icon {
+    background: linear-gradient(135deg, #2DC100 0%, #1A9500 100%);
+  }
+  /* 支付宝 - 蓝色 */
+  .pay-method[data-method="alipay"] .pay-method-icon {
+    background: linear-gradient(135deg, #1677FF 0%, #0950B0 100%);
+  }
+  /* 银行卡 - 暖橙金 */
+  .pay-method[data-method="bank"] .pay-method-icon {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+  }
+  .pay-method-info { flex: 1; }
+  .pay-method-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1C0F08;
+    margin-bottom: 2px;
+  }
+  .pay-method-desc {
+    font-size: 11px;
+    color: #8B5E3C;
+  }
+  .pay-method-radio {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid #D4B896;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .pay-method.selected .pay-method-radio {
+    border-color: #F0A040;
+    background: #F0A040;
+  }
+  .pay-method-radio svg {
+    width: 12px; height: 12px;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .pay-method.selected .pay-method-radio svg { opacity: 1; }
+
+  /* 底部支付按钮 */
+  .pay-footer {
+    padding: 12px 16px 18px;
+    background: #FFF5E6;
+    border-top: 1px solid rgba(212, 165, 116, 0.2);
+    flex-shrink: 0;
+  }
+  .pay-confirm {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(240, 160, 64, 0.4);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .pay-confirm:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(240, 160, 64, 0.5); }
+  .pay-confirm:active { transform: scale(0.96); }
+  .pay-confirm:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .home-indicator {
+    width: 100px; height: 4px;
+    background: rgba(28, 15, 8, 0.4);
+    border-radius: 2px;
+    margin: 10px auto;
+  }
+
+  @media (max-width: 900px) {
+    .container { flex-direction: column; gap: 30px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="phone-wrapper">
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7 3 2.73 5.11 0 8.5L12 21 24 8.5C21.27 5.11 17 3 12 3z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+          </div>
+        </div>
+
+        <!-- 顶部导航 -->
+        <div class="pay-header">
+          <div class="pay-back" id="payBack" onclick="window.location.href='profile-prototype.html'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </div>
+          <div class="pay-title">升级认证摄影师</div>
+        </div>
+
+        <!-- 内容滚动区 -->
+        <div class="pay-scroll">
+          <!-- 套餐卡片 -->
+          <div class="package-card">
+            <div class="package-emblem">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="5"/><path d="M3 21v-2a7 7 0 0 1 14 0v2"/>
+              </svg>
+            </div>
+            <div class="package-title">认证摄影师</div>
+            <div class="package-subtitle">解锁工作 / 生活模式切换 · 作品优先展示</div>
+            <div class="package-price">
+              <span class="price-currency">¥</span>
+              <span class="price-amount">198</span>
+              <span class="price-period">/ 年</span>
+              <span class="price-original">¥398</span>
+            </div>
+          </div>
+
+          <!-- 订单详情 -->
+          <div class="order-section">
+            <div class="order-row">
+              <span class="order-label">套餐名称</span>
+              <span class="order-value">认证摄影师年费</span>
+            </div>
+            <div class="order-row">
+              <span class="order-label">有效期</span>
+              <span class="order-value">12个月</span>
+            </div>
+            <div class="order-row">
+              <span class="order-label">优惠</span>
+              <span class="order-value">-¥200</span>
+            </div>
+            <div class="order-row total">
+              <span class="order-label">合计</span>
+              <span class="order-value">¥198</span>
+            </div>
+          </div>
+
+          <!-- 支付方式 -->
+          <div class="pay-section-title">选择支付方式</div>
+          <div class="pay-methods" id="payMethods">
+            <div class="pay-method selected" data-method="wechat" onclick="selectPayMethod(this)">
+              <div class="pay-method-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18z"/></svg>
+              </div>
+              <div class="pay-method-info">
+                <div class="pay-method-name">微信支付</div>
+                <div class="pay-method-desc">推荐安装微信的用户使用</div>
+              </div>
+              <div class="pay-method-radio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+            <div class="pay-method" data-method="alipay" onclick="selectPayMethod(this)">
+              <div class="pay-method-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.5 14h-1.25c-.414 0-.75-.336-.75-.75v-6.5c0-.414.336-.75.75-.75H16.5c.414 0 .75.336.75.75v6.5c0 .414-.336.75-.75.75zm-8.75 0H6.5c-.414 0-.75-.336-.75-.75v-6.5c0-.414.336-.75.75-.75H7.75c.414 0 .75.336.75.75v6.5c0 .414-.336.75-.75.75zm4.25 0h-1.25c-.414 0-.75-.336-.75-.75v-6.5c0-.414.336-.75.75-.75H12c.414 0 .75.336.75.75v6.5c0 .414-.336.75-.75.75z"/></svg>
+              </div>
+              <div class="pay-method-info">
+                <div class="pay-method-name">支付宝</div>
+                <div class="pay-method-desc">安全快捷的支付方式</div>
+              </div>
+              <div class="pay-method-radio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部支付按钮 -->
+        <div class="pay-footer">
+          <button class="pay-confirm" id="payConfirm" onclick="confirmPayment()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+            </svg>
+            立即支付 ¥198
+          </button>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function selectPayMethod(el) {
+    document.querySelectorAll('.pay-method').forEach(m => m.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function confirmPayment() {
+    const btn = document.getElementById('payConfirm');
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> 支付处理中...';
+
+    setTimeout(() => {
+      // 支付成功 → 更新本地存储 → 返回我的页面
+      localStorage.setItem('profile_photographer', '1');
+      alert('✅ 支付成功！你已升级为认证摄影师');
+      window.location.href = 'profile-prototype.html';
+    }, 2000);
+  }
+
+  // 键盘支持
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmPayment();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,2276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的界面原型设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  .container {
+    display: flex;
+    gap: 40px;
+    max-width: 1100px;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ========== 左侧手机预览 ========== */
+  .phone-wrapper { display: flex; flex-direction: column; align-items: center; }
+
+  .phone-frame {
+    width: 320px;
+    height: 680px;
+    background: #1C0F08;
+    border-radius: 42px;
+    padding: 14px;
+    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.45), 0 0 0 2px rgba(212, 165, 116, 0.25), inset 0 1px 0 rgba(212, 165, 116, 0.1);
+    position: relative;
+  }
+
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 28px;
+    background: #1C0F08;
+    border-radius: 0 0 18px 18px;
+    z-index: 10;
+  }
+
+  .phone-screen {
+    width: 100%; height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: #FFF5E6;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 状态栏 */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px 6px;
+    color: #1C0F08;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .status-icons svg { width: 14px; height: 11px; }
+
+  /* 视图切换 */
+  .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .view.active { display: flex; }
+
+  /* ===== 我的主页 ===== */
+  .profile-header {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    padding: 16px 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .profile-header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 20px;
+    background: #FFF5E6;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .profile-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .profile-avatar svg { width: 28px; height: 28px; color: white; }
+
+  .profile-info { 
+    color: white; 
+    flex: 1; 
+    min-width: 0; 
+  }
+  .profile-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .profile-desc {
+    font-size: 12px;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 16px 20px;
+    background: #FFF5E6;
+    flex-shrink: 0;
+  }
+  .stat-item {
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .stat-item:hover { transform: scale(1.05); }
+  .stat-num {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1C0F08;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: #8B5E3C;
+    margin-top: 2px;
+  }
+
+  .profile-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px;
+    background: #FFF5E6;
+  }
+  .profile-scroll::-webkit-scrollbar { width: 3px; }
+  .profile-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+
+  .menu-section {
+    margin-top: 12px;
+    margin-bottom: 16px;
+  }
+
+  .menu-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #9B7B5A;
+    padding: 8px 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .menu-card {
+    background: rgba(250, 245, 236, 0.95);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(28, 15, 8, 0.05);
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: background 0.18s;
+  }
+  .menu-item:hover { background: rgba(240, 160, 64, 0.08); }
+  .menu-item:active { background: rgba(240, 160, 64, 0.15); }
+
+  .menu-item + .menu-item {
+    border-top: 1px solid rgba(212, 165, 116, 0.12);
+  }
+
+  .menu-item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .menu-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: rgba(240, 160, 64, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .menu-icon svg { width: 16px; height: 16px; color: #E89020; }
+
+  .menu-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1C0F08;
+  }
+
+  .menu-item-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .menu-badge {
+    font-size: 11px;
+    color: #8B5E3C;
+    background: rgba(155, 123, 90, 0.12);
+    padding: 2px 8px;
+    border-radius: 8px;
+  }
+  .menu-arrow {
+    width: 14px; height: 14px;
+    color: #B89878;
+  }
+
+  /* ===== 我的删除页 ===== */
+  .sub-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #FAF5EC;
+    border-bottom: 1px solid rgba(212, 165, 116, 0.15);
+    flex-shrink: 0;
+  }
+  .sub-back {
+    width: 32px; height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #5C3D2E;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .sub-back:hover { background: rgba(240, 160, 64, 0.12); }
+  .sub-back svg { width: 20px; height: 20px; }
+  .sub-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1C0F08;
+    margin-left: 4px;
+  }
+
+  .deleted-tabs {
+    display: flex;
+    padding: 10px 16px;
+    gap: 8px;
+    background: #FAF5EC;
+    flex-shrink: 0;
+  }
+  .deleted-tab {
+    flex: 1;
+    padding: 8px 14px;
+    text-align: center;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #8B5E3C;
+    background: rgba(155, 123, 90, 0.1);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .deleted-tab.active {
+    background: rgba(240, 160, 64, 0.18);
+    color: #C97B2A;
+  }
+
+  .deleted-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    background: #FFF5E6;
+  }
+  .deleted-list::-webkit-scrollbar { width: 3px; }
+  .deleted-list::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+
+  .deleted-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #B89878;
+  }
+  .deleted-empty svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5; }
+  .deleted-empty p { font-size: 13px; }
+
+  /* 删除的坐标点卡片 */
+  .deleted-marker-card {
+    background: rgba(250, 245, 236, 0.98);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 10px rgba(28, 15, 8, 0.05);
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .deleted-marker-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .deleted-marker-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    flex-shrink: 0;
+  }
+
+  .deleted-marker-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .deleted-marker-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1C0F08;
+    margin-bottom: 3px;
+  }
+
+  .deleted-marker-coords {
+    font-size: 11px;
+    color: #8B5E3C;
+    line-height: 1.5;
+  }
+
+  .deleted-marker-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #9B7B5A;
+    margin-bottom: 10px;
+  }
+
+  .deleted-marker-meta span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .deleted-marker-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .restore-btn {
+    flex: 1;
+    padding: 9px 12px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 3px 10px rgba(240, 160, 64, 0.35);
+    transition: all 0.2s;
+  }
+  .restore-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(240, 160, 64, 0.45); }
+  .restore-btn:active { transform: scale(0.96); }
+  .restore-btn svg { width: 14px; height: 14px; }
+
+  .restore-permanent {
+    padding: 9px 12px;
+    background: rgba(155, 123, 90, 0.12);
+    border: none;
+    border-radius: 10px;
+    color: #8B5E3C;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .restore-permanent:hover { background: rgba(232, 83, 83, 0.12); color: #E85353; }
+
+  /* 删除的照片网格 */
+  .deleted-photos {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .deleted-photo {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .deleted-photo:hover { transform: scale(1.03); }
+  .deleted-photo-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    padding: 4px;
+  }
+  .deleted-photo-restore {
+    position: absolute;
+    bottom: 4px; right: 4px;
+    width: 22px; height: 22px;
+    background: rgba(240, 160, 64, 0.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .deleted-photo-restore svg { width: 12px; height: 12px; color: white; }
+
+  /* 底部导航栏 */
+  .bottom-nav {
+    height: 62px;
+    background: rgba(250, 245, 236, 0.97);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(212, 165, 116, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    flex: 1;
+    max-width: 70px;
+    color: #9B7B5A;
+  }
+  .nav-item:hover { background: rgba(240, 160, 64, 0.1); }
+  .nav-item.active .nav-label { color: #E89020; }
+  .nav-item.active svg { color: #E89020; }
+  .nav-item svg { width: 22px; height: 22px; transition: color 0.2s; }
+  .nav-label { font-size: 10px; transition: color 0.2s; }
+
+  .nav-center {
+    position: relative;
+    width: 52px;
+    height: 52px;
+    margin-top: -22px;
+    flex-shrink: 0;
+  }
+  .nav-center-btn {
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.5), inset 0 1px 0 rgba(255, 233, 184, 0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    color: white;
+  }
+  .nav-center-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(232, 144, 32, 0.6); }
+  .nav-center-btn:active { transform: translateY(0) scale(0.95); }
+  .nav-center-btn svg { width: 24px; height: 24px; }
+
+  .home-indicator {
+    position: absolute;
+    bottom: 4px; left: 50%;
+    transform: translateX(-50%);
+    width: 100px; height: 4px;
+    background: rgba(28, 15, 8, 0.4);
+    border-radius: 2px;
+    z-index: 5;
+  }
+
+  .toast {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(28, 15, 8, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 16px 28px;
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(28, 15, 8, 0.4);
+    font-size: 14px;
+    color: #F5DFC0;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 200;
+    text-align: center;
+    white-space: nowrap;
+    border: 1px solid rgba(240, 160, 64, 0.3);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  /* ========== 会员中心视图 ========== */
+  .member-hero {
+    background: linear-gradient(135deg, #2A1810 0%, #4A2818 50%, #6B3818 100%);
+    padding: 24px 20px 28px;
+    color: #FAF5EC;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .member-hero::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    background: radial-gradient(circle, rgba(240, 160, 64, 0.25) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .member-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 20px;
+    background: #FFF5E6;
+    border-radius: 20px 20px 0 0;
+  }
+  .member-crown {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    box-shadow: 0 6px 20px rgba(240, 160, 64, 0.4);
+    position: relative;
+    z-index: 1;
+  }
+  .member-crown svg { width: 28px; height: 28px; color: white; }
+  .member-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    position: relative;
+    z-index: 1;
+  }
+  .member-subtitle {
+    font-size: 12px;
+    opacity: 0.7;
+    position: relative;
+    z-index: 1;
+  }
+  .member-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 10px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(240, 160, 64, 0.2);
+    color: #F0A040;
+    border: 1px solid rgba(240, 160, 64, 0.4);
+    position: relative;
+    z-index: 1;
+  }
+  .member-status-badge.active {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    border-color: transparent;
+  }
+
+  .member-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 20px;
+    background: #FFF5E6;
+  }
+  .member-scroll::-webkit-scrollbar { width: 3px; }
+  .member-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+
+  /* 套餐卡片 */
+  .plan-card {
+    background: linear-gradient(135deg, #FAF5EC 0%, #F4E8D6 100%);
+    border: 1.5px solid rgba(240, 160, 64, 0.35);
+    border-radius: 18px;
+    padding: 20px 18px;
+    margin-top: 16px;
+    box-shadow: 0 6px 20px rgba(28, 15, 8, 0.08);
+    position: relative;
+    overflow: hidden;
+  }
+  .plan-card::before {
+    content: '推荐';
+    position: absolute;
+    top: 12px; right: 12px;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+  }
+  .plan-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1C0F08;
+    margin-bottom: 6px;
+  }
+  .plan-desc {
+    font-size: 12px;
+    color: #8B5E3C;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  .plan-price {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+  .plan-price-symbol { font-size: 16px; font-weight: 700; color: #D4691C; }
+  .plan-price-num { font-size: 36px; font-weight: 800; color: #D4691C; line-height: 1; }
+  .plan-price-unit { font-size: 13px; color: #8B5E3C; }
+
+  .plan-btn {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .plan-btn.subscribe {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    box-shadow: 0 4px 14px rgba(240, 160, 64, 0.4);
+  }
+  .plan-btn.subscribe:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(240, 160, 64, 0.5); }
+  .plan-btn.subscribe:active { transform: scale(0.97); }
+  .plan-btn.cancel {
+    background: rgba(232, 83, 83, 0.1);
+    color: #E85353;
+    border: 1px solid rgba(232, 83, 83, 0.3);
+  }
+  .plan-btn.cancel:hover { background: rgba(232, 83, 83, 0.18); }
+  .plan-btn.cancel:active { transform: scale(0.97); }
+  .plan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* 权益列表 */
+  .benefits-section { margin-top: 18px; }
+  .benefits-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #9B7B5A;
+    padding: 8px 4px;
+    letter-spacing: 0.5px;
+  }
+  .benefits-list {
+    background: rgba(250, 245, 236, 0.95);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .benefit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .benefit-item + .benefit-item { border-top: 1px solid rgba(212, 165, 116, 0.12); }
+  .benefit-check {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .benefit-check svg { width: 10px; height: 10px; color: white; stroke-width: 3; }
+  .benefit-text {
+    font-size: 13px;
+    color: #1C0F08;
+    line-height: 1.5;
+  }
+  .benefit-text strong { color: #D4691C; }
+
+  /* 摄影师升级区块 */
+  .photographer-block {
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(240, 160, 64, 0.12) 0%, rgba(212, 105, 28, 0.08) 100%);
+    border: 1px dashed rgba(240, 160, 64, 0.4);
+    text-align: center;
+  }
+
+  /* ========== 邀请码兑换区块 ========== */
+  .invite-card {
+    margin-top: 14px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(240, 160, 64, 0.14) 0%, rgba(212, 105, 28, 0.06) 100%);
+    border: 1.5px solid rgba(240, 160, 64, 0.35);
+    box-shadow: 0 4px 14px rgba(28, 15, 8, 0.06);
+  }
+  .invite-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1C0F08;
+    margin-bottom: 6px;
+  }
+  .invite-title svg { width: 18px; height: 18px; color: #D4691C; }
+  .invite-desc {
+    font-size: 12px;
+    color: #8B5E3C;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .invite-desc strong { color: #D4691C; }
+  .invite-input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .invite-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border: 1.5px solid rgba(212, 165, 116, 0.4);
+    border-radius: 10px;
+    background: #FFF5E6;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1C0F08;
+    outline: none;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .invite-input::placeholder {
+    color: #B89878;
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    text-transform: none;
+  }
+  .invite-input:focus {
+    border-color: #F0A040;
+    box-shadow: 0 0 0 3px rgba(240, 160, 64, 0.18);
+  }
+  .invite-btn {
+    width: 100%;
+    padding: 12px 0;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 3px 10px rgba(240, 160, 64, 0.35);
+    flex-shrink: 0;
+  }
+  .invite-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(240, 160, 64, 0.45); }
+  .invite-btn:active { transform: scale(0.96); }
+  .invite-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .invite-tip {
+    font-size: 11px;
+    color: #9B7B5A;
+    text-align: center;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(212, 165, 116, 0.3);
+  }
+  .invite-tip span {
+    font-weight: 700;
+    color: #D4691C;
+    letter-spacing: 1px;
+    user-select: all;
+    cursor: pointer;
+  }
+  .invite-tip.success { color: #2E7D32; }
+  .vip-invite-card {
+    background: linear-gradient(135deg, rgba(220, 180, 80, 0.15) 0%, rgba(180, 140, 50, 0.08) 100%);
+    border-color: rgba(220, 180, 80, 0.4);
+  }
+  .vip-invite-card .invite-title svg { color: #DCB450; }
+  .vip-invite-card .invite-desc strong { color: #C89B32; }
+  .vip-invite-card .invite-input:focus { border-color: #DCB450; box-shadow: 0 0 0 3px rgba(220, 180, 80, 0.18); }
+  .vip-btn {
+    background: linear-gradient(135deg, #E6C864 0%, #C89B32 100%);
+    box-shadow: 0 3px 10px rgba(220, 180, 80, 0.35);
+  }
+  .vip-btn:hover { box-shadow: 0 5px 14px rgba(220, 180, 80, 0.45); }
+  .photographer-block.active {
+    background: linear-gradient(135deg, rgba(46, 125, 50, 0.1) 0%, rgba(102, 187, 106, 0.08) 100%);
+    border: 1px solid rgba(46, 125, 50, 0.35);
+  }
+  .photographer-icon {
+    width: 40px; height: 40px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    background: rgba(240, 160, 64, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .photographer-block.active .photographer-icon {
+    background: linear-gradient(135deg, #66BB6A 0%, #2E7D32 100%);
+  }
+  .photographer-icon svg { width: 20px; height: 20px; color: #D4691C; }
+  .photographer-block.active .photographer-icon svg { color: white; }
+  .photographer-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1C0F08;
+    margin-bottom: 4px;
+  }
+  .photographer-desc {
+    font-size: 11px;
+    color: #8B5E3C;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .photographer-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .photographer-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(240, 160, 64, 0.4); }
+  .photographer-btn:active { transform: scale(0.96); }
+  .photographer-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none; }
+
+  /* ========== 模式切换栏（仅摄影师可见） ========== */
+  .mode-switcher {
+    display: none;
+    background: #FFF5E6;
+    padding: 12px 16px 14px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(212, 165, 116, 0.15);
+  }
+  .mode-switcher.show { display: block; animation: slideDown 0.3s ease; }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .mode-switcher-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #9B7B5A;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .mode-switcher-label svg { width: 12px; height: 12px; color: #D4691C; }
+  .mode-switcher-tabs {
+    display: flex;
+    background: rgba(155, 123, 90, 0.1);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 8px 10px;
+    text-align: center;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #8B5E3C;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .mode-tab svg { width: 13px; height: 13px; }
+  .mode-tab.active {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(240, 160, 64, 0.35);
+  }
+  .mode-tab:not(.active):hover { background: rgba(240, 160, 64, 0.1); }
+
+  /* 摄影师标识徽章 */
+  .photographer-badge {
+    display: none;
+    align-items: center;
+    gap: 3px;
+    margin-top: 4px;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: white;
+    width: fit-content;
+    backdrop-filter: blur(4px);
+  }
+  .photographer-badge.show { display: inline-flex; }
+  .photographer-badge svg { width: 10px; height: 10px; }
+
+  /* ========== 我的主页视图 ========== */
+  .myhome-scroll {
+    flex: 1;
+    overflow-y: auto;
+    background: #FFF5E6;
+  }
+  .myhome-scroll::-webkit-scrollbar { width: 3px; }
+  .myhome-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+
+  /* 头部 hero 区（暖橙渐变） */
+  .myhome-hero {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    padding: 18px 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .myhome-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 18px;
+    background: #FFF5E6;
+    border-radius: 18px 18px 0 0;
+  }
+  .myhome-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .myhome-avatar svg { width: 32px; height: 32px; color: white; }
+  .myhome-info { color: white; min-width: 0; }
+  .myhome-name {
+    font-size: 19px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .myhome-bio {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
+  /* 统计栏 */
+  .myhome-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 14px 20px 6px;
+    background: #FFF5E6;
+    flex-shrink: 0;
+  }
+  .myhome-stat { text-align: center; }
+  .myhome-stat-num {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1C0F08;
+  }
+  .myhome-stat-label {
+    font-size: 11px;
+    color: #8B5E3C;
+    margin-top: 2px;
+  }
+
+  /* 坐标卡片列表 (改为与他人主页一致的大图网格) */
+  .myhome-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #9B7B5A;
+    padding: 14px 20px 8px;
+    letter-spacing: 0.5px;
+  }
+  #myHomeCoords {
+    padding: 0 16px 20px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .myhome-coord-photos {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .myhome-photo-card {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    aspect-ratio: 1/1;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .myhome-photo-card:hover { transform: translateY(-2px); }
+  .myhome-photo-card .bg {
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .myhome-photo-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 24px 8px 8px;
+    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .myhome-photo-stat {
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 900px) {
+    .container { flex-direction: column; gap: 30px; }
+  }
+</style>
+<script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- 左侧：手机预览 -->
+  <div class="phone-wrapper">
+    <div class="phone-frame">
+      <div class="phone-screen">
+
+        <!-- 状态栏 -->
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7 3 2.73 5.11 0 8.5L12 21 24 8.5C21.27 5.11 17 3 12 3z"/></svg>
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+          </div>
+        </div>
+
+        <!-- 我的主页视图 -->
+        <div class="view active" id="viewProfile">
+          <!-- 头像+名称 -->
+          <div class="profile-header">
+            <div class="profile-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div class="profile-info">
+              <div class="profile-name">旅行者</div>
+              <div class="profile-desc">记录旅途的每一个瞬间</div>
+              <div class="photographer-badge" id="photographerBadge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                认证摄影师
+              </div>
+            </div>
+          </div>
+
+          <!-- 模式切换栏（仅摄影师可见） -->
+          <div class="mode-switcher" id="modeSwitcher">
+            <div class="mode-switcher-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              拍摄模式
+            </div>
+            <div class="mode-switcher-tabs">
+              <div class="mode-tab active" data-mode="life">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                生活模式
+              </div>
+              <div class="mode-tab" data-mode="work">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                </svg>
+                工作模式
+              </div>
+            </div>
+          </div>
+
+          <!-- 统计 -->
+          <div class="profile-stats">
+            <div class="stat-item">
+              <div class="stat-num">23</div>
+              <div class="stat-label">标记点</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-num">86</div>
+              <div class="stat-label">照片</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-num">5</div>
+              <div class="stat-label">已删除</div>
+            </div>
+          </div>
+
+          <!-- 菜单 -->
+          <div class="profile-scroll">
+            <div class="menu-section">
+              <div class="menu-title">我的主页</div>
+              <div class="menu-card">
+                <div class="menu-item" id="myHomeEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">查看我的主页</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <span class="menu-badge" id="myHomeBadge">公开</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="menu-section">
+              <div class="menu-title">上传</div>
+              <div class="menu-card">
+                <div class="menu-item" id="uploadDeviceEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">本设备拍摄上传</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="menu-item" id="uploadLocalEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">本地上传</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="menu-section">
+              <div class="menu-title">我的删除</div>
+              <div class="menu-card">
+                <div class="menu-item" id="deletedMarkersEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">我删除的坐标点</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <span class="menu-badge">3</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="menu-item" id="deletedPhotosEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">我删除的照片</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <span class="menu-badge">2</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="menu-section">
+              <div class="menu-title">会员</div>
+              <div class="menu-card">
+                <div class="menu-item" id="memberCenterEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">会员中心</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <span class="menu-badge" id="memberBadge">未开通</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="menu-section">
+              <div class="menu-title">其他</div>
+              <div class="menu-card">
+                <div class="menu-item">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">设置</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 我的主页视图（公开展示页） -->
+        <div class="view" id="viewMyHome">
+          <div class="sub-header">
+            <div class="sub-back" id="myHomeBack">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </div>
+            <div class="sub-title">我的主页</div>
+          </div>
+
+          <div class="myhome-scroll">
+            <!-- 头部信息 -->
+            <div class="myhome-hero">
+              <div class="myhome-avatar" id="myHomeAvatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <div class="myhome-info">
+                <div class="myhome-name" id="myHomeName">旅行者</div>
+                <div class="myhome-bio" id="myHomeBio">记录旅途的每一个瞬间</div>
+                <div class="photographer-badge" id="myHomePhotographerBadge">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                  认证摄影师
+                </div>
+              </div>
+            </div>
+
+            <!-- 统计栏 -->
+            <div class="myhome-stats">
+              <div class="myhome-stat">
+                <div class="myhome-stat-num" id="myHomeCoordCount">8</div>
+                <div class="myhome-stat-label">坐标点</div>
+              </div>
+              <div class="myhome-stat">
+                <div class="myhome-stat-num" id="myHomePhotoCount">86</div>
+                <div class="myhome-stat-label">照片</div>
+              </div>
+              <div class="myhome-stat">
+                <div class="myhome-stat-num" id="myHomeLikeCount">342</div>
+                <div class="myhome-stat-label">获赞</div>
+              </div>
+            </div>
+
+            <!-- 坐标卡片列表 -->
+            <div class="myhome-section-title">我上传的坐标</div>
+            <div id="myHomeCoords">
+              <!-- 由JS动态生成 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 我的删除视图 -->
+        <div class="view" id="viewDeleted">
+          <div class="sub-header">
+            <div class="sub-back" id="deletedBack">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </div>
+            <div class="sub-title">我的删除</div>
+          </div>
+
+          <div class="deleted-tabs">
+            <div class="deleted-tab active" data-tab="markers">坐标点</div>
+            <div class="deleted-tab" data-tab="photos">照片</div>
+          </div>
+
+          <!-- 删除的坐标点列表 -->
+          <div class="deleted-list" id="markerList">
+            <!-- 由JS动态生成 -->
+          </div>
+
+          <!-- 删除的照片列表 -->
+          <div class="deleted-list" id="photoList" style="display:none;">
+            <div class="deleted-photos" id="photoGrid">
+              <!-- 由JS动态生成 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 会员中心视图 -->
+        <div class="view" id="viewMember">
+          <div class="sub-header">
+            <div class="sub-back" id="memberBack">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </div>
+            <div class="sub-title">会员中心</div>
+          </div>
+
+          <div class="member-scroll">
+            <!-- 顶部 hero -->
+            <div class="member-hero">
+              <div class="member-crown">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>
+                </svg>
+              </div>
+              <div class="member-title">尊享会员</div>
+              <div class="member-subtitle">解锁高级权益，升级认证摄影师</div>
+              <div class="member-status-badge" id="memberStatusBadge">未开通</div>
+            </div>
+
+            <!-- 套餐卡片 -->
+            <div class="plan-card">
+              <div class="plan-name">月度会员</div>
+              <div class="plan-desc">解锁全部高级功能，可升级为认证摄影师，享受工作 / 生活双模式切换</div>
+              <div class="plan-price">
+                <span class="plan-price-symbol">¥</span>
+                <span class="plan-price-num">10</span>
+                <span class="plan-price-unit">/ 月</span>
+              </div>
+              <button class="plan-btn subscribe" id="subscribeBtn">立即订阅</button>
+            </div>
+
+            <!-- 邀请码兑换区块 -->
+            <div class="invite-card" id="inviteCard">
+              <div class="invite-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+                </svg>
+                邀请码兑换
+              </div>
+              <div class="invite-desc">输入好友的邀请码，双方均可获得 <strong>1 个月会员</strong></div>
+              <div class="invite-input-row">
+                <input type="text" id="inviteInput" class="invite-input" placeholder="请输入 8 位邀请码" maxlength="8">
+                <button id="inviteBtn" class="invite-btn">兑换</button>
+              </div>
+              <div class="invite-tip" id="inviteTip">我的邀请码：<span id="myInviteCode">PHOTO268</span></div>
+            </div>
+
+            <!-- VIP邀请码兑换区块 -->
+            <div class="invite-card vip-invite-card" id="vipInviteCard">
+              <div class="invite-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                VIP邀请码兑换
+              </div>
+              <div class="invite-desc">输入VIP专属邀请码，获得 <strong>1 个月会员（可无限叠加）</strong></div>
+              <div class="invite-input-row">
+                <input type="text" id="vipInviteInput" class="invite-input" placeholder="请输入 VIP 邀请码">
+                <button id="vipInviteBtn" class="invite-btn vip-btn">兑换VIP</button>
+              </div>
+              <div class="invite-tip" id="vipInviteTip"></div>
+            </div>
+
+            <!-- 摄影师升级区块 -->
+            <div class="photographer-block" id="photographerBlock">
+              <div class="photographer-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+              <div class="photographer-title" id="photographerTitle">升级为认证摄影师</div>
+              <div class="photographer-desc" id="photographerDesc">订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换</div>
+              <button class="photographer-btn" id="upgradePhotographerBtn" disabled>升级摄影师</button>
+            </div>
+
+            <!-- 权益列表 -->
+            <div class="benefits-section">
+              <div class="benefits-title">会员权益</div>
+              <div class="benefits-list">
+                <div class="benefit-item">
+                  <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <div class="benefit-text">解锁<strong>认证摄影师</strong>身份标识</div>
+                </div>
+                <div class="benefit-item">
+                  <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <div class="benefit-text">支持<strong>工作模式 / 生活模式</strong>自由切换</div>
+                </div>
+                <div class="benefit-item">
+                  <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <div class="benefit-text">无限量坐标点标记与照片上传</div>
+                </div>
+                <div class="benefit-item">
+                  <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <div class="benefit-text">优先展示在附近摄影师推荐位</div>
+                </div>
+                <div class="benefit-item">
+                  <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <div class="benefit-text">专属客服与摄影社区准入资格</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部导航栏 -->
+        <div class="bottom-nav">
+          <div class="nav-item" data-tab="home">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="nav-label">首页</span>
+          </div>
+          <div class="nav-item" data-tab="market">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            <span class="nav-label">联机</span>
+          </div>
+          <div class="nav-center">
+            <button class="nav-center-btn" id="cameraBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+          </div>
+          <div class="nav-item" data-tab="message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span class="nav-label">消息</span>
+          </div>
+          <div class="nav-item active" data-tab="profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <span class="nav-label">我</span>
+          </div>
+        </div>
+
+        <div class="home-indicator"></div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  var db = new Dexie('memoPhotos');
+  db.version(1).stores({ pendingPhotos: 'id, hour, lng, lat' });
+
+  const toast = document.getElementById('toast');
+  const showToast = (msg) => {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 2000);
+  };
+
+  // 视图切换
+  const viewProfile = document.getElementById('viewProfile');
+  const viewDeleted = document.getElementById('viewDeleted');
+  const viewMember = document.getElementById('viewMember');
+  const viewMyHome = document.getElementById('viewMyHome');
+
+  function showView(view) {
+    viewProfile.classList.toggle('active', view === 'profile');
+    viewDeleted.classList.toggle('active', view === 'deleted');
+    viewMember.classList.toggle('active', view === 'member');
+    viewMyHome.classList.toggle('active', view === 'myhome');
+  }
+
+  // 删除的坐标点数据
+  let deletedMarkers = [
+    { title: '雷峰塔', lng: 120.1489, lat: 30.2435, date: '2026年7月4日', deletedDate: '2026年8月3日', color: '#B85E3C' },
+    { title: '净慈寺', lng: 120.1475, lat: 30.2420, date: '2026年7月4日', deletedDate: '2026年8月2日', color: '#D4A870' },
+    { title: '孤山', lng: 120.1462, lat: 30.2645, date: '2026年7月23日', deletedDate: '2026年8月1日', color: '#C98838' }
+  ];
+
+  // 删除的照片数据
+  let deletedPhotos = [
+    { title: '照片1', color: '#F0A040', marker: '雷峰塔' },
+    { title: '照片2', color: '#D4691C', marker: '净慈寺' }
+  ];
+
+  // 渲染删除的坐标点
+  function renderDeletedMarkers() {
+    const list = document.getElementById('markerList');
+    if (deletedMarkers.length === 0) {
+      list.innerHTML = '<div class="deleted-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><p>暂无已删除的坐标点</p></div>';
+      return;
+    }
+    list.innerHTML = deletedMarkers.map((m, idx) => `
+      <div class="deleted-marker-card">
+        <div class="deleted-marker-header">
+          <div class="deleted-marker-dot" style="background: ${m.color};"></div>
+          <div class="deleted-marker-info">
+            <div class="deleted-marker-name">${m.title}</div>
+            <div class="deleted-marker-coords">经度 ${m.lng}° · 纬度 ${m.lat}°</div>
+          </div>
+        </div>
+        <div class="deleted-marker-meta">
+          <span>📅 ${m.date}</span>
+          <span>🗑 ${m.deletedDate}</span>
+        </div>
+        <div class="deleted-marker-actions">
+          <button class="restore-btn" data-idx="${idx}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+            恢复
+          </button>
+          <button class="restore-permanent" data-perm="${idx}">永久删除</button>
+        </div>
+      </div>
+    `).join('');
+
+    // 恢复按钮
+    list.querySelectorAll('.restore-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        const m = deletedMarkers[idx];
+        deletedMarkers.splice(idx, 1);
+        showToast('✓ 已恢复"' + m.title + '"');
+        renderDeletedMarkers();
+      });
+    });
+
+    // 永久删除
+    list.querySelectorAll('.restore-permanent').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.perm);
+        const m = deletedMarkers[idx];
+        if (confirm('确定要永久删除"' + m.title + '"吗？')) {
+          deletedMarkers.splice(idx, 1);
+          showToast('🗑 已永久删除');
+          renderDeletedMarkers();
+        }
+      });
+    });
+  }
+
+  // 渲染删除的照片
+  function renderDeletedPhotos() {
+    const grid = document.getElementById('photoGrid');
+    if (deletedPhotos.length === 0) {
+      grid.innerHTML = '';
+      const list = document.getElementById('photoList');
+      list.innerHTML = '<div class="deleted-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><p>暂无已删除的照片</p></div>';
+      return;
+    }
+    const list = document.getElementById('photoList');
+    list.innerHTML = '';
+    const gridDiv = document.createElement('div');
+    gridDiv.className = 'deleted-photos';
+    gridDiv.id = 'photoGrid';
+    gridDiv.innerHTML = deletedPhotos.map((p, idx) => `
+      <div class="deleted-photo" style="background: ${p.color};">
+        <div class="deleted-photo-inner">${p.title}</div>
+        <div class="deleted-photo-restore" data-photo="${idx}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+          </svg>
+        </div>
+      </div>
+    `).join('');
+    list.appendChild(gridDiv);
+
+    gridDiv.querySelectorAll('.deleted-photo-restore').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.photo);
+        const p = deletedPhotos[idx];
+        deletedPhotos.splice(idx, 1);
+        showToast('✓ 已恢复"' + p.title + '"');
+        renderDeletedPhotos();
+      });
+    });
+  }
+
+  // 本设备拍摄上传 → 跳转到首页地图，进入上传模式
+  document.getElementById('uploadDeviceEntry').addEventListener('click', () => {
+    window.location.href = 'memo-home.html?mode=upload';
+  });
+
+  // 本地上传 → 跳转到首页地图，进入本地上传模式
+  document.getElementById('uploadLocalEntry').addEventListener('click', () => {
+    window.location.href = 'memo-home.html?mode=local-upload';
+  });
+
+  // ========== 我的主页 ==========
+  // 当前用户（旅行者）上传的坐标点示例数据
+  // color: 坐标点颜色；photos: 该坐标下的照片色卡；likes: 该坐标总获赞数
+  const myHomeCoords = [
+    { id: 'mc1', title: '西湖断桥', date: '2026年8月4日', color: '#F0A040', lng: 120.1551, lat: 30.2625, photoCount: 12, likes: 86, thumbs: ['#F0A040', '#D4691C', '#E89020', '#C97B2A'] },
+    { id: 'mc2', title: '万象城', date: '2026年8月2日', color: '#D4691C', lng: 120.1632, lat: 30.2689, photoCount: 9, likes: 54, thumbs: ['#D4691C', '#B85E3C', '#9B7B5A'] },
+    { id: 'mc3', title: '雷峰塔', date: '2026年7月28日', color: '#B85E3C', lng: 120.1489, lat: 30.2435, photoCount: 15, likes: 112, thumbs: ['#B85E3C', '#C98838', '#D4A870', '#E89020'] },
+    { id: 'mc4', title: '奥帆中心', date: '2026年7月20日', color: '#E89020', lng: 120.3951, lat: 36.0591, photoCount: 8, likes: 48, thumbs: ['#E89020', '#F0A040', '#D4691C'] },
+    { id: 'mc5', title: '五四广场', date: '2026年7月15日', color: '#C97B2A', lng: 120.3826, lat: 36.0671, photoCount: 11, likes: 42, thumbs: ['#C97B2A', '#B85E3C', '#9B7B5A', '#D4A870'] }
+  ];
+
+  /**
+   * 渲染我的主页 — 使用与探索模式一致的大图网格布局
+   * 根据当前摄影师状态刷新徽章显示
+   */
+  function renderMyHomeCoords() {
+    // 使用统一的照片网格渲染（与探索模式他人主页布局一致）
+    renderMyPhotos();
+
+    // 联动摄影师徽章（与我的界面保持一致）
+    const badge = document.getElementById('myHomePhotographerBadge');
+    if (isPhotographer) {
+      badge.classList.add('show');
+    } else {
+      badge.classList.remove('show');
+    }
+  }
+
+  // 我的主页入口 → 切换视图并渲染
+  document.getElementById('myHomeEntry').addEventListener('click', () => {
+    showView('myhome');
+    renderMyHomeCoords();
+  });
+
+  // 我的主页返回按钮
+  document.getElementById('myHomeBack').addEventListener('click', () => {
+    showView('profile');
+  });
+
+  // 菜单入口
+  document.getElementById('deletedMarkersEntry').addEventListener('click', () => {
+    showView('deleted');
+    document.querySelector('.deleted-tab[data-tab="markers"]').classList.add('active');
+    document.querySelector('.deleted-tab[data-tab="photos"]').classList.remove('active');
+    document.getElementById('markerList').style.display = '';
+    document.getElementById('photoList').style.display = 'none';
+    renderDeletedMarkers();
+  });
+
+  document.getElementById('deletedPhotosEntry').addEventListener('click', () => {
+    showView('deleted');
+    document.querySelector('.deleted-tab[data-tab="photos"]').classList.add('active');
+    document.querySelector('.deleted-tab[data-tab="markers"]').classList.remove('active');
+    document.getElementById('photoList').style.display = '';
+    document.getElementById('markerList').style.display = 'none';
+    renderDeletedPhotos();
+  });
+
+  // 返回按钮
+  document.getElementById('deletedBack').addEventListener('click', () => {
+    showView('profile');
+  });
+
+  // Tab 切换
+  document.querySelectorAll('.deleted-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const type = tab.dataset.tab;
+      document.querySelectorAll('.deleted-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      if (type === 'markers') {
+        document.getElementById('markerList').style.display = '';
+        document.getElementById('photoList').style.display = 'none';
+        renderDeletedMarkers();
+      } else {
+        document.getElementById('photoList').style.display = '';
+        document.getElementById('markerList').style.display = 'none';
+        renderDeletedPhotos();
+      }
+    });
+  });
+
+  // 底部导航
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const tab = item.dataset.tab;
+      if (tab === 'home') {
+        window.location.href = 'memo-home.html';
+        return;
+      } else if (tab === 'market') {
+        window.location.href = 'connect-prototype.html';
+        return;
+      } else if (tab === 'message') {
+        window.location.href = 'message-prototype.html';
+        return;
+      }
+      // profile tab - 已在此页面
+    });
+  });
+
+  // ========== 系统相机捕获 ==========
+  function captureWithSystemCamera() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.setAttribute('capture', 'camera');
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', function() {
+      var file = input.files[0];
+      if (!file) { document.body.removeChild(input); return; }
+      var getThumbnail = new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var img = new Image();
+          img.onload = function() {
+            var canvas = document.createElement('canvas');
+            var scale = Math.min(200 / img.width, 200 / img.height, 1);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+      var getLocation = new Promise(function(resolve, reject) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        } else { reject(new Error('无定位能力')); }
+      });
+      Promise.all([getLocation, getThumbnail]).then(function(results) {
+        savePhotoToPending(results[0].coords.longitude, results[0].coords.latitude, results[1]);
+      }).catch(function() {
+        getThumbnail.then(function(thumb) {
+          savePhotoToPending(120.3826 + (Math.random() - 0.5) * 0.01, 36.0671 + (Math.random() - 0.5) * 0.01, thumb);
+        });
+      });
+    });
+    input.click();
+  }
+  function savePhotoToPending(lng, lat, thumbnail) {
+    var now = new Date();
+    var hour = now.getHours();
+    var photoData = {
+      id: 'photo_' + now.getTime(), color: '#F0A040', likes: 0, tips: 0, liked: false, tipped: false, collected: false, comments: [],
+      uploadTime: Math.floor(now.getTime() / 1000),
+      timeStr: String(hour).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
+      dateStr: now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日',
+      hour: hour, lng: +lng.toFixed(6), lat: +lat.toFixed(6), photoDataUrl: thumbnail
+    };
+    db.pendingPhotos.add(photoData).then(function() {
+      var oldInputs = document.querySelectorAll('input[type=file][capture=camera]');
+      oldInputs.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
+      window.location.href = 'memo-home.html';
+    });
+  }
+  // 相机按钮 — 短按系统相机，长按（800ms）自定义专业相机
+  (function() {
+    var camBtn = document.getElementById('cameraBtn');
+    var longTimer = null, isLong = false;
+    function startLong() { isLong = false; longTimer = setTimeout(function() { isLong = true; window.location.href = 'camera-prototype.html'; }, 800); }
+    function cancelLong() { if (longTimer) clearTimeout(longTimer); }
+    camBtn.addEventListener('mousedown', startLong);
+    camBtn.addEventListener('touchstart', startLong);
+    camBtn.addEventListener('mouseup', cancelLong);
+    camBtn.addEventListener('mouseleave', cancelLong);
+    camBtn.addEventListener('touchend', cancelLong);
+    camBtn.addEventListener('touchcancel', cancelLong);
+    camBtn.addEventListener('click', function(e) { if (isLong) { isLong = false; return; } captureWithSystemCamera(); });
+  })();
+
+  // ================= 会员中心 / 摄影师 / 模式切换 =================
+  // 状态持久化：isMember(是否订阅会员)、isPhotographer(是否升级摄影师)、currentMode(当前模式 life|work)
+  // localStorage 键名：profile_member / profile_photographer / profile_mode
+  const MEMBER_KEY = 'profile_member';
+  const MEMBER_MONTHS_KEY = 'profile_member_months';
+  const PHOTOGRAPHER_KEY = 'profile_photographer';
+  const MODE_KEY = 'profile_mode';
+
+  // 读取初始状态（兜底默认值）
+  let isMember = localStorage.getItem(MEMBER_KEY) === '1';
+  let memberMonths = parseInt(localStorage.getItem(MEMBER_MONTHS_KEY) || '0');
+  
+  // 兼容老数据：如果是会员但没有月份，默认给1个月
+  if (isMember && memberMonths === 0) {
+    memberMonths = 1;
+    localStorage.setItem(MEMBER_MONTHS_KEY, '1');
+  }
+
+  let isPhotographer = localStorage.getItem(PHOTOGRAPHER_KEY) === '1';
+  let currentMode = localStorage.getItem(MODE_KEY) || 'life';
+  if (currentMode !== 'life' && currentMode !== 'work') currentMode = 'life';
+
+  // DOM 引用
+  const memberBadge = document.getElementById('memberBadge');
+  const memberStatusBadge = document.getElementById('memberStatusBadge');
+  const subscribeBtn = document.getElementById('subscribeBtn');
+  const photographerBlock = document.getElementById('photographerBlock');
+  const photographerTitle = document.getElementById('photographerTitle');
+  const photographerDesc = document.getElementById('photographerDesc');
+  const upgradePhotographerBtn = document.getElementById('upgradePhotographerBtn');
+  const photographerBadge = document.getElementById('photographerBadge');
+  const modeSwitcher = document.getElementById('modeSwitcher');
+
+  /**
+   * 刷新会员中心 UI 状态
+   * 根据 isMember / isPhotographer 切换按钮文案、徽章、摄影师区块样式
+   */
+  function refreshMemberUI() {
+    // 顶部状态徽章
+    if (isMember) {
+      memberStatusBadge.textContent = `已订阅 · 剩余 ${memberMonths} 个月`;
+      memberStatusBadge.classList.add('active');
+    } else {
+      memberStatusBadge.textContent = '未开通';
+      memberStatusBadge.classList.remove('active');
+    }
+
+    // 我的页菜单徽章
+    memberBadge.textContent = isMember ? `剩余 ${memberMonths} 个月` : '未开通';
+    memberBadge.style.color = isMember ? '#D4691C' : '#8B5E3C';
+    memberBadge.style.background = isMember ? 'rgba(240, 160, 64, 0.18)' : 'rgba(155, 123, 90, 0.12)';
+
+    // 订阅按钮：未订阅显示"立即订阅"，已订阅显示"取消订阅"
+    if (isMember) {
+      subscribeBtn.textContent = '取消订阅';
+      subscribeBtn.classList.remove('subscribe');
+      subscribeBtn.classList.add('cancel');
+    } else {
+      subscribeBtn.textContent = '立即订阅';
+      subscribeBtn.classList.add('subscribe');
+      subscribeBtn.classList.remove('cancel');
+    }
+
+    // 摄影师升级区块：必须先订阅才能升级
+    upgradePhotographerBtn.disabled = !isMember || isPhotographer;
+
+    if (isPhotographer) {
+      photographerBlock.classList.add('active');
+      photographerTitle.textContent = '已升级认证摄影师';
+      photographerDesc.textContent = '你已解锁工作 / 生活模式切换，可在我的主页顶部切换模式';
+      upgradePhotographerBtn.textContent = '已升级';
+    } else {
+      photographerBlock.classList.remove('active');
+      photographerTitle.textContent = '升级为认证摄影师';
+      photographerDesc.textContent = isMember
+        ? '订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换'
+        : '请先订阅会员，再升级为认证摄影师';
+      upgradePhotographerBtn.textContent = '升级摄影师';
+    }
+
+    // 我的主页头像区的摄影师徽章 & 模式切换栏
+    if (isPhotographer) {
+      photographerBadge.classList.add('show');
+      modeSwitcher.classList.add('show');
+    } else {
+      photographerBadge.classList.remove('show');
+      modeSwitcher.classList.remove('show');
+    }
+
+    // 模式 tab 高亮
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.mode === currentMode);
+    });
+  }
+
+  // 会员中心入口
+  document.getElementById('memberCenterEntry').addEventListener('click', () => {
+    showView('member');
+    refreshMemberUI();
+  });
+
+  // 返回按钮
+  document.getElementById('memberBack').addEventListener('click', () => {
+    showView('profile');
+  });
+
+  // 订阅 / 取消订阅
+  subscribeBtn.addEventListener('click', () => {
+    if (!isMember) {
+      // 模拟订阅：实际场景应跳转支付页或调起支付弹窗
+      isMember = true;
+      memberMonths += 1;
+      localStorage.setItem(MEMBER_KEY, '1');
+      localStorage.setItem(MEMBER_MONTHS_KEY, memberMonths.toString());
+      showToast('✓ 订阅成功，已开通月度会员');
+      refreshMemberUI();
+    } else {
+      // 取消订阅：取消后立即失效，并联动取消摄影师身份与模式切换
+      if (confirm('确定要取消订阅吗？取消后将失去会员权益与摄影师身份。')) {
+        isMember = false;
+        memberMonths = 0;
+        isPhotographer = false;
+        currentMode = 'life';
+        localStorage.setItem(MEMBER_KEY, '0');
+        localStorage.setItem(MEMBER_MONTHS_KEY, '0');
+        localStorage.setItem(PHOTOGRAPHER_KEY, '0');
+        localStorage.setItem(MODE_KEY, 'life');
+        showToast('已取消订阅，会员权益已失效');
+        refreshMemberUI();
+      }
+    }
+  });
+
+  // ========== 渲染我的主页大图网格 ==========
+  const myHomeCoordsContainer = document.getElementById('myHomeCoords');
+
+  // 生成假数据模拟“我的照片”列表
+  function renderMyPhotos() {
+    // 假设这些是“我”上传的 12 张照片
+    const myPhotos = Array.from({ length: 12 }).map((_, i) => {
+      // 随机生成一些渐变色来模拟照片封面
+      const hue1 = Math.floor(Math.random() * 360);
+      const hue2 = (hue1 + 40) % 360;
+      return {
+        id: `my_photo_${i}`,
+        likes: Math.floor(Math.random() * 500) + 10,
+        tips: Math.floor(Math.random() * 50),
+        color1: `hsl(${hue1}, 70%, 60%)`,
+        color2: `hsl(${hue2}, 70%, 40%)`
+      };
+    });
+
+    let html = '';
+    myPhotos.forEach(p => {
+      html += `
+        <div class="myhome-photo-card" data-id="${p.id}">
+          <div class="bg" style="background: linear-gradient(135deg, ${p.color1}, ${p.color2});"></div>
+          <div class="myhome-photo-overlay">
+            <div class="myhome-photo-stat">❤️ ${p.likes}</div>
+            <div class="myhome-photo-stat">🎁 ${p.tips}</div>
+          </div>
+        </div>
+      `;
+    });
+    myHomeCoordsContainer.innerHTML = html;
+
+    // 添加点击事件（这里仅作UI演示，实际项目中应弹出照片详情）
+    myHomeCoordsContainer.querySelectorAll('.myhome-photo-card').forEach(card => {
+      card.addEventListener('click', () => {
+        showToast('打开照片详情');
+      });
+    });
+  }
+
+  // ========== 邀请码系统 ==========
+  // 普通邀请码：每个用户唯一，一次性，双方各得 1 个月
+  // VIP 邀请码：由管理员发放，无使用上限，可无限叠加
+
+  // -- 生成/读取我的唯一邀请码 --
+  function generateInviteCode() {
+    var seed = localStorage.getItem('profile_invite_seed');
+    if (!seed) {
+      seed = String(Date.now()) + '_' + String(Math.random()).slice(2, 8);
+      localStorage.setItem('profile_invite_seed', seed);
+    }
+    var hash = 0;
+    for (var i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+      hash |= 0;
+    }
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var code = '';
+    for (var i = 0; i < 8; i++) {
+      code += chars[Math.abs((hash * (i + 7)) % chars.length)];
+    }
+    return code;
+  }
+
+  function getMyInviteCode() {
+    var saved = localStorage.getItem('profile_my_code');
+    if (!saved) {
+      saved = generateInviteCode();
+      localStorage.setItem('profile_my_code', saved);
+    }
+    return saved;
+  }
+
+  // 我的码是否已被他人使用（模拟：读取标记）
+  function isMyCodeUsed() {
+    return localStorage.getItem('profile_my_code_used') === '1';
+  }
+
+  // 刷新邀请码显示
+  function refreshInviteUI() {
+    var codeEl = document.getElementById('myInviteCode');
+    var tip = document.getElementById('inviteTip');
+    if (isMyCodeUsed()) {
+      codeEl.style.textDecoration = 'line-through';
+      codeEl.style.opacity = '0.5';
+      tip.classList.add('success');
+      tip.innerHTML = '你的邀请码已被使用（已失效）';
+    } else {
+      codeEl.textContent = getMyInviteCode();
+      codeEl.style.textDecoration = 'none';
+      codeEl.style.opacity = '1';
+      tip.classList.remove('success');
+      tip.innerHTML = '我的邀请码：<span id="myInviteCode">' + getMyInviteCode() + '</span>';
+      // 恢复 span id 用于复制
+      var span = tip.querySelector('#myInviteCode');
+      if (span) {
+        span.addEventListener('click', copyInviteCode);
+      }
+    }
+  }
+
+  // -- 复制邀请码 --
+  function copyInviteCode(e) {
+    var code = getMyInviteCode();
+    navigator.clipboard.writeText(code).then(function() {
+      showToast('✓ 邀请码已复制：' + code);
+    }).catch(function() {
+      var range = document.createRange();
+      range.selectNode(e.target);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      try { document.execCommand('copy'); showToast('✓ 邀请码已复制：' + code); } catch(err) { showToast('请手动复制：' + code); }
+      window.getSelection().removeAllRanges();
+    });
+  }
+
+  // -- 普通邀请码兑换 --
+  const inviteInput = document.getElementById('inviteInput');
+  const inviteBtn = document.getElementById('inviteBtn');
+  const inviteTip = document.getElementById('inviteTip');
+  var myCode = getMyInviteCode();
+
+  // 已兑换过的码列表（防止重复兑换）
+  var redeemedCodes = [];
+  try { redeemedCodes = JSON.parse(localStorage.getItem('profile_redeemed_codes') || '[]'); } catch(e) { redeemedCodes = []; }
+
+  // 模拟"他人码池"：把其他设备生成的码存到这里来模拟多人场景
+  // 上线后由后端 API 替代此 localStorage
+  var knownValidCodes = JSON.parse(localStorage.getItem('profile_known_codes') || '["DEMOCODE"]');
+
+  inviteBtn.addEventListener('click', function() {
+    var code = inviteInput.value.trim().toUpperCase();
+
+    if (code.length !== 8) { showToast('邀请码需为 8 位', 'warning'); return; }
+    if (code === myCode) { showToast('不能使用自己的邀请码', 'warning'); return; }
+    if (redeemedCodes.length >= 1) { showToast('你已兑换过邀请码，不可重复兑换', 'warning'); return; }
+
+    // 校验码是否有效（原型：码池 + 其他设备生成的码；上线改 API）
+    if (!knownValidCodes.includes(code)) {
+      // 允许任意 8 位码（模拟开放注册）：自动加入码池
+      knownValidCodes.push(code);
+      localStorage.setItem('profile_known_codes', JSON.stringify(knownValidCodes));
+    }
+
+    // 自己获得 1 个月
+    redeemedCodes.push(code);
+    localStorage.setItem('profile_redeemed_codes', JSON.stringify(redeemedCodes));
+    isMember = true;
+    memberMonths += 1;
+    localStorage.setItem(MEMBER_KEY, '1');
+    localStorage.setItem(MEMBER_MONTHS_KEY, memberMonths.toString());
+
+    // 模拟：对方（码的主人）也获得 1 个月
+    // 在真实系统里由后端查 owner_id 并加月数
+    // 此处写一个标记："code_X_gave_month"，表示已给对方加过
+    var benefitKey = 'profile_benefit_' + code;
+    if (localStorage.getItem(benefitKey) !== '1') {
+      localStorage.setItem(benefitKey, '1');
+      // 模拟记录：对方会员 +1（同设备回显用）
+      var inviteBenefitMap = JSON.parse(localStorage.getItem('profile_invite_benefits') || '{}');
+      if (!inviteBenefitMap[code]) inviteBenefitMap[code] = 0;
+      inviteBenefitMap[code] += 1;
+      localStorage.setItem('profile_invite_benefits', JSON.stringify(inviteBenefitMap));
+    }
+
+    // 将当前用户的码标记为"已使用"（模拟自己是被兑换方场景下次会读）
+    // 上线后：如果当前用户是码 owner → POST /api/invite/redeem 返回 owner 已获益
+
+    inviteInput.value = '';
+    inviteBtn.disabled = true;
+    inviteTip.classList.add('success');
+    inviteTip.innerHTML = '✓ 兑换成功！你和邀请人都获得了 1 个月会员';
+
+    showToast('🎉 兑换成功，双方各得 1 个月会员');
+    refreshMemberUI();
+    refreshInviteUI();
+
+    setTimeout(function() { inviteBtn.disabled = false; }, 1500);
+  });
+
+  // -- VIP 邀请码兑换 --
+  // 模拟后端 VIP 码列表（只有你能管理，上线后改为 API）
+  var VALID_VIP_CODES = [];
+  try { VALID_VIP_CODES = JSON.parse(localStorage.getItem('profile_vip_codes') || '["BETA2026"]'); } catch(e) { VALID_VIP_CODES = ['BETA2026']; }
+
+  const vipInviteBtn = document.getElementById('vipInviteBtn');
+  const vipInviteInput = document.getElementById('vipInviteInput');
+  const vipInviteTip = document.getElementById('vipInviteTip');
+
+  vipInviteBtn.addEventListener('click', function() {
+    var code = vipInviteInput.value.trim();
+    if (!code) { showToast('请输入VIP邀请码', 'warning'); return; }
+
+    if (VALID_VIP_CODES.includes(code)) {
+      isMember = true;
+      memberMonths += 1;
+      localStorage.setItem(MEMBER_KEY, '1');
+      localStorage.setItem(MEMBER_MONTHS_KEY, memberMonths.toString());
+
+      vipInviteInput.value = '';
+      vipInviteTip.classList.add('success');
+      vipInviteTip.innerHTML = '✓ VIP激活成功，已累计 ' + memberMonths + ' 个月会员（可无限叠加）';
+
+      showToast('🎉 VIP码兑换成功，已累计 ' + memberMonths + ' 个月会员');
+      refreshMemberUI();
+    } else {
+      showToast('VIP邀请码无效', 'warning');
+    }
+  });
+
+  // 添加 VIP 码（管理功能：在浏览器控制台调用）
+  // 用法：addVipCode('NEWCODE')
+  window.addVipCode = function(code) {
+    if (VALID_VIP_CODES.includes(code)) { showToast('该VIP码已存在'); return; }
+    VALID_VIP_CODES.push(code);
+    localStorage.setItem('profile_vip_codes', JSON.stringify(VALID_VIP_CODES));
+    showToast('VIP码 ' + code + ' 已添加');
+  };
+
+  // 输入恢复
+  inviteInput.addEventListener('input', function() {
+    inviteTip.classList.remove('success');
+    refreshInviteUI();
+  });
+  vipInviteInput.addEventListener('input', function() {
+    vipInviteTip.classList.remove('success');
+    vipInviteTip.innerHTML = '';
+  });
+
+  // 只允许字母数字
+  inviteInput.addEventListener('input', function() {
+    inviteInput.value = inviteInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  });
+  vipInviteInput.addEventListener('input', function() {
+    vipInviteInput.value = vipInviteInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  });
+
+  // 绑定复制事件
+  document.getElementById('myInviteCode').addEventListener('click', copyInviteCode);
+  refreshInviteUI();
+
+  // 升级摄影师
+  upgradePhotographerBtn.addEventListener('click', () => {
+    if (!isMember) {
+      showToast('请先订阅会员', 'warning');
+      return;
+    }
+    if (isPhotographer) return;
+    isPhotographer = true;
+    localStorage.setItem(PHOTOGRAPHER_KEY, '1');
+    showToast('🎉 已升级为认证摄影师，可在主页切换工作 / 生活模式');
+    refreshMemberUI();
+  });
+
+  // 模式切换
+  document.querySelectorAll('.mode-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      if (!isPhotographer) return;
+      const mode = tab.dataset.mode;
+      if (mode === currentMode) return;
+      currentMode = mode;
+      localStorage.setItem(MODE_KEY, mode);
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t === tab));
+      showToast(mode === 'work' ? '已切换至工作模式' : '已切换至生活模式');
+    });
+  });
+
+  // 初始化：进入页面时根据持久化状态刷新 UI
+  refreshMemberUI();
+  renderMyPhotos();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>移动端注册页面原型设计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  .container {
+    display: flex;
+    gap: 40px;
+    max-width: 1100px;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ========== 左侧手机预览 ========== */
+  .phone-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .phone-frame {
+    width: 320px;
+    height: 680px;
+    background: #1C0F08;
+    border-radius: 42px;
+    padding: 14px;
+    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.45), 0 0 0 2px rgba(212, 165, 116, 0.25), inset 0 1px 0 rgba(212, 165, 116, 0.1);
+    position: relative;
+  }
+
+  .phone-frame::before {
+    content: '';
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 28px;
+    background: #1C0F08;
+    border-radius: 0 0 18px 18px;
+    z-index: 10;
+  }
+
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(165deg, #F0B860 0%, #E89020 40%, #B85A10 100%);
+  }
+
+  .phone-screen::before,
+  .phone-screen::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(50px);
+    opacity: 0.55;
+  }
+  .phone-screen::before {
+    width: 200px; height: 200px;
+    background: #FFE9B8;
+    top: -50px; right: -50px;
+  }
+  .phone-screen::after {
+    width: 160px; height: 160px;
+    background: #FFB84D;
+    bottom: -40px; left: -40px;
+  }
+
+  .status-bar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px 6px;
+    color: #1C0F08;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .status-icons { display: flex; gap: 5px; align-items: center; }
+  .status-icons svg { width: 16px; height: 11px; }
+
+  .login-container {
+    position: relative;
+    z-index: 2;
+    padding: 20px 24px 20px;
+    height: calc(100% - 50px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    color: #1C0F08;
+    font-size: 14px;
+    cursor: pointer;
+    width: fit-content;
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .back-btn:hover { background: rgba(255, 255, 255, 0.3); }
+  .back-btn svg { width: 16px; height: 16px; margin-right: 2px; }
+
+  .login-header { text-align: center; margin-bottom: 18px; }
+  .login-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1C0F08;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+  .login-subtitle {
+    font-size: 12px;
+    color: #6B4423;
+  }
+
+  .login-card {
+    background: rgba(250, 243, 231, 0.55);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: 20px;
+    padding: 20px 20px;
+    border: 1px solid rgba(255, 248, 235, 0.65);
+    box-shadow: 0 12px 40px rgba(28, 15, 8, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .login-card::-webkit-scrollbar { width: 4px; }
+  .login-card::-webkit-scrollbar-thumb { background: rgba(184, 134, 74, 0.3); border-radius: 2px; }
+
+  .input-group {
+    margin-bottom: 12px;
+  }
+
+  .input-label {
+    font-size: 12px;
+    color: #4A2C17;
+    margin-bottom: 5px;
+    display: block;
+    font-weight: 500;
+  }
+
+  .input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-wrapper svg {
+    position: absolute;
+    left: 14px;
+    width: 17px;
+    height: 17px;
+    color: #9B7B5A;
+    transition: color 0.3s;
+  }
+
+  .input-field {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px 0 40px;
+    background: rgba(255, 250, 242, 0.78);
+    border: 1.5px solid rgba(212, 165, 116, 0.35);
+    border-radius: 10px;
+    font-size: 13px;
+    color: #1C0F08;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+
+  .input-field::placeholder { color: #9B7B5A; }
+
+  .input-field:focus {
+    background: rgba(255, 250, 242, 0.95);
+    border-color: #E89020;
+    box-shadow: 0 0 0 3px rgba(232, 144, 32, 0.15);
+  }
+
+  .input-wrapper:focus-within svg { color: #E89020; }
+
+  /* 验证码输入组 */
+  .code-wrapper {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .code-wrapper .input-wrapper { flex: 1; }
+
+  .send-code-btn {
+    flex-shrink: 0;
+    height: 42px;
+    padding: 0 14px;
+    background: rgba(255, 250, 242, 0.78);
+    border: 1.5px solid #E89020;
+    border-radius: 10px;
+    color: #E89020;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 92px;
+  }
+
+  .send-code-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(232, 144, 32, 0.4);
+  }
+
+  .send-code-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.97);
+  }
+
+  .send-code-btn:disabled {
+    background: rgba(212, 165, 116, 0.25);
+    border-color: rgba(155, 123, 90, 0.4);
+    color: #9B7B5A;
+    cursor: not-allowed;
+  }
+
+  /* 密码强度 */
+  .password-strength {
+    height: 3px;
+    background: rgba(212, 165, 116, 0.3);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+    display: none;
+  }
+  .password-strength.show { display: block; }
+  .password-strength-bar {
+    height: 100%;
+    width: 0;
+    border-radius: 2px;
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+  .strength-weak { width: 33%; background: #E05A3A; }
+  .strength-medium { width: 66%; background: #E89020; }
+  .strength-strong { width: 100%; background: #4CAF50; }
+
+  .input-hint {
+    font-size: 11px;
+    color: #8B5E3C;
+    margin-top: 4px;
+    display: none;
+  }
+  .input-hint.show { display: block; }
+
+  .agreement {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 14px 0 16px;
+    font-size: 11px;
+    color: #4A2C17;
+    line-height: 1.5;
+  }
+
+  .agreement input { display: none; }
+
+  .agreement-checkbox {
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid #9B7B5A;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+    background: rgba(255, 250, 242, 0.6);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .agreement input:checked + .agreement-checkbox {
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    border-color: transparent;
+  }
+
+  .agreement-checkbox svg {
+    width: 9px; height: 9px;
+    color: white;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.25s ease;
+  }
+
+  .agreement input:checked + .agreement-checkbox svg {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .agreement a {
+    color: #E89020;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .agreement a:hover { text-decoration: underline; }
+
+  .register-btn {
+    width: 100%;
+    height: 46px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.25s ease,
+                filter 0.2s ease;
+    box-shadow: 0 6px 24px rgba(232, 144, 32, 0.5),
+                inset 0 1px 0 rgba(255, 233, 184, 0.4),
+                inset 0 -2px 0 rgba(184, 90, 16, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .register-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 248, 235, 0.45), transparent);
+    transition: left 0.5s ease;
+    z-index: 1;
+  }
+
+  .register-btn:hover::before { left: 100%; }
+
+  .register-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(232, 144, 32, 0.6),
+                inset 0 1px 0 rgba(255, 233, 184, 0.5),
+                inset 0 -2px 0 rgba(184, 90, 16, 0.2);
+    filter: brightness(1.08);
+  }
+
+  .register-btn:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 2px 8px rgba(232, 144, 32, 0.4),
+                inset 0 2px 4px rgba(184, 90, 16, 0.3),
+                inset 0 -1px 0 rgba(255, 233, 184, 0.15);
+    filter: brightness(0.95);
+    transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+  }
+
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 248, 235, 0.5);
+    transform: scale(0);
+    animation: rippleAnim 0.6s ease-out;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  @keyframes rippleAnim {
+    to { transform: scale(2.5); opacity: 0; }
+  }
+
+  .login-link {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 12px;
+    color: #6B4423;
+  }
+
+  .login-link a {
+    color: #E89020;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .login-link a:hover { color: #FFB84D; text-decoration: underline; }
+
+  .home-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 4px;
+    background: rgba(28, 15, 8, 0.4);
+    border-radius: 2px;
+    z-index: 5;
+  }
+
+  .interaction-hint {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(28, 15, 8, 0.92);
+    color: #F5DFC0;
+    padding: 10px 22px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(28, 15, 8, 0.25);
+  }
+  .interaction-hint.show { opacity: 1; }
+
+  .toast {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(250, 245, 236, 0.97);
+    backdrop-filter: blur(10px);
+    padding: 16px 28px;
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(28, 15, 8, 0.22);
+    font-size: 14px;
+    color: #1C0F08;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 20;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .toast .toast-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    color: white;
+  }
+
+  /* 密码可见切换 */
+  .pwd-toggle {
+    position: absolute;
+    right: 12px;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: #9B7B5A;
+    border-radius: 50%; transition: color 0.2s; z-index: 2;
+  }
+  .pwd-toggle:hover { color: #E89020; }
+  .pwd-toggle svg { width: 16px; height: 16px; stroke-width: 2; }
+  .input-wrapper .input-field { padding-right: 40px; }
+
+  /* 表单实时提示 */
+  .field-hint {
+    font-size: 11px; margin-top: 4px; padding-left: 4px; display: none;
+  }
+  .field-hint.show { display: block; }
+  .field-hint.error { color: #E05A3A; }
+  .field-hint.ok   { color: #4CAF50; }
+
+  @media (max-width: 900px) {
+    .container { flex-direction: column; gap: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- 左侧：手机预览 -->
+  <div class="phone-wrapper">
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <div class="status-bar">
+          <span>9:41</span>
+          <div class="status-icons">
+            <svg viewBox="0 0 18 12" fill="currentColor">
+              <path d="M1 8a1 1 0 011-1h1v4H2a1 1 0 01-1-1V8zm4-2a1 1 0 011-1h1v6H6a1 1 0 01-1-1V6zm4-3a1 1 0 011-1h1v9h-1a1 1 0 01-1-1V3zm4-2a1 1 0 011-1h1v12h-1a1 1 0 01-1-1V1z"/>
+            </svg>
+            <svg viewBox="0 0 16 12" fill="currentColor">
+              <path d="M8 2C5 2 2.5 3 1 4.5l1.5 1.5C3.5 5 5.5 4 8 4s4.5 1 5.5 2L15 4.5C13.5 3 11 2 8 2zm0 3c-2 0-3.5.8-4.5 1.8L5 8.3C5.8 7.5 6.8 7 8 7s2.2.5 3 1.3l1.5-1.5C11.5 5.8 10 5 8 5zm0 3l-2 2h4l-2-2z"/>
+            </svg>
+            <svg viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1">
+              <rect x="1" y="1" width="20" height="10" rx="2"/>
+              <rect x="3" y="3" width="14" height="6" rx="1" fill="currentColor"/>
+              <rect x="22" y="4" width="1.5" height="4" rx="0.5" fill="currentColor"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="login-container">
+          <div class="back-btn" id="backBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            <span>返回</span>
+          </div>
+
+          <div class="login-header">
+            <div class="login-title">创建账号</div>
+            <div class="login-subtitle">注册新账号开启精彩旅程</div>
+          </div>
+
+          <div class="login-card">
+            <div class="input-group">
+              <label class="input-label">手机号</label>
+              <div class="input-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                  <line x1="12" y1="18" x2="12.01" y2="18"/>
+                </svg>
+                <input type="tel" class="input-field" placeholder="请输入手机号" id="phone" maxlength="11">
+              </div>
+              <div class="input-hint" id="phoneHint">请输入11位手机号</div>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">验证码</label>
+              <div class="code-wrapper">
+                <div class="input-wrapper">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 12l2 2 4-4"/>
+                    <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.68.94 6.36 2.64"/>
+                  </svg>
+                  <input type="text" class="input-field" placeholder="请输入验证码" id="code" maxlength="6">
+                </div>
+                <button class="send-code-btn" id="sendCodeBtn">获取验证码</button>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">用户名</label>
+              <div class="input-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input type="text" class="input-field" placeholder="请输入用户名" id="username" maxlength="16">
+              </div>
+              <div class="input-hint" id="usernameHint">4-16位字符，支持字母、数字、下划线</div>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">密码</label>
+              <div class="input-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type="password" class="input-field" placeholder="请输入密码" id="password">
+                  <div class="pwd-toggle" id="pwdToggle1" title="显示密码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              </div>
+              <div class="password-strength" id="strengthBar">
+                <div class="password-strength-bar" id="strengthBar"></div>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">确认密码</label>
+              <div class="input-wrapper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 12l2 2 4-4"/>
+                  <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.39 0 4.68.94 6.36 2.64"/>
+                </svg>
+                <input type="password" class="input-field" placeholder="请再次输入密码" id="confirmPwd">
+                  <div class="pwd-toggle" id="pwdToggle2" title="显示密码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              </div>
+              <div class="field-hint" id="confirmHint"></div>
+            </div>
+
+            <label class="agreement">
+              <input type="checkbox" id="agree">
+              <div class="agreement-checkbox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <span>我已阅读并同意 <a id="termsLink">《用户协议》</a> 和 <a id="privacyLink">《隐私政策》</a></span>
+            </label>
+
+            <button class="register-btn" id="registerBtn">创 建 账 号</button>
+
+            <div class="login-link">
+              已有账号? <a id="loginLink">立即登录</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="toast" id="toast">
+          <div class="toast-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <span id="toastMsg">注册成功!</span>
+        </div>
+
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="interaction-hint" id="hint">👆 试试各个输入框和按钮</div>
+
+<script src="api.js"></script>
+<script>
+  const hint = document.getElementById('hint');
+  let hintTimer;
+
+  function showHint(msg, duration = 2000) {
+    hint.textContent = msg;
+    hint.classList.add('show');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => hint.classList.remove('show'), duration);
+  }
+
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  const strengthBar = document.getElementById('strengthBar');
+  const strengthBarFill = document.querySelector('.password-strength-bar');
+
+  // 返回登录
+  document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = 'login-prototype.html';
+  });
+
+  // 登录链接
+  document.getElementById('loginLink').addEventListener('click', () => {
+    window.location.href = 'login-prototype.html';
+  });
+
+  // 协议链接
+  document.getElementById('termsLink').addEventListener('click', (e) => {
+    e.stopPropagation();
+    showHint('📄 用户协议页面');
+  });
+  document.getElementById('privacyLink').addEventListener('click', (e) => {
+    e.stopPropagation();
+    showHint('🔒 隐私政策页面');
+  });
+
+  // 手机号校验
+  const phoneInput = document.getElementById('phone');
+  const phoneHint = document.getElementById('phoneHint');
+  phoneInput.addEventListener('input', () => {
+    phoneInput.value = phoneInput.value.replace(/\D/g, '');
+    if (phoneInput.value.length === 0) {
+      phoneHint.classList.remove('show');
+    } else if (phoneInput.value.length < 11) {
+      phoneHint.textContent = `还需输入${11 - phoneInput.value.length}位`;
+      phoneHint.classList.add('show');
+    } else if (!/^1\d{10}$/.test(phoneInput.value)) {
+      phoneHint.textContent = '手机号格式不正确';
+      phoneHint.style.color = '#E05A3A';
+      phoneHint.classList.add('show');
+    } else {
+      phoneHint.textContent = '✓ 手机号格式正确';
+      phoneHint.style.color = '#4CAF50';
+      phoneHint.classList.add('show');
+    }
+  });
+  phoneInput.addEventListener('focus', () => showHint('📱 输入手机号'));
+
+  // ========== 验证码（API 就绪架构） ==========
+  // 上线后只需替换 sendVerificationCode 内部为一个 POST /api/send-code
+  // 和注册按钮校验改为 POST /api/register，其他 UI 逻辑不变
+  const sendCodeBtn = document.getElementById('sendCodeBtn');
+  const codeInput = document.getElementById('code');
+  let countdownTimer = null;
+  let generatedCode = '';           // 模拟"服务端存储的验证码"
+  let codeSessionToken = '';        // 模拟后端返回的会话 token（防重放）
+
+  function sendVerificationCode(phone) {
+    // 优先调真实后端 POST /auth/send-code（开发模式响应 devCode 即真实后端生成的验证码）；
+    // 服务不可达时回退本地模拟生成。UI（toast/倒计时/本地校验）完全不变。
+    if (typeof MemoAPI === 'undefined') return mockSendVerificationCode(phone);
+    return MemoAPI.post('/auth/send-code', { phone: phone, scene: 'register' }).then(function(data) {
+      var devCode = data && data.devCode;
+      if (!devCode) { generatedCode = ''; return { ok: false, msg: '未获取到验证码，请重试' }; }
+      generatedCode = devCode;
+      codeSessionToken = 'dev_' + Date.now();
+      showToast('📨 验证码: ' + devCode + '（模拟短信发送）', 'success', 3500);
+      return { ok: true, code: devCode, token: codeSessionToken };
+    }).catch(function(e) {
+      if (e && e.business) return { ok: false, msg: e.message };
+      return mockSendVerificationCode(phone);
+    });
+  }
+
+  // 后端不可达时的本地模拟
+  function mockSendVerificationCode(phone) {
+    return new Promise(function(resolve) {
+      var code = String(Math.floor(100000 + Math.random() * 900000));
+      generatedCode = code;
+      codeSessionToken = 'mock_' + Date.now();
+      showToast('📨 验证码: ' + code + '（模拟短信发送）', 'success', 3500);
+      resolve({ ok: true, code: code, token: codeSessionToken });
+    });
+  }
+
+  function startCodeCountdown() {
+    var seconds = 60;
+    sendCodeBtn.disabled = true;
+    sendCodeBtn.textContent = seconds + 's 后重发';
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = setInterval(function() {
+      seconds--;
+      if (seconds <= 0) {
+        clearInterval(countdownTimer);
+        sendCodeBtn.disabled = false;
+        sendCodeBtn.textContent = '重新获取';
+      } else {
+        sendCodeBtn.textContent = seconds + 's 后重发';
+      }
+    }, 1000);
+  }
+
+  sendCodeBtn.addEventListener('click', function() {
+    var phone = phoneInput.value.trim();
+    if (!phone) { showToast('⚠️ 请先输入手机号', 'warning'); phoneInput.focus(); return; }
+    if (!/^1\d{10}$/.test(phone)) { showToast('⚠️ 手机号格式不正确', 'warning'); phoneInput.focus(); return; }
+
+    sendVerificationCode(phone).then(function(result) {
+      if (result.ok) startCodeCountdown();
+    });
+  });
+
+  codeInput.addEventListener('input', function() {
+    codeInput.value = codeInput.value.replace(/\D/g, '');
+  });
+  codeInput.addEventListener('focus', function() { showHint('输入短信中的6位验证码'); });
+
+  // 用户名
+  const usernameInput = document.getElementById('username');
+  const usernameHint = document.getElementById('usernameHint');
+  usernameInput.addEventListener('input', () => {
+    if (usernameInput.value.length > 0) {
+      usernameHint.classList.add('show');
+    } else {
+      usernameHint.classList.remove('show');
+    }
+  });
+  usernameInput.addEventListener('focus', () => showHint('👤 输入用户名'));
+
+  // 密码可见切换
+  function makePwdToggle(toggleId, inputId) {
+    document.getElementById(toggleId).addEventListener('click', function() {
+      var input = document.getElementById(inputId);
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      this.innerHTML = show
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    });
+  }
+  makePwdToggle('pwdToggle1', 'password');
+  makePwdToggle('pwdToggle2', 'confirmPwd');
+
+  // 密码强度
+  const pwdInput = document.getElementById('password');
+  pwdInput.addEventListener('input', () => {
+    const val = pwdInput.value;
+    if (val.length === 0) {
+      strengthBar.classList.remove('show');
+      return;
+    }
+    strengthBar.classList.add('show');
+    let level = 0;
+    if (val.length >= 6) level++;
+    if (/[A-Z]/.test(val) && /[a-z]/.test(val)) level++;
+    if (/\d/.test(val) && /[^A-Za-z0-9]/.test(val)) level++;
+
+    strengthBarFill.className = 'password-strength-bar';
+    if (level <= 1) strengthBarFill.classList.add('strength-weak');
+    else if (level === 2) strengthBarFill.classList.add('strength-medium');
+    else strengthBarFill.classList.add('strength-strong');
+    // 实时校验确认密码
+    checkConfirmPwd();
+  });
+  pwdInput.addEventListener('focus', () => showHint('设置密码'));
+
+  // 确认密码 + 实时校验
+  const confirmInput = document.getElementById('confirmPwd');
+  function checkConfirmPwd() {
+    var hint = document.getElementById('confirmHint');
+    if (!hint) return;
+    if (confirmInput.value.length === 0) { hint.classList.remove('show'); return; }
+    hint.classList.add('show');
+    if (confirmInput.value === pwdInput.value) { hint.className = 'field-hint show ok'; hint.textContent = '✓ 密码一致'; }
+    else { hint.className = 'field-hint show error'; hint.textContent = '⚠ 两次密码不一致'; }
+  }
+  confirmInput.addEventListener('input', checkConfirmPwd);
+  confirmInput.addEventListener('focus', () => showHint('再次输入密码'));
+
+  // 用户名实时提示
+  usernameInput.addEventListener('input', function() {
+    var val = usernameInput.value.trim();
+    usernameHint.classList.remove('show');
+    if (val.length === 0) return;
+    usernameHint.classList.add('show');
+    if (val.length < 4) { usernameHint.className = 'field-hint show error'; usernameHint.textContent = '⚠ 至少4位字符'; }
+    else { usernameHint.className = 'field-hint show ok'; usernameHint.textContent = '✓ 用户名格式正确'; }
+  });
+
+  // 手机号实时提示增强
+  var phoneHintEl = document.getElementById('phoneHint');
+  phoneInput.addEventListener('input', function() {
+    var val = phoneInput.value;
+    if (val.length === 0) { phoneHintEl.classList.remove('show'); return; }
+    phoneHintEl.classList.add('show');
+    if (val.length < 11) { phoneHintEl.className = 'field-hint show error'; phoneHintEl.textContent = '⚠ 还需输入' + (11 - val.length) + '位'; }
+    else if (!/^1\d{10}$/.test(val)) { phoneHintEl.className = 'field-hint show error'; phoneHintEl.textContent = '⚠ 手机号格式不正确'; }
+    else { phoneHintEl.className = 'field-hint show ok'; phoneHintEl.textContent = '✓ 手机号格式正确'; }
+  });
+
+  // 涟漪
+  function createRipple(e) {
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = (e.clientX || rect.left + rect.width / 2) - rect.left - size / 2;
+    const y = (e.clientY || rect.top + rect.height / 2) - rect.top - size / 2;
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    btn.appendChild(ripple);
+    ripple.addEventListener('animationend', () => ripple.remove());
+  }
+
+  // ========== 注册提交（API 就绪） ==========
+  function doRegister(payload) {
+    // 优先调真实后端 POST /auth/register（成功保存 token+user，跳转逻辑不变）；
+    // 服务不可达时回退本地模拟校验。
+    if (typeof MemoAPI !== 'undefined') {
+      var reqBody = {
+        phone: payload.phone,
+        code: payload.code,
+        nickname: payload.username,
+        ...(payload.password ? { password: payload.password } : {})
+      };
+      return MemoAPI.post('/auth/register', reqBody).then(function(data) {
+        if (data && data.token) MemoAPI.setAuth(data.token, data.user || {});
+        return { ok: true, msg: '注册成功' };
+      }).catch(function(e) {
+        if (e && e.business) return { ok: false, msg: e.message };
+        return mockRegister(payload);
+      });
+    }
+    return mockRegister(payload);
+  }
+
+  // 后端不可达时的本地模拟
+  function mockRegister(payload) {
+    return new Promise(function(resolve) {
+      // 模拟后端校验
+      if (payload.username && payload.username.length >= 4
+          && payload.password && payload.password.length >= 6
+          && payload.phone && /^1\d{10}$/.test(payload.phone)) {
+        resolve({ ok: true, msg: '注册成功' });
+      } else {
+        resolve({ ok: false, msg: '注册信息有误' });
+      }
+    });
+  }
+
+  const registerBtn = document.getElementById('registerBtn');
+  registerBtn.addEventListener('click', createRipple);
+  registerBtn.addEventListener('click', function() {
+    var phone = phoneInput.value.trim();
+    var username = usernameInput.value.trim();
+    var pwd = pwdInput.value;
+    var confirm = confirmInput.value;
+    var agreed = document.getElementById('agree').checked;
+
+    if (!phone || !/^1\d{10}$/.test(phone)) { showToast('⚠️ 请输入正确的手机号', 'warning'); return; }
+    if (!codeInput.value.trim()) { showToast('⚠️ 请输入验证码', 'warning'); return; }
+    if (generatedCode && codeInput.value.trim() !== generatedCode) { showToast('⚠️ 验证码不正确', 'warning'); return; }
+    if (username.length < 4) { showToast('⚠️ 用户名至少4位', 'warning'); return; }
+    if (pwd.length < 6) { showToast('⚠️ 密码至少6位', 'warning'); return; }
+    if (pwd !== confirm) { showToast('⚠️ 两次密码不一致', 'warning'); return; }
+    if (!agreed) { showToast('⚠️ 请先同意用户协议', 'warning'); return; }
+
+    var payload = {
+      phone: phone,
+      username: username,
+      password: pwd,
+      code: codeInput.value.trim(),
+      codeToken: codeSessionToken
+    };
+
+    doRegister(payload).then(function(result) {
+      if (result.ok) {
+        showToast('🎉 注册成功!', 'success');
+        setTimeout(function() { window.location.href = 'login-prototype.html'; }, 1500);
+      } else {
+        showToast('⚠️ ' + (result.msg || '注册失败'), 'warning');
+      }
+    });
+  });
+
+  function showToast(msg, type, duration = 2000) {
+    toastMsg.textContent = msg;
+    const iconSvg = type === 'warning'
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    toast.querySelector('.toast-icon').innerHTML = iconSvg;
+    toast.classList.add('show');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('show'), duration);
+  }
+
+  // 回车提交
+  [phoneInput, codeInput, usernameInput, pwdInput, confirmInput].forEach(input => {
+    input.addEventListener('keypress', e => {
+      if (e.key === 'Enter') registerBtn.click();
+    });
+  });
+
+  setTimeout(() => showHint('👆 试试各个输入框和按钮'), 500);
+</script>
+
+</body>
+</html>
