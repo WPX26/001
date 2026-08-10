@@ -48,6 +48,11 @@ app.get('/health', (req, res) => {
   });
 });
 
+// 根路径返回 200（Sealos 等平台的健康探针默认访问 /，需要 200 判定健康）
+app.get('/', (req, res) => {
+  ok(res, { status: 'ok', service: 'memomap-server' });
+});
+
 // 业务路由（api.md 前缀 /api/v1）
 app.use('/api/v1', routes);
 
