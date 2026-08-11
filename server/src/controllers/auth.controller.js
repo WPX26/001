@@ -15,6 +15,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { User, VerificationCode } from '../models/index.js';
 import * as smsService from '../services/sms.service.js';
 import * as tokenService from '../services/token.service.js';
+import { recordVerifyFailure, clearVerifyFailures } from '../middleware/rateLimit.js';
 
 /** 生成 6 位数字验证码 */
 function genCode() {
@@ -24,6 +25,7 @@ function genCode() {
 /**
  * 校验短信验证码（登录/注册共用）
  * 取该手机号+场景最新一条：未使用、未过期、内容一致
+ * 防暴力枚举：内容不一致时记录错误次数，≥5 次触发 10 分钟锁定（429/1006，由路由层 verifyLockGuard 拦截）
  */
 async function verifySmsCode(phone, scene, code) {
   const record = await VerificationCode.findOne({ phone, scene }).sort({ createdAt: -1 });
@@ -32,8 +34,10 @@ async function verifySmsCode(phone, scene, code) {
     throw new AppError(ERR.VALIDATE, '验证码已过期，请重新获取', 400);
   }
   if (record.code !== code) {
+    recordVerifyFailure(phone); // 仅实际"码不匹配"计失败，避免误锁合法用户
     throw new AppError(ERR.VALIDATE, '验证码错误', 400);
   }
+  clearVerifyFailures(phone);
   record.usedAt = new Date();
   await record.save();
 }

@@ -31,6 +31,20 @@ export const createCoord = asyncHandler(async (req, res) => {
   }
 
   const uniqueIds = [...new Set(photoIds.map(String))];
+  if (uniqueIds.length > 100) {
+    throw new AppError(ERR.VALIDATE, '单次最多关联 100 张照片', 400);
+  }
+
+  // P1-2 修复：photoTimes 的键必须 ∈ photoIds（过滤非法键），非法时间值直接丢弃（不 500）
+  const safePhotoTimes = {};
+  for (const [pid, taken] of Object.entries(photoTimes || {})) {
+    if (!uniqueIds.includes(String(pid))) continue; // 键不在 photoIds 内 → 过滤
+    if (taken == null || taken === '') continue;
+    const d = new Date(taken);
+    if (Number.isNaN(d.getTime())) continue; // 非法时间值 → 过滤
+    safePhotoTimes[String(pid)] = d;
+  }
+
   const photos = await Photo.find({ _id: { $in: uniqueIds }, authorId: req.user._id, deletedAt: null });
   if (photos.length !== uniqueIds.length) {
     throw new AppError(ERR.NOT_FOUND, '部分照片不存在或不属于当前用户', 404);
@@ -47,17 +61,17 @@ export const createCoord = asyncHandler(async (req, res) => {
     authorId: req.user._id,
     isPublic,
     mode,
-    photoTimes,
+    photoTimes: safePhotoTimes,
     photoCount: photos.length,
     gridKey: gridKeyOf(lng, lat),
   });
 
   // 回填照片的坐标归属与拍摄时间
   for (const photo of photos) {
-    const taken = photoTimes[String(photo._id)];
+    const taken = safePhotoTimes[String(photo._id)];
     await Photo.updateOne(
       { _id: photo._id },
-      { $set: { coordId: coord._id, ...(taken ? { takenAt: new Date(taken) } : {}) } }
+      { $set: { coordId: coord._id, ...(taken ? { takenAt: taken } : {}) } }
     );
   }
 
@@ -110,6 +124,12 @@ export const coordDetail = asyncHandler(async (req, res) => {
   const coord = await Coord.findOne({ _id: req.params.coordId, deletedAt: null });
   if (!coord) throw new AppError(ERR.NOT_FOUND, '坐标不存在或已删除', 404);
 
+  // 隐私（P0-1 修复）：私有坐标仅作者可见；他人访问一律按 404 隐藏（不泄露存在性）
+  const me = String(req.user._id);
+  if (String(coord.authorId) !== me && !coord.isPublic) {
+    throw new AppError(ERR.NOT_FOUND, '坐标不存在或已删除', 404);
+  }
+
   const [photos, totalCount] = await Promise.all([
     Photo.find({ coordId: coord._id, deletedAt: null })
       .sort({ takenAt: -1 })
@@ -120,7 +140,6 @@ export const coordDetail = asyncHandler(async (req, res) => {
   ]);
 
   const userMap = await buildUserMap([...photos.map((p) => p.authorId), coord.authorId]);
-  const me = String(req.user._id);
 
   const coordAuthor = userMap.get(String(coord.authorId));
   const photoList = photos.map((p) => {

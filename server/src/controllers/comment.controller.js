@@ -9,7 +9,7 @@ import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, paginated } from '../utils/pagination.js';
-import { User, Photo, Comment } from '../models/index.js';
+import { User, Photo, Coord, Comment } from '../models/index.js';
 import { notify } from '../services/notification.service.js';
 
 /** 6.7 评论列表（分页，倒序，作者昵称/头像 join，replyTo 关联） */
@@ -17,8 +17,17 @@ export const getComments = asyncHandler(async (req, res) => {
   const { page, pageSize, skip } = pagination(req);
   const photoId = req.params.photoId;
 
-  const photo = await Photo.findOne({ _id: photoId, deletedAt: null }).select('_id').lean();
+  const photo = await Photo.findOne({ _id: photoId, deletedAt: null }).select('_id authorId coordId').lean();
   if (!photo) throw new AppError(ERR.NOT_FOUND, '照片不存在或已删除', 404);
+
+  // 隐私（P0-1 修复）：评论列表与照片详情同可见性——非作者仅可看公开坐标下的照片评论，
+  // 未挂坐标照片视为私有，一律 404 隐藏
+  if (String(photo.authorId) !== String(req.user._id)) {
+    const visible = photo.coordId
+      ? await Coord.exists({ _id: photo.coordId, isPublic: true, deletedAt: null })
+      : false;
+    if (!visible) throw new AppError(ERR.NOT_FOUND, '照片不存在或已删除', 404);
+  }
 
   const query = { photoId, deletedAt: null };
   const [comments, total] = await Promise.all([

@@ -20,9 +20,14 @@ export function errorHandler(err, req, res, next) {
     return res.status(400).json({ code: ERR.VALIDATE, data: null, message: msg });
   }
 
-  // mongoose ObjectId 格式错误（路由参数不是合法 ID）
+  // mongoose CastError 分两类（P0-3 修复）：
+  // - ObjectId 格式错误（路由参数/字段不是合法 ID）→ 404/1004 资源不存在
+  // - 其他类型转换错误（非法日期/数值等字段类型）→ 400/1001 参数格式不正确
   if (err.name === 'CastError') {
-    return res.status(404).json({ code: ERR.NOT_FOUND, data: null, message: '资源不存在' });
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ code: ERR.NOT_FOUND, data: null, message: '资源不存在' });
+    }
+    return res.status(400).json({ code: ERR.VALIDATE, data: null, message: '参数格式不正确' });
   }
 
   // 唯一键冲突（如手机号重复注册、clientPhotoId 重复）

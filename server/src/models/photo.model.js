@@ -23,6 +23,9 @@ const photoSchema = new Schema(
     tips: { type: Number, default: 0 },
     collects: { type: Number, default: 0 }, // 收藏数
     commentCount: { type: Number, default: 0 }, // 评论数（发布 +1 / 删除 -1）
+    // TODO P2：likedBy/tippedBy/collectedBy 为无界数组（拆独立互动集合属 P2 大改，暂留）。
+    // 风险：单照片互动量过大时数组膨胀（逼近 BSON 文档 16MB 上限）、并发 $push 竞争、
+    // 按用户反查（isLiked 等）随数组增长变慢；届时拆为 like/tip/collect 独立集合（按 userId 索引）替代
     likedBy: [{ type: Types.ObjectId, ref: 'User' }],
     tippedBy: [{ type: Types.ObjectId, ref: 'User' }],
     collectedBy: [{ type: Types.ObjectId, ref: 'User' }],

@@ -121,15 +121,19 @@ export async function getUploadToken(scene, fileCount) {
 /**
  * OSS 回调签名校验（api.md 7.3）
  * Authorization: "OSS " + base64(hmac-sha1(secret, 原始请求体))
+ * P1-3 修复：先比较长度，不等直接返回 false（timingSafeEqual 长度不同会抛 TypeError → 500）
  */
 export function verifyCallbackSignature(rawBody, authorization) {
   if (!authorization || !authorization.startsWith('OSS ')) return false;
   const sign = authorization.slice(4).trim();
   const hmac = crypto
     .createHmac('sha1', env.OSS.accessKeySecret)
-    .update(rawBody, 'utf8')
+    .update(rawBody || '', 'utf8')
     .digest('base64');
-  return crypto.timingSafeEqual(Buffer.from(sign), Buffer.from(hmac));
+  const signBuf = Buffer.from(sign);
+  const hmacBuf = Buffer.from(hmac);
+  if (signBuf.length !== hmacBuf.length) return false;
+  return crypto.timingSafeEqual(signBuf, hmacBuf);
 }
 
 /**
@@ -145,8 +149,9 @@ export async function createPhotosFromCallback(files, userId) {
     const hash = file.hash || '';
     if (!key) throw new AppError(ERR.VALIDATE, '回调文件缺少 key', 400);
 
-    // 幂等：同一文件（hash）重复回调不产生重复照片
-    const clientPhotoId = hash || key;
+    // 幂等：同一文件（hash）重复回调不产生重复照片。
+    // P1-4 修复：幂等键复合 userId + key/hash——旧实现全局唯一，两用户上传相同 hash 会冒领对方照片
+    const clientPhotoId = `${String(userId)}:${hash || key}`;
     let photo = await Photo.findOne({ clientPhotoId });
     if (!photo) {
       const url = env.STORAGE_MODE === 'oss' ? objectUrl(key) : `${env.LOCAL_BASE_URL}/uploads/${key}`;

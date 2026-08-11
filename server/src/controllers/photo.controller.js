@@ -91,13 +91,21 @@ export const getMyPhotos = asyncHandler(async (req, res) => {
 
 /** 6.1 获取照片详情（含作者与互动状态） */
 export const getPhotoDetail = asyncHandler(async (req, res) => {
+  const meId = String(req.user._id);
   const photo = await Photo.findOne({ _id: req.params.photoId, deletedAt: null });
   if (!photo) throw new AppError(ERR.NOT_FOUND, '照片不存在或已删除', 404);
 
-  const [author, coord] = await Promise.all([
-    User.findById(photo.authorId).select('nickname avatar isPhotographer').lean(),
-    photo.coordId ? Coord.findById(photo.coordId).select('title lng lat').lean() : null,
-  ]);
+  // 隐私（P0-1 修复）：非作者仅可查看"公开坐标下的照片"；
+  // 未挂坐标的照片视为私有（仅作者可见），一律按 404 隐藏（不泄露存在性）
+  let coord = null;
+  if (photo.coordId) {
+    coord = await Coord.findById(photo.coordId).select('title lng lat isPublic').lean();
+  }
+  if (String(photo.authorId) !== meId && !(coord && coord.isPublic)) {
+    throw new AppError(ERR.NOT_FOUND, '照片不存在或已删除', 404);
+  }
+
+  const author = await User.findById(photo.authorId).select('nickname avatar isPhotographer').lean();
 
   ok(res, {
     id: String(photo._id),
@@ -123,20 +131,23 @@ export const getPhotoDetail = asyncHandler(async (req, res) => {
 
 /**
  * 通用互动原子操作：POST 类（push+inc，已存在则报 1005）
+ * 错误语义（P0-3 修复）：照片不存在/已删除 → 404/1004；已互动过 → 409/1005
  * @param {string} field likedBy / collectedBy / tippedBy
  * @param {string} counter likes / collects / tips
  */
 async function addInteraction(req, photoId, field, counter) {
   const meId = req.user._id;
-  const result = await Photo.updateOne(
+  const photo = await Photo.findOneAndUpdate(
     { _id: photoId, deletedAt: null, [field]: { $ne: meId } },
-    { $push: { [field]: meId }, $inc: { [counter]: 1 } }
-  );
-  if (result.modifiedCount === 0) {
+    { $push: { [field]: meId }, $inc: { [counter]: 1 } },
+    { new: true }
+  ).select('authorId ' + counter);
+  if (!photo) {
+    // 区分"不存在"与"已互动"：findOneAndUpdate 未命中时再查存在性
+    const exists = await Photo.exists({ _id: photoId, deletedAt: null });
+    if (!exists) throw new AppError(ERR.NOT_FOUND, '照片不存在或已删除', 404);
     throw new AppError(ERR.DUPLICATE, '重复操作', 409);
   }
-  const photo = await Photo.findById(photoId).select('authorId');
-  if (!photo) throw new AppError(ERR.NOT_FOUND, '照片不存在或已删除', 404);
   if (String(photo.authorId) !== String(meId)) {
     await Notification.create({
       userId: photo.authorId,
@@ -145,22 +156,23 @@ async function addInteraction(req, photoId, field, counter) {
       photoId,
     }).catch(() => {});
   }
-  const p = await Photo.findById(photoId).select(counter);
-  return { [counter]: p?.[counter] || 0 };
+  return { [counter]: photo[counter] || 0 };
 }
 
-/** 通用互动原子操作：DELETE 类（pull+inc，不存在则报 1005） */
+/** 通用互动原子操作：DELETE 类（pull+inc；照片不存在 → 404/1004，未互动过 → 409/1005） */
 async function removeInteraction(req, photoId, field, counter) {
   const meId = req.user._id;
-  const result = await Photo.updateOne(
+  const photo = await Photo.findOneAndUpdate(
     { _id: photoId, deletedAt: null, [field]: meId },
-    { $pull: { [field]: meId }, $inc: { [counter]: -1 } }
-  );
-  if (result.modifiedCount === 0) {
+    { $pull: { [field]: meId }, $inc: { [counter]: -1 } },
+    { new: true }
+  ).select(counter);
+  if (!photo) {
+    const exists = await Photo.exists({ _id: photoId, deletedAt: null });
+    if (!exists) throw new AppError(ERR.NOT_FOUND, '照片不存在或已删除', 404);
     throw new AppError(ERR.DUPLICATE, '重复操作', 409);
   }
-  const p = await Photo.findById(photoId).select(counter);
-  return { [counter]: Math.max(0, p?.[counter] || 0) };
+  return { [counter]: Math.max(0, photo[counter] || 0) };
 }
 
 /** 6.2 点赞 */
@@ -232,6 +244,10 @@ export const softDeletePhoto = asyncHandler(async (req, res) => {
   }
   photo.deletedAt = new Date();
   await photo.save();
+  // P1-1 修复：软删同步坐标冗余计数 -1（photoCount 不为负防御）
+  if (photo.coordId) {
+    await Coord.updateOne({ _id: photo.coordId, photoCount: { $gt: 0 } }, { $inc: { photoCount: -1 } });
+  }
   ok(res, {}, '照片已删除（可在回收站恢复）');
 });
 
@@ -242,6 +258,10 @@ export const restorePhoto = asyncHandler(async (req, res) => {
   if (!photo.deletedAt) throw new AppError(ERR.DUPLICATE, '照片未删除，无需恢复', 409);
   photo.deletedAt = null;
   await photo.save();
+  // P1-1 修复：恢复时同步坐标冗余计数 +1（photoTimes 键在软删时保留，无需回填）
+  if (photo.coordId) {
+    await Coord.updateOne({ _id: photo.coordId }, { $inc: { photoCount: 1 } });
+  }
   ok(res, {}, '照片已恢复');
 });
 
@@ -289,11 +309,13 @@ export const getTrash = asyncHandler(async (req, res) => {
 
   let photos = [];
   let coords = [];
-  if (type === 'photos') [photos] = await getPhotos();
-  else if (type === 'markers') [coords] = await getCoords();
+  let photosTotal = 0;
+  let coordsTotal = 0;
+  if (type === 'photos') [photos, photosTotal] = await getPhotos();
+  else if (type === 'markers') [coords, coordsTotal] = await getCoords();
   else {
-    [photos] = await getPhotos();
-    [coords] = await getCoords();
+    [photos, photosTotal] = await getPhotos();
+    [coords, coordsTotal] = await getCoords();
   }
 
   const list = [
@@ -317,5 +339,9 @@ export const getTrash = asyncHandler(async (req, res) => {
     })),
   ];
 
-  ok(res, paginated(list, list.length, page, pageSize));
+  // P1-6 修复：total 按类型分别 countDocuments 计算（原实现恒为当前页长度，分页 total 永远错）；
+  // 响应注明回收站类型（photos / markers / all，向前兼容的追加字段）
+  const total =
+    type === 'photos' ? photosTotal : type === 'markers' ? coordsTotal : photosTotal + coordsTotal;
+  ok(res, { ...paginated(list, total, page, pageSize), type });
 });

@@ -23,6 +23,8 @@ const coordSchema = new Schema(
     // 0.01° 网格键，用于地图聚合（写入时按坐标计算）
     gridKey: { type: String, index: true },
     // 收藏该坐标的用户（灵感模式收藏，api.md 4.2）
+    // TODO P2：collectedBy 为无界数组（与 Photo.likedBy/tippedBy/collectedBy 同类风险：文档膨胀、
+    // 并发 $push 竞争），届时拆独立收藏集合（按 userId 索引）替代
     collectedBy: [{ type: Types.ObjectId, ref: 'User' }],
     // 冗余收藏计数（列表/卡片直接使用，避免每次取数组长度）
     collectedCount: { type: Number, default: 0 },

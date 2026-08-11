@@ -30,7 +30,8 @@ export async function requireAuth(req, res, next) {
       throw new AppError(ERR.AUTH, 'Token 类型错误', 401);
     }
 
-    const user = await User.findById(payload.uid);
+    // P1-5 修复：不加载敏感字段（passwordHash），每请求少拉一份完整文档
+    const user = await User.findById(payload.uid).select('-passwordHash');
     if (!user) {
       throw new AppError(ERR.AUTH, '用户不存在或已被注销', 401);
     }
@@ -92,7 +93,8 @@ export async function optionalAuth(req, res, next) {
     const payload = jwt.verify(token, env.JWT_SECRET);
     // 只挂载合法 access token；refresh token / 无效 token 不阻断
     if (payload.type === 'access' && payload.uid) {
-      const user = await User.findById(payload.uid);
+      // P1-5：与 requireAuth 一致，不加载敏感字段
+      const user = await User.findById(payload.uid).select('-passwordHash');
       if (user) req.user = user;
     }
   } catch {

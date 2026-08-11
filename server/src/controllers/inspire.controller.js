@@ -179,7 +179,8 @@ export const collectCoords = asyncHandler(async (req, res) => {
   const meId = req.user._id;
 
   // 先校验存在性与重复性，再统一写入（避免 updateMany 已部分生效后再抛 409）
-  const existing = await Coord.countDocuments({ _id: { $in: ids }, deletedAt: null });
+  // P0-1 统查：仅允许收藏公开坐标（私有坐标按 404 隐藏，防 ID 直连把私有内容拉入收藏）
+  const existing = await Coord.countDocuments({ _id: { $in: ids }, deletedAt: null, isPublic: true });
   if (existing !== ids.length) {
     throw new AppError(ERR.NOT_FOUND, '部分坐标不存在或已删除', 404);
   }
