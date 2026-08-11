@@ -10,13 +10,17 @@
 		{
 			"path": "pages/album/album",
 			"style": {
-				"navigationBarTitleText": "相册"
+				"navigationBarTitleText": "相册",
+				"enablePullDownRefresh": true,
+				"backgroundTextStyle": "dark"
 			}
 		},
 		{
 			"path": "pages/message/message",
 			"style": {
-				"navigationBarTitleText": "消息"
+				"navigationBarTitleText": "消息",
+				"enablePullDownRefresh": true,
+				"backgroundTextStyle": "dark"
 			}
 		},
 		{
@@ -37,6 +41,12 @@
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "注册"
+			}
+		},
+		{
+			"path": "pages/subscribe/subscribe",
+			"style": {
+				"navigationBarTitleText": "订阅会员"
 			}
 		}
 	],
