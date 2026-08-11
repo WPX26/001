@@ -45,6 +45,7 @@ export const NOTIFICATION_TYPE = {
   COLLECT: 'collect', // 有人收藏了你的照片
   FOLLOW: 'follow', // 有人关注了你
   SYSTEM: 'system', // 系统通知
+  CHAT: 'chat', // 收到了新私信
 };
 
 /** 打赏限频：同一用户同一照片 60 秒内最多一次 */

@@ -12,7 +12,9 @@ const messageSchema = new Schema(
     type: { type: String, enum: ['text', 'image', 'coord'], default: 'text' },
     content: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
-    // 坐标分享消息附带的坐标 ID
+    // 坐标分享消息附带的坐标（{lng, lat}，前端直接展示）
+    coord: { lng: { type: Number, default: null }, lat: { type: Number, default: null } },
+    // 坐标分享消息附带的坐标 ID（预留：分享已有坐标时关联）
     coordId: { type: Types.ObjectId, ref: 'Coord', default: null },
     // 已读用户
     readBy: [{ type: Types.ObjectId, ref: 'User' }],

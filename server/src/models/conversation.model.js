@@ -16,6 +16,7 @@ const conversationSchema = new Schema(
       type: { type: String, enum: ['text', 'image', 'coord'], default: 'text' },
       content: { type: String, default: '' },
       imageUrl: { type: String, default: '' },
+      coord: { lng: { type: Number, default: null }, lat: { type: Number, default: null } },
       createdAt: { type: Date, default: null },
     },
     lastMessageAt: { type: Date, default: null, index: true },

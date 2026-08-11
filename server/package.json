@@ -14,7 +14,8 @@
     "smoke": "node scripts/smoke.js",
     "smoke:invite": "node scripts/smoke-invite.js",
     "smoke:interactions": "node scripts/smoke-comments-tips-notify.js",
-    "smoke:inspire-explore": "node scripts/smoke-inspire-explore.js"
+    "smoke:inspire-explore": "node scripts/smoke-inspire-explore.js",
+    "smoke:chat-report": "node scripts/smoke-chat-report.js"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.2.0"
@@ -32,6 +33,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.0",
     "morgan": "^1.10.0",
-    "multer": "^2.2.0"
+    "multer": "^2.2.0",
+    "ws": "^8.21.3"
   }
 }

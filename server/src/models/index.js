@@ -5,6 +5,7 @@ export { default as User } from './user.model.js';
 export { default as Coord } from './coord.model.js';
 export { default as Photo } from './photo.model.js';
 export { default as Comment } from './comment.model.js';
+export { default as Report } from './report.model.js';
 export { default as Conversation } from './conversation.model.js';
 export { default as Message } from './message.model.js';
 export { default as Notification } from './notification.model.js';
