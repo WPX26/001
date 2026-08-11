@@ -36,6 +36,20 @@ export const SMS_SCENE = { LOGIN: 'login', REGISTER: 'register' };
 /** 地图聚合网格粒度（度）：level 1 粗 / 2 中 / 3 细 */
 export const GRID_SIZE_BY_LEVEL = { 1: 0.05, 2: 0.02, 3: 0.01 };
 
+/** 通知类型（对齐 api.md 14.1 表 + reply/collect 扩展，与 Notification.type 枚举一致） */
+export const NOTIFICATION_TYPE = {
+  LIKE: 'like', // 有人赞了你的照片
+  COMMENT: 'comment', // 有人评论了你的照片
+  REPLY: 'reply', // 有人回复了你的评论
+  TIP: 'tip', // 收到了打赏
+  COLLECT: 'collect', // 有人收藏了你的照片
+  FOLLOW: 'follow', // 有人关注了你
+  SYSTEM: 'system', // 系统通知
+};
+
+/** 打赏限频：同一用户同一照片 60 秒内最多一次 */
+export const TIP_MIN_INTERVAL_MS = 60 * 1000;
+
 /** 地图标记颜色：按模式区分 */
 export const MARKER_COLOR = {
   normal: '#2196F3', // 默认蓝

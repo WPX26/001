@@ -9,6 +9,7 @@ export { default as Conversation } from './conversation.model.js';
 export { default as Message } from './message.model.js';
 export { default as Notification } from './notification.model.js';
 export { default as MemberOrder } from './member-order.model.js';
+export { default as Tip } from './tip.model.js';
 export { default as InviteCode } from './invite-code.model.js';
 export { default as PhotographerApply } from './photographer-apply.model.js';
 export { default as VerificationCode } from './verification-code.model.js';

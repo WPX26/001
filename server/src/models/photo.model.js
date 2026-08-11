@@ -22,6 +22,7 @@ const photoSchema = new Schema(
     likes: { type: Number, default: 0 },
     tips: { type: Number, default: 0 },
     collects: { type: Number, default: 0 }, // 收藏数
+    commentCount: { type: Number, default: 0 }, // 评论数（发布 +1 / 删除 -1）
     likedBy: [{ type: Types.ObjectId, ref: 'User' }],
     tippedBy: [{ type: Types.ObjectId, ref: 'User' }],
     collectedBy: [{ type: Types.ObjectId, ref: 'User' }],

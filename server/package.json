@@ -12,7 +12,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "smoke": "node scripts/smoke.js",
-    "smoke:invite": "node scripts/smoke-invite.js"
+    "smoke:invite": "node scripts/smoke-invite.js",
+    "smoke:interactions": "node scripts/smoke-comments-tips-notify.js"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.2.0"

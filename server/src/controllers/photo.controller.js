@@ -2,22 +2,25 @@
  * 照片控制器（api.md 第 6/13 章）
  * - GET /photos/mine 我的照片（时间 / 按坐标分组）
  * - GET /photos/{photoId} 照片详情
- * - POST/DELETE like、collect（打赏 P1）
+ * - POST/DELETE like、collect（打赏 P1）、POST tip（P1 打赏，60 秒限频）
  * - DELETE /photos/{photoId} 软删除、POST restore、DELETE permanent、GET trash 回收站
  */
-import { ERR } from '../config/constants.js';
+import { ERR, NOTIFICATION_TYPE, TIP_MIN_INTERVAL_MS } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, paginated } from '../utils/pagination.js';
-import { User, Coord, Photo, Notification } from '../models/index.js';
+import { User, Coord, Photo, Tip, Notification } from '../models/index.js';
+import { notify } from '../services/notification.service.js';
 
-/** 生成照片互动状态字段（isLiked/isTipped/isCollected） */
+/** 生成照片互动状态字段（isLiked/isTipped/isCollected/commentCount） */
 function interactionFlags(photo, meId) {
   const me = String(meId);
   return {
     likes: photo.likes || 0,
     tips: photo.tips || 0,
+    collects: photo.collects || 0,
+    commentCount: photo.commentCount || 0,
     isLiked: (photo.likedBy || []).map(String).includes(me),
     isTipped: (photo.tippedBy || []).map(String).includes(me),
     isCollected: (photo.collectedBy || []).map(String).includes(me),
@@ -182,6 +185,42 @@ export const collectPhoto = asyncHandler(async (req, res) => {
 export const uncollectPhoto = asyncHandler(async (req, res) => {
   const r = await removeInteraction(req, req.params.photoId, 'collectedBy', 'collects');
   ok(res, r, '已取消收藏');
+});
+
+/**
+ * 6.4 打赏照片（平台代币 1-100 整数）
+ * - 不能打赏自己的照片（1003）
+ * - 同一用户同一照片 60 秒内限一次（1006）
+ * - 写 Tip 记录 + Photo.tippedBy 数组联动（tips 计数按金额累加）+ 通知照片作者（type=tip）
+ */
+export const tipPhoto = asyncHandler(async (req, res) => {
+  const photoId = req.params.photoId;
+  const amount = req.body.amount;
+  const meId = req.user._id;
+
+  const photo = await Photo.findOne({ _id: photoId, deletedAt: null }).select('authorId').lean();
+  if (!photo) throw new AppError(ERR.NOT_FOUND, '照片不存在或已删除', 404);
+  if (String(photo.authorId) === String(meId)) {
+    throw new AppError(ERR.FORBIDDEN, '不能打赏自己的照片', 403);
+  }
+
+  // 限频：查该用户在该照片下最近一次打赏
+  const last = await Tip.findOne({ photoId, tipperId: meId }).sort({ createdAt: -1 }).lean();
+  if (last && Date.now() - new Date(last.createdAt).getTime() < TIP_MIN_INTERVAL_MS) {
+    throw new AppError(ERR.RATE_LIMIT, '打赏太频繁，请 60 秒后再试', 429);
+  }
+
+  await Tip.create({ photoId, tipperId: meId, amount });
+  // $addToSet：多次打赏不重复进 tippedBy（tips 计数按金额累加）
+  const p = await Photo.findOneAndUpdate(
+    { _id: photoId },
+    { $addToSet: { tippedBy: meId }, $inc: { tips: amount } },
+    { new: true }
+  ).select('tips');
+
+  await notify(photo.authorId, NOTIFICATION_TYPE.TIP, { actorId: meId, photoId });
+
+  ok(res, { amount, tips: p?.tips || 0, tipped: true }, '打赏成功');
 });
 
 /** 7.6 删除照片（软删除进回收站） */

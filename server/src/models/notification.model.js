@@ -1,6 +1,6 @@
 /**
  * 通知模型（api.md 14.1-14.3，P1 接口，先建模型）
- * 类型：like / comment / follow / tip / system
+ * 类型枚举对齐 config/constants.js NOTIFICATION_TYPE：like / comment / reply / tip / collect / follow / system
  */
 import mongoose from 'mongoose';
 
@@ -11,7 +11,7 @@ const notificationSchema = new Schema(
     userId: { type: Types.ObjectId, ref: 'User', required: true, index: true }, // 接收人
     type: {
       type: String,
-      enum: ['like', 'comment', 'follow', 'tip', 'collect', 'system'],
+      enum: ['like', 'comment', 'reply', 'tip', 'collect', 'follow', 'system'],
       required: true,
     },
     actorId: { type: Types.ObjectId, ref: 'User', default: null }, // 触发人
