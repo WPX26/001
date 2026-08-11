@@ -554,7 +554,13 @@
     position: absolute;
     top: -40px; right: -40px;
     width: 160px; height: 160px;
-    background: radial-gradient(circle, rgba(240, 160, 64, 0.25) 0%, transparent 70%);
+    background:
+      radial-gradient(ellipse 29% 42% at 50% 24%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
+      radial-gradient(ellipse 29% 42% at 74.7% 42%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
+      radial-gradient(ellipse 29% 42% at 65.3% 71%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
+      radial-gradient(ellipse 29% 42% at 34.7% 71%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
+      radial-gradient(ellipse 29% 42% at 25.3% 42%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
+      radial-gradient(circle 26% at 50% 50%, rgba(240, 160, 64, 0.25) 0%, transparent 70%);
     border-radius: 50%;
   }
   .member-hero::after {
@@ -1089,6 +1095,7 @@
   }
 </style>
 <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+<script src="api.js"></script>
 </head>
 <body>
 
@@ -1412,8 +1419,15 @@
             <!-- 顶部 hero -->
             <div class="member-hero">
               <div class="member-crown">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <g>
+                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z"/>
+                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(72 12 12)"/>
+                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(144 12 12)"/>
+                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(216 12 12)"/>
+                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(288 12 12)"/>
+                  </g>
+                  <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
                 </svg>
               </div>
               <div class="member-title">尊享会员</div>
@@ -1427,7 +1441,7 @@
               <div class="plan-desc">解锁全部高级功能，可升级为认证摄影师，享受工作 / 生活双模式切换</div>
               <div class="plan-price">
                 <span class="plan-price-symbol">¥</span>
-                <span class="plan-price-num">10</span>
+                <span class="plan-price-num">6</span>
                 <span class="plan-price-unit">/ 月</span>
               </div>
               <button class="plan-btn subscribe" id="subscribeBtn">立即订阅</button>
@@ -1888,6 +1902,43 @@
   let currentMode = localStorage.getItem(MODE_KEY) || 'life';
   if (currentMode !== 'life' && currentMode !== 'work') currentMode = 'life';
 
+  // 真实会员状态（GET /member/status）：已登录时以后端为准，未登录/接口失败回退上面的 localStorage 逻辑
+  let serverStatusLoaded = false;   // 是否已从后端拉到真实状态
+  let serverRemainingDays = 0;      // 后端剩余天数（替换本地"剩余 X 个月"）
+  let serverAutoRenew = true;       // 后端自动续费开关
+
+  /**
+   * 从 GET /member/status 拉取真实会员/摄影师状态并刷新 UI
+   * - 成功：覆盖 isMember / isPhotographer，回写 localStorage 兜底
+   * - 失败（服务不可达/业务错误）：保持本地模拟逻辑，页面不崩（按 api.js 约定只 console 提示）
+   */
+  function loadMemberStatus() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.get('/member/status').then(function (data) {
+      if (!data) return;
+      serverStatusLoaded = true;
+      isMember = data.memberStatus === 'active';
+      isPhotographer = !!data.isPhotographer;
+      serverRemainingDays = Math.max(0, Number(data.remainingDays) || 0);
+      serverAutoRenew = !!data.autoRenew;
+      // 回写 localStorage 兜底（离线打开/接口失败时保持一致）
+      localStorage.setItem(MEMBER_KEY, isMember ? '1' : '0');
+      localStorage.setItem(PHOTOGRAPHER_KEY, isPhotographer ? '1' : '0');
+      if (isMember) {
+        localStorage.setItem(MEMBER_MONTHS_KEY, String(Math.max(1, Math.ceil(serverRemainingDays / 30))));
+      } else {
+        localStorage.setItem(MEMBER_MONTHS_KEY, '0');
+        if (currentMode !== 'life') {
+          currentMode = 'life';
+          localStorage.setItem(MODE_KEY, 'life');
+        }
+      }
+      refreshMemberUI();
+    }).catch(function (e) {
+      console.warn('[member status] 拉取失败，使用本地会员状态：', e && e.message);
+    });
+  }
+
   // DOM 引用
   const memberBadge = document.getElementById('memberBadge');
   const memberStatusBadge = document.getElementById('memberStatusBadge');
@@ -1904,9 +1955,12 @@
    * 根据 isMember / isPhotographer 切换按钮文案、徽章、摄影师区块样式
    */
   function refreshMemberUI() {
-    // 顶部状态徽章
+    // 顶部状态徽章（后端模式按剩余天数显示，本地模式保持"剩余 X 个月"）
+    const remainText = serverStatusLoaded
+      ? (serverRemainingDays > 0 ? `剩余 ${serverRemainingDays} 天` : '即将到期')
+      : `剩余 ${memberMonths} 个月`;
     if (isMember) {
-      memberStatusBadge.textContent = `已订阅 · 剩余 ${memberMonths} 个月`;
+      memberStatusBadge.textContent = `已订阅 · ${remainText}`;
       memberStatusBadge.classList.add('active');
     } else {
       memberStatusBadge.textContent = '未开通';
@@ -1914,7 +1968,7 @@
     }
 
     // 我的页菜单徽章
-    memberBadge.textContent = isMember ? `剩余 ${memberMonths} 个月` : '未开通';
+    memberBadge.textContent = isMember ? `剩余 ${serverStatusLoaded ? serverRemainingDays + ' 天' : memberMonths + ' 个月'}` : '未开通';
     memberBadge.style.color = isMember ? '#D4691C' : '#8B5E3C';
     memberBadge.style.background = isMember ? 'rgba(240, 160, 64, 0.18)' : 'rgba(155, 123, 90, 0.12)';
 
@@ -1974,6 +2028,23 @@
 
   // 订阅 / 取消订阅
   subscribeBtn.addEventListener('click', () => {
+    if (serverStatusLoaded) {
+      // 真实模式（后端状态）：订阅=付费 → 跳转订阅支付页；取消订阅 → 关闭自动续费
+      if (!isMember) {
+        window.location.href = 'photographer-payment.html';
+        return;
+      }
+      if (!confirm('确定要取消订阅吗？取消后将关闭自动续费，会员到期后失效并收回摄影师认证。')) return;
+      MemoAPI.post('/member/cancel-renewal').then(function () {
+        showToast('已取消订阅，会员到期后将自动失效');
+        loadMemberStatus();
+      }).catch(function (err) {
+        if (err && err.network) { showToast('服务不可达，请稍后重试'); return; }
+        showToast(err && err.message ? err.message : '取消订阅失败，请重试');
+      });
+      return;
+    }
+    // 本地模拟（未登录 / 服务不可达时的兜底，行为与改造前一致）
     if (!isMember) {
       // 模拟订阅：实际场景应跳转支付页或调起支付弹窗
       isMember = true;
@@ -2241,17 +2312,17 @@
   document.getElementById('myInviteCode').addEventListener('click', copyInviteCode);
   refreshInviteUI();
 
-  // 升级摄影师
+  // 升级摄影师 → 跳转订阅支付页（photographer-payment.html 内完成下单、扫码、等待商家确认）
+  // 说明：摄影师认证状态当前仍以 localStorage（profile_photographer）兜底，
+  //       由订阅支付页支付成功后写入；后续对接真实后端时，应改为从
+  //       GET /photographer/status 或 GET /users/me 拉取认证状态替换本地键（本轮不动大结构）
   upgradePhotographerBtn.addEventListener('click', () => {
     if (!isMember) {
       showToast('请先订阅会员', 'warning');
       return;
     }
     if (isPhotographer) return;
-    isPhotographer = true;
-    localStorage.setItem(PHOTOGRAPHER_KEY, '1');
-    showToast('🎉 已升级为认证摄影师，可在主页切换工作 / 生活模式');
-    refreshMemberUI();
+    window.location.href = 'photographer-payment.html';
   });
 
   // 模式切换
@@ -2270,6 +2341,14 @@
   // 初始化：进入页面时根据持久化状态刷新 UI
   refreshMemberUI();
   renderMyPhotos();
+
+  // 从订阅支付页（photographer-payment.html）支付成功返回：提示已升级
+  // 支付页已写入 localStorage 兜底，另拉取后端真实状态覆盖（后端确认后会员/摄影师已激活）
+  if (location.search.indexOf('upgraded=1') !== -1) {
+    showToast('🎉 支付成功，你已升级为认证摄影师');
+  }
+  // 已登录时拉取真实会员/摄影师状态；未登录或接口失败自动回退 localStorage 逻辑（页面不崩）
+  loadMemberStatus();
 </script>
 
 </body>

@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>支付确认管理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    min-height: 100vh;
+    padding: 24px 16px 40px;
+    overflow-x: hidden;
+  }
+
+  .admin-wrap { max-width: 640px; margin: 0 auto; }
+
+  /* ========== 登录卡片 ========== */
+  .login-card {
+    background: #FFF5E6;
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    border-radius: 20px;
+    padding: 36px 28px 32px;
+    margin: 10vh auto 0;
+    max-width: 380px;
+    box-shadow: 0 20px 50px rgba(28, 15, 8, 0.18);
+    text-align: center;
+  }
+  .login-emblem {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFD98A 0%, #E8B450 50%, #C08020 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+    box-shadow: 0 6px 18px rgba(232, 180, 80, 0.45);
+  }
+  .login-emblem svg { width: 26px; height: 26px; color: white; }
+  .login-title { font-size: 19px; font-weight: 800; color: #1C0F08; margin-bottom: 6px; }
+  .login-subtitle { font-size: 12px; color: #8B5E3C; margin-bottom: 24px; }
+
+  .login-input-wrap {
+    position: relative;
+    margin-bottom: 16px;
+    text-align: left;
+  }
+  .login-input-wrap label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #9B7B5A;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .login-input {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1.5px solid rgba(212, 165, 116, 0.4);
+    border-radius: 12px;
+    background: #FFFDF7;
+    font-size: 15px;
+    color: #1C0F08;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .login-input:focus { border-color: #F0A040; }
+  .login-input::placeholder { color: #C4A98B; }
+
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(240, 160, 64, 0.4);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .login-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(240, 160, 64, 0.5); }
+  .login-btn:active { transform: scale(0.97); }
+  .login-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .login-tip { font-size: 11px; color: #9B7B5A; margin-top: 16px; line-height: 1.6; }
+
+  /* ========== 主页面 ========== */
+  .admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 4px 16px;
+  }
+  .admin-header-left { display: flex; align-items: center; gap: 10px; }
+  .admin-logo {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFD98A 0%, #E8B450 50%, #C08020 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(232, 180, 80, 0.4);
+    flex-shrink: 0;
+  }
+  .admin-logo svg { width: 18px; height: 18px; color: white; }
+  .admin-title { font-size: 17px; font-weight: 800; color: #1C0F08; }
+  .admin-subtitle { font-size: 11px; color: #8B5E3C; margin-top: 1px; }
+
+  .admin-logout {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid rgba(212, 165, 116, 0.5);
+    border-radius: 10px;
+    background: rgba(250, 245, 236, 0.9);
+    color: #8B5E3C;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .admin-logout:hover { background: rgba(240, 160, 64, 0.12); color: #D4691C; }
+  .admin-logout svg { width: 15px; height: 15px; }
+
+  /* tabs */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 0;
+    border: 1px solid rgba(212, 165, 116, 0.35);
+    border-radius: 12px;
+    background: rgba(250, 245, 236, 0.9);
+    color: #8B5E3C;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    user-select: none;
+  }
+  .tab .tab-count {
+    display: inline-block;
+    min-width: 20px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: rgba(155, 123, 90, 0.18);
+    color: #8B5E3C;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 5px;
+    vertical-align: 2px;
+  }
+  .tab.active {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 5px 16px rgba(240, 160, 64, 0.35);
+  }
+  .tab.active .tab-count { background: rgba(255, 255, 255, 0.25); color: white; }
+
+  .list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 0 2px;
+  }
+  .list-title { font-size: 13px; font-weight: 700; color: #9B7B5A; letter-spacing: 0.5px; }
+  .refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    background: none;
+    color: #8B5E3C;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+  }
+  .refresh-btn:hover { background: rgba(240, 160, 64, 0.12); color: #D4691C; }
+  .refresh-btn svg { width: 14px; height: 14px; }
+
+  /* 订单卡片 */
+  .order-list { display: flex; flex-direction: column; gap: 12px; }
+  .order-card {
+    background: #FFF5E6;
+    border: 1px solid rgba(212, 165, 116, 0.25);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 14px rgba(28, 15, 8, 0.06);
+  }
+  .order-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .order-id {
+    font-size: 12px;
+    font-weight: 700;
+    color: #5C3D2E;
+    background: rgba(240, 160, 64, 0.14);
+    border: 1px solid rgba(240, 160, 64, 0.25);
+    padding: 3px 10px;
+    border-radius: 8px;
+    word-break: break-all;
+  }
+  .order-amount {
+    font-size: 17px;
+    font-weight: 800;
+    color: #D4691C;
+    white-space: nowrap;
+  }
+  .order-card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    padding: 12px 0;
+    border-top: 1px dashed rgba(212, 165, 116, 0.25);
+    border-bottom: 1px dashed rgba(212, 165, 116, 0.25);
+    margin-bottom: 12px;
+  }
+  .order-cell .cell-label { font-size: 11px; color: #9B7B5A; margin-bottom: 3px; }
+  .order-cell .cell-value { font-size: 13px; font-weight: 600; color: #1C0F08; word-break: break-all; }
+
+  .confirm-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 5px 14px rgba(240, 160, 64, 0.35);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .confirm-btn:hover { transform: translateY(-1px); }
+  .confirm-btn:active { transform: scale(0.97); }
+  .confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .confirm-btn svg { width: 16px; height: 16px; }
+
+  .paid-tag {
+    width: 100%;
+    padding: 11px;
+    border-radius: 12px;
+    background: rgba(92, 173, 92, 0.1);
+    border: 1px solid rgba(92, 173, 92, 0.3);
+    color: #2E7D32;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .status-empty {
+    background: rgba(250, 245, 236, 0.85);
+    border: 1px dashed rgba(212, 165, 116, 0.4);
+    border-radius: 14px;
+    padding: 44px 20px;
+    text-align: center;
+    color: #9B7B5A;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  .status-empty svg { width: 34px; height: 34px; color: #D4B896; margin-bottom: 8px; }
+
+  .status-loading {
+    background: rgba(250, 245, 236, 0.85);
+    border-radius: 14px;
+    padding: 30px;
+    text-align: center;
+    color: #9B7B5A;
+    font-size: 13px;
+  }
+  .spin {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2.5px solid #E8D3B4;
+    border-top-color: #D4691C;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    vertical-align: -4px;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .admin-footer {
+    text-align: center;
+    font-size: 11px;
+    color: #9B7B5A;
+    margin-top: 24px;
+    opacity: 0.8;
+  }
+
+  /* toast */
+  .toast {
+    position: fixed;
+    top: 56px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-16px);
+    background: rgba(28, 15, 8, 0.92);
+    color: #FAF5EC;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(28, 15, 8, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 999;
+    max-width: 88vw;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="admin-wrap">
+
+  <!-- ========== 登录视图 ========== -->
+  <div id="loginView">
+    <div class="login-card">
+      <div class="login-emblem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <div class="login-title">支付确认管理</div>
+      <div class="login-subtitle">摄影师订阅 · 人工确认开通</div>
+      <div class="login-input-wrap">
+        <label for="adminPassword">管理密码</label>
+        <input type="password" class="login-input" id="adminPassword" placeholder="请输入管理密码" autocomplete="off">
+      </div>
+      <button class="login-btn" id="adminLoginBtn" onclick="adminLogin()">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+        </svg>
+        登 录
+      </button>
+      <div class="login-tip">密码由管理员设置，登录后进入待确认订单列表<br>（如忘记密码请联系系统管理员）</div>
+    </div>
+  </div>
+
+  <!-- ========== 主视图 ========== -->
+  <div id="mainView" class="hidden">
+    <div class="admin-header">
+      <div class="admin-header-left">
+        <div class="admin-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="admin-title">支付确认管理</div>
+          <div class="admin-subtitle">摄影师订阅 · 人工确认开通</div>
+        </div>
+      </div>
+      <button class="admin-logout" onclick="adminLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        退出登录
+      </button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" id="tabPending" onclick="switchTab('pending')">待确认<span class="tab-count" id="pendingCount">0</span></div>
+      <div class="tab" id="tabHistory" onclick="switchTab('history')">历史<span class="tab-count" id="historyCount">0</span></div>
+    </div>
+
+    <div class="list-toolbar">
+      <span class="list-title" id="listTitle">待确认订单</span>
+      <button class="refresh-btn" onclick="loadCurrentTab()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        刷新
+      </button>
+    </div>
+
+    <div class="order-list" id="orderList"></div>
+  </div>
+
+  <div class="admin-footer hidden" id="footerTip">仅管理员可访问 · 请勿外传</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="api.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ================= 基础工具 ================= */
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2200);
+  }
+
+  /* 后端返回结构防御：可能是数组，也可能是 { list: [...] } / { orders: [...] } / { items: [...] } */
+  function toList(data) {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.list)) return data.list;
+    if (Array.isArray(data.orders)) return data.orders;
+    if (Array.isArray(data.items)) return data.items;
+    return [];
+  }
+
+  /* 手机号脱敏：已脱敏（含 *）则原样返回，否则保留前3后4 */
+  function maskPhone(phone) {
+    if (!phone) return '-';
+    phone = String(phone);
+    if (phone.indexOf('*') !== -1) return phone;
+    if (phone.length === 11) return phone.slice(0, 3) + '****' + phone.slice(7);
+    if (phone.length >= 7) return phone.slice(0, 3) + '****' + phone.slice(-4);
+    return phone;
+  }
+
+  function fmtTime(t) {
+    if (!t) return '-';
+    var d = new Date(t);
+    if (isNaN(d.getTime())) return String(t);
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
+           p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  /* 金额显示：后端 amount 单位为分 → 转元（600 分 → ¥6） */
+  function fmtAmount(a) {
+    if (a === null || a === undefined || a === '') return '0';
+    var n = Number(a);
+    if (isNaN(n)) return String(a);
+    return String(Math.round(n) / 100);
+  }
+
+  /* 业务错误 401（errcode 1002 = Token 过期或无效）→ 清 token 回登录页 */
+  function handleAuthError(err) {
+    if (err && err.code === 1002 && typeof MemoAPI !== 'undefined') {
+      MemoAPI.clearAuth();
+      showLogin();
+      showToast('登录已过期，请重新登录');
+      return true;
+    }
+    return false;
+  }
+
+  /* ================= 视图切换 ================= */
+  var loginView = document.getElementById('loginView');
+  var mainView = document.getElementById('mainView');
+  var footerTip = document.getElementById('footerTip');
+
+  function showLogin() {
+    loginView.classList.remove('hidden');
+    mainView.classList.add('hidden');
+    footerTip.classList.add('hidden');
+  }
+
+  function showMain() {
+    loginView.classList.add('hidden');
+    mainView.classList.remove('hidden');
+    footerTip.classList.remove('hidden');
+    switchTab('pending');
+  }
+
+  /* ================= 登录 ================= */
+  function adminLogin() {
+    if (typeof MemoAPI === 'undefined') {
+      showToast('api.js 未加载，请检查部署');
+      return;
+    }
+    var pwInput = document.getElementById('adminPassword');
+    var pw = (pwInput.value || '').trim();
+    if (!pw) { showToast('请输入管理密码'); return; }
+
+    var btn = document.getElementById('adminLoginBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span>登录中...';
+
+    MemoAPI.post('/admin/auth/login', { password: pw }).then(function (data) {
+      var token = data && (data.token || data.accessToken);
+      if (!token) throw new Error('登录失败，请重试');
+      MemoAPI.setAuth(token);   // 存入 localStorage（memo_token），后续请求自动带 Bearer
+      pwInput.value = '';
+      showMain();
+      showToast('登录成功');
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>登 录';
+      if (err && err.network) showToast('服务不可达，请稍后重试');
+      else showToast(err && err.message ? err.message : '登录失败');
+    });
+  }
+
+  /* ================= 主页面 ================= */
+  var currentTab = 'pending';
+  var listCache = { pending: null, history: null };
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tabPending').classList.toggle('active', tab === 'pending');
+    document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
+    document.getElementById('listTitle').textContent = tab === 'pending' ? '待确认订单' : '已开通记录';
+    loadCurrentTab();
+  }
+
+  function loadCurrentTab() {
+    var listEl = document.getElementById('orderList');
+    listEl.innerHTML = '<div class="status-loading"><span class="spin"></span>加载中...</div>';
+    if (currentTab === 'pending') {
+      loadPending();
+    } else {
+      loadHistory();
+    }
+  }
+
+  function renderList(list, isHistory) {
+    var listEl = document.getElementById('orderList');
+    var countEl = document.getElementById(isHistory ? 'historyCount' : 'pendingCount');
+    countEl.textContent = list.length;
+
+    if (!list.length) {
+      listEl.innerHTML =
+        '<div class="status-empty">' +
+          (isHistory
+            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><br>暂无已开通记录'
+            : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><br>暂无待确认订单') +
+        '</div>';
+      return;
+    }
+
+    listEl.innerHTML = list.map(function (o) {
+      var orderId = o.orderId || o.id || o.order_id || '-';
+      // 付款备注短订单号（orderNo，用户付款时备注的号码，便于人工核对）；确认仍用 orderId
+      var orderNo = o.orderNo || o.order_no || orderId;
+      var nickname = o.userNickname || o.nickname || o.userName || '-';
+      var phone = maskPhone(o.userPhone || o.phone || o.mobile);
+      var amount = o.amount !== undefined && o.amount !== null ? o.amount : o.price;
+      var createdAt = fmtTime(o.createdAt || o.createTime || o.orderTime);
+      var submittedAt = fmtTime(o.submittedAt || o.submitTime || o.paidAt || o.payTime);
+
+      var grid =
+        '<div class="order-cell"><div class="cell-label">用户昵称</div><div class="cell-value">' + escapeHtml(nickname) + '</div></div>' +
+        '<div class="order-cell"><div class="cell-label">手机号</div><div class="cell-value">' + escapeHtml(phone) + '</div></div>' +
+        '<div class="order-cell"><div class="cell-label">下单时间</div><div class="cell-value">' + createdAt + '</div></div>' +
+        '<div class="order-cell"><div class="cell-label">已提交时间</div><div class="cell-value">' + submittedAt + '</div></div>';
+
+      var action = isHistory
+        ? '<div class="paid-tag">✓ 已开通</div>'
+        : '<button class="confirm-btn" onclick="confirmOrder(\'' + escapeAttr(orderId) + '\', this)">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+            '确认开通' +
+          '</button>';
+
+      return (
+        '<div class="order-card">' +
+          '<div class="order-card-top">' +
+            '<span class="order-id">订单号 ' + escapeHtml(orderNo) + '</span>' +
+            '<span class="order-amount">¥' + escapeHtml(fmtAmount(amount)) + '</span>' +
+          '</div>' +
+          '<div class="order-card-grid">' + grid + '</div>' +
+          action +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function escapeAttr(s) { return escapeHtml(s).replace(/`/g, '&#96;'); }
+
+  function loadPending() {
+    MemoAPI.get('/admin/payments/pending').then(function (data) {
+      renderList(toList(data), false);
+    }).catch(function (err) {
+      if (handleAuthError(err)) return;
+      var listEl = document.getElementById('orderList');
+      listEl.innerHTML = '<div class="status-empty">' + (err && err.network ? '服务不可达，点击上方"刷新"重试' : escapeHtml(err && err.message || '加载失败')) + '</div>';
+    });
+  }
+
+  function loadHistory() {
+    MemoAPI.get('/admin/payments/history?status=paid').then(function (data) {
+      renderList(toList(data), true);
+    }).catch(function (err) {
+      if (handleAuthError(err)) return;
+      var listEl = document.getElementById('orderList');
+      listEl.innerHTML = '<div class="status-empty">' + (err && err.network ? '服务不可达，点击上方"刷新"重试' : escapeHtml(err && err.message || '加载失败')) + '</div>';
+    });
+  }
+
+  /* ================= 确认开通 ================= */
+  function confirmOrder(orderId, btn) {
+    if (!orderId || orderId === '-') { showToast('订单号无效'); return; }
+    var original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span>确认中...';
+
+    MemoAPI.post('/admin/payments/' + encodeURIComponent(orderId) + '/confirm').then(function () {
+      showToast('已确认开通订单 ' + orderId);
+      if (currentTab === 'pending') loadPending();
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.innerHTML = original;
+      if (handleAuthError(err)) return;
+      showToast(err && err.message ? err.message : '确认失败');
+    });
+  }
+
+  /* ================= 退出登录 ================= */
+  function adminLogout() {
+    if (typeof MemoAPI !== 'undefined') MemoAPI.clearAuth();
+    showLogin();
+    showToast('已退出登录');
+  }
+
+  /* ================= 初始化 ================= */
+  function init() {
+    // 已存在 token（memo_token）则直接进入主页面，否则显示登录页
+    if (typeof MemoAPI !== 'undefined' && MemoAPI.getToken()) {
+      showMain();
+    } else {
+      showLogin();
+    }
+    // Enter 键提交登录
+    document.getElementById('adminPassword').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') adminLogin();
+    });
+  }
+
+  // 暴露给全局（onclick 使用）
+  window.adminLogin = adminLogin;
+  window.adminLogout = adminLogout;
+  window.switchTab = switchTab;
+  window.loadCurrentTab = loadCurrentTab;
+  window.confirmOrder = confirmOrder;
+
+  init();
+})();
+</script>
+</body>
+</html>
