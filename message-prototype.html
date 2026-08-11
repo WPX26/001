@@ -397,6 +397,7 @@
   }
 </style>
 <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+<script src="api.js"></script>
 </head>
 <body>
   <div class="container">
@@ -460,36 +461,35 @@
           <!-- 底部导航栏 -->
           <div class="bottom-nav">
             <div class="nav-item" data-tab="home">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 12 C13.4 8.7 15.1 6.4 13.6 3.4 C12.1 5.2 11 8.6 12 12"/><path d="M12 12 C15.8 11.6 18.6 11.5 19.6 9.2 C18.1 11.2 15.2 12.4 12 12"/><path d="M12 12 C15.9 14.3 17.4 16.8 16.9 19.2 C15.1 17.4 13 14.8 12 12"/><path d="M12 12 C9.8 15.6 8.1 17.9 5.9 18.4 C7.7 16.9 10.2 14.5 12 12"/><path d="M12 12 C9.4 10.2 7.1 8.9 5.3 6.6 C7 8.9 10.1 10.9 12 12"/><path d="M12.3 11 C12.5 10 12.5 9.1 12.7 8.2"/><path d="M11.3 11.2 C11.1 10.3 11 9.4 10.8 8.7"/>
               </svg>
               <span class="nav-label">首页</span>
             </div>
             <div class="nav-item" data-tab="market">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.4 12 C8.2 9.4 6.2 6.9 3.2 4.3 C4.8 8.4 7.4 10.6 10.4 12"/><path d="M14.1 12.2 C17.1 14.3 18.9 16.6 21 19.4 C19.7 15.7 17.1 13.4 14.1 12.2"/><path d="M10.4 12 C12.4 9.6 12.4 14.6 14.1 12.2"/>
               </svg>
               <span class="nav-label">联机</span>
             </div>
 
             <div class="nav-center">
               <button class="nav-center-btn" id="cameraBtn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 12.6 C13.2 8.3 14.6 5.7 13 3.1 C11.6 5.3 10.8 8.4 12 12.6"/><path d="M12 12.6 C16.5 11.4 19.4 10.7 20.7 8.1 C19.4 10.9 16.3 12.8 12 12.6"/><path d="M12 12.6 C16.4 15 18.2 17.8 17.5 20.3 C15.6 18.2 13.3 15.6 12 12.6"/><path d="M12 12.6 C9.9 16.2 8.2 18.8 5.9 19.4 C7.7 17.7 10.1 15.1 12 12.6"/><path d="M12 12.6 C8.6 10.9 6.4 9.3 4.4 6.9 C6.3 9.6 9.6 11.4 12 12.6"/><path d="M12 8.2 C14.7 8.1 17 10.1 17.1 13.1 C17.2 16 15.1 18.1 12.1 18.2 C9.2 18.3 7.1 16.2 7.1 13.3 C7.1 10.5 9.2 8.3 12 8.2 Z"/><ellipse cx="12" cy="13.2" rx="1.3" ry="1.1"/>
                 </svg>
               </button>
             </div>
 
             <div class="nav-item active" data-tab="message">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 6.2 C14.8 8 16.4 10.7 16 13.4 C15.7 15.5 14.6 17.2 12.6 19 C12.3 19.3 11.7 19.3 11.4 19 C9.4 17.2 8.3 15.5 8 13.4 C7.6 10.7 9.2 8 12 6.2 Z"/><path d="M9.9 17.1 C8.2 16.4 6.9 15.3 6 13.9 C7 15.3 8.3 16.3 9.9 17.1"/><path d="M14.1 17.1 C15.8 16.4 17.1 15.3 18 13.9 C17 15.3 15.7 16.3 14.1 17.1"/>
               </svg>
               <span class="nav-label">消息</span>
             </div>
             <div class="nav-item" data-tab="profile">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.8 19.6 C9.5 18.9 8.5 18 7.7 16.9 C6.4 15.1 5.8 12.8 6 10.5 C6.3 7.2 8.6 4.4 12 4.1 C15.4 3.9 17.8 6.6 18.2 9.9 C18.4 12.4 17.7 14.9 16.2 16.8 C15.4 17.8 14.3 18.7 13.2 19.4"/><path d="M12 19.7 C12 15.4 11.9 9.9 12.1 4.6"/><path d="M11.95 12.6 C9.9 11.9 8.6 11.2 7.4 10.1 M12.05 8.9 C14 8.2 15.3 7.6 16.5 6.6"/>
               </svg>
               <span class="nav-label">我</span>
             </div>
@@ -635,21 +635,154 @@
 
   let currentCategory = 'all';
 
+  // ========== 真实通知对接（已登录 → GET /notifications） ==========
+  // 已登录：拉取真实通知渲染（type → 现有分类模板映射），点击标记已读、全部已读、未读数徽章均接真实接口；
+  // 未登录/接口失败：回退现有硬编码 messages，页面行为与改造前完全一致
+  var realMode = false;          // 是否已切换到真实通知列表
+  var realNotifications = null;  // 映射后的通知数组（与 messages 同构）
+  var realTotal = 0;             // 后端通知总数
+  var realUnreadTotal = -1;      // 后端未读数（-1 表示未拉到）
+
+  // 后端 type → 页面分类（tab 固定为 全部/点赞/评论/关注/通知，reply 归评论、tip/chat 归通知、collect 归点赞）
+  var TYPE_CATEGORY = {
+    like: 'like', comment: 'comment', reply: 'comment', tip: 'system',
+    follow: 'follow', system: 'system', collect: 'like', chat: 'system'
+  };
+  // 后端 type → 头像模板 class（复用现有 msg-avatar 渐变；打赏用 notice 金色渐变）
+  var TYPE_AVATAR_CLASS = {
+    like: 'like', comment: 'comment', reply: 'comment', tip: 'notice',
+    follow: 'follow', system: 'system', collect: 'like', chat: 'system'
+  };
+  // 后端 type → 名称模板（actor 缺失时兜底）
+  var TYPE_NAME = {
+    like: '点赞', comment: '评论', reply: '回复', tip: '打赏',
+    follow: '关注', system: '系统通知', collect: '收藏', chat: '私信'
+  };
+
+  // 相对时间（刚刚 / X分钟前 / X小时前 / 昨天 / X天前 / 日期）
+  function formatRelativeTime(t) {
+    if (!t) return '';
+    var d = new Date(t);
+    if (isNaN(d.getTime())) return '';
+    var min = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (min < 1) return '刚刚';
+    if (min < 60) return min + '分钟前';
+    var h = Math.floor(min / 60);
+    if (h < 24) return h + '小时前';
+    var day = Math.floor(h / 24);
+    if (day === 1) return '昨天';
+    if (day < 7) return day + '天前';
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  // 内容文案：后端 content 为空（comment/reply/tip 类后端不生成正文）时前端按类型模板拼接
+  function buildNotificationContent(n) {
+    if (n.content) return n.content;
+    var who = (n.actor && n.actor.nickname) || '有人';
+    switch (n.type) {
+      case 'like': return who + ' 赞了你的照片';
+      case 'comment': return who + ' 评论了你的照片';
+      case 'reply': return who + ' 回复了你的评论';
+      case 'tip': return who + ' 打赏了你的照片';
+      case 'follow': return who + ' 关注了你';
+      case 'collect': return who + ' 收藏了你的照片';
+      case 'chat': return who + ' 给你发来新私信';
+      default: return who + ' 与你互动';
+    }
+  }
+
+  // 后端通知 → 页面消息对象（与 messages 同构）
+  function mapNotification(n) {
+    var actor = n.actor || null;
+    var name = (actor && actor.nickname) || TYPE_NAME[n.type] || '系统通知';
+    var avatarText = (actor && actor.nickname) ? actor.nickname.charAt(0) : '📢';
+    return {
+      id: n.id,                       // 字符串（Mongo id），本地模式下为数字
+      type: n.type,
+      category: TYPE_CATEGORY[n.type] || 'system',
+      name: name,
+      avatar: avatarText,
+      avatarImg: (actor && actor.avatar) || '',
+      avatarClass: TYPE_AVATAR_CLASS[n.type] || 'system',
+      content: buildNotificationContent(n),
+      time: formatRelativeTime(n.createdAt),
+      unread: !n.isRead,
+      thumb: (n.photo && n.photo.thumbnailUrl) || '',
+      thumbImg: (n.photo && n.photo.thumbnailUrl) || ''
+    };
+  }
+
+  function getMessageSource() {
+    return realMode ? realNotifications : messages;
+  }
+
+  // 加载真实通知（分页拉全，原型数据量小）
+  function loadRealNotifications() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    var all = [];
+    function loadPage(page) {
+      MemoAPI.get('/notifications?page=' + page + '&pageSize=100').then(function (data) {
+        if (!data) return;
+        all = all.concat(data.list || []);
+        realTotal = data.total || all.length;
+        if (data.hasMore && page < 20) { loadPage(page + 1); return; }
+        realNotifications = all.map(mapNotification);
+        realMode = true;
+        renderMessages();
+        updateBadges();
+      }).catch(function (e) {
+        console.warn('[notifications] 拉取失败，使用本地消息：', e && e.message);
+      });
+    }
+    loadPage(1);
+    // 未读数（子标题"X条未读"）
+    MemoAPI.get('/notifications/unread-count').then(function (data) {
+      if (data && data.count != null) realUnreadTotal = Number(data.count) || 0;
+      if (realMode) updateBadges();
+    }).catch(function () { /* 忽略 */ });
+  }
+
+  // 单条已读（乐观更新：本地立即置已读，请求失败回滚为未读）
+  function markNotificationRead(msg) {
+    if (!msg.unread) return;
+    msg.unread = false;
+    if (realUnreadTotal > 0) realUnreadTotal -= 1;
+    renderMessages();
+    updateBadges();
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.put('/notifications/' + encodeURIComponent(msg.id) + '/read').catch(function (e) {
+      console.warn('[mark read]', e && e.message);
+      msg.unread = true;
+      if (realUnreadTotal >= 0) realUnreadTotal += 1;
+      renderMessages();
+      updateBadges();
+    });
+  }
+
   // 渲染消息列表
   function renderMessages() {
     const list = document.getElementById('messageList');
+    const source = getMessageSource();
     let filtered = currentCategory === 'all'
-      ? messages
-      : messages.filter(m => m.category === currentCategory);
+      ? source
+      : source.filter(m => m.category === currentCategory);
 
     if (filtered.length === 0) {
       list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">暂无此类消息</div></div>`;
       return;
     }
 
-    list.innerHTML = filtered.map(m => `
+    list.innerHTML = filtered.map(m => {
+      const avatarHtml = m.avatarImg
+        ? `<img src="${m.avatarImg}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
+        : m.avatar;
+      const thumbHtml = m.thumbImg
+        ? `<div class="msg-thumb" style="background-image:url('${m.thumbImg}');background-size:cover;background-position:center;"></div>`
+        : (m.thumb ? `<div class="msg-thumb">${m.thumb}</div>` : '');
+      return `
       <div class="message-item ${m.unread ? 'unread' : ''}" data-id="${m.id}">
-        <div class="msg-avatar ${m.avatarClass}">${m.avatar}</div>
+        <div class="msg-avatar ${m.avatarClass}">${avatarHtml}</div>
         <div class="msg-content">
           <div class="msg-header">
             <span class="msg-name">${m.name}</span>
@@ -657,18 +790,18 @@
           </div>
           <div class="msg-preview">${m.content}</div>
         </div>
-        ${m.thumb ? `<div class="msg-thumb">${m.thumb}</div>` : ''}
+        ${thumbHtml}
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     // 绑定点击事件
     list.querySelectorAll('.message-item').forEach(item => {
       item.addEventListener('click', () => {
-        const id = parseInt(item.dataset.id);
-        const msg = messages.find(m => m.id === id);
+        const id = String(item.dataset.id);
+        const msg = getMessageSource().find(m => String(m.id) === id);
         if (msg) {
-          msg.unread = false;
-          renderMessages();
+          markNotificationRead(msg);
           showToast('📩 查看与「' + msg.name + '」的对话');
         }
       });
@@ -685,23 +818,36 @@
     renderMessages();
   });
 
-  // 全部已读
+  // 全部已读（真实模式：乐观更新本地 → PUT /notifications/read-all，失败重拉恢复真实状态）
   document.getElementById('markAllReadBtn').addEventListener('click', () => {
+    if (realMode && typeof MemoAPI !== 'undefined' && MemoAPI.isLoggedIn()) {
+      getMessageSource().forEach(m => m.unread = false);
+      realUnreadTotal = 0;
+      renderMessages();
+      updateBadges();
+      MemoAPI.put('/notifications/read-all').catch(function (e) {
+        console.warn('[read-all]', e && e.message);
+        loadRealNotifications();
+      });
+      showToast('✓ 已将所有消息标记为已读');
+      return;
+    }
     messages.forEach(m => m.unread = false);
     renderMessages();
     updateBadges();
     showToast('✓ 已将所有消息标记为已读');
   });
 
-  // 更新徽章
+  // 更新徽章（真实模式：本地列表计数 + 后端总数/未读数；本地模式：原有逻辑）
   function updateBadges() {
-    const unreadCount = messages.filter(m => m.unread).length;
+    const source = getMessageSource();
+    const unreadCount = source.filter(m => m.unread).length;
     const tabs = document.querySelectorAll('.category-tab');
     tabs.forEach(tab => {
       const cat = tab.dataset.cat;
       const count = cat === 'all'
-        ? messages.filter(m => m.unread).length
-        : messages.filter(m => m.unread && m.category === cat).length;
+        ? unreadCount
+        : source.filter(m => m.unread && m.category === cat).length;
       const badge = tab.querySelector('.badge');
       if (count > 0) {
         if (badge) badge.textContent = count;
@@ -715,12 +861,20 @@
         badge.remove();
       }
     });
-    // 更新副标题
+    // 更新副标题（真实模式：未读数优先用后端 unread-count，总数为后端 total）
     const sub = document.querySelector('.page-title-sub');
     if (sub) {
-      sub.textContent = unreadCount > 0
-        ? `${unreadCount}条未读 · 共 ${messages.length} 条`
-        : `共 ${messages.length} 条消息`;
+      if (realMode) {
+        const total = realTotal || source.length;
+        const unread = realUnreadTotal >= 0 ? realUnreadTotal : unreadCount;
+        sub.textContent = unread > 0
+          ? `${unread}条未读 · 共 ${total} 条`
+          : `共 ${total} 条消息`;
+      } else {
+        sub.textContent = unreadCount > 0
+          ? `${unreadCount}条未读 · 共 ${source.length} 条`
+          : `共 ${source.length} 条消息`;
+      }
     }
   }
 
@@ -834,8 +988,9 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
   }
 
-  // 初始化
+  // 初始化：先渲染本地消息（离线兜底），已登录时异步拉取真实通知覆盖
   renderMessages();
+  loadRealNotifications();
 </script>
 </body>
 </html>

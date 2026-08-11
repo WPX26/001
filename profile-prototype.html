@@ -1603,9 +1603,133 @@
     { title: '照片2', color: '#D4691C', marker: '净慈寺' }
   ];
 
-  // 渲染删除的坐标点
+  // ========== 回收站真实对接（已登录 → GET /photos/trash） ==========
+  // 已登录：真实回收站数据（坐标点/照片）渲染 + 恢复/永久删除接真实接口（乐观更新，失败重拉恢复）
+  // 未登录/接口失败：回退上面 deletedMarkers / deletedPhotos 本地模拟，行为与改造前一致
+  let trashMode = false;      // 是否已切换真实回收站
+  let trashItems = null;      // GET /photos/trash 列表 [{type:'coord'|'photo', id, ...}]
+  let trashTotal = 0;         // 回收站总数（联动"已删除"统计与菜单徽章）
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // 时间格式化：2026年8月3日（与原型展示文案一致）
+  function formatDate(t) {
+    if (!t) return '';
+    const d = new Date(t);
+    if (isNaN(d.getTime())) return '';
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  function getTrashByType(type) {
+    if (!trashItems) return [];
+    return trashItems.filter(t => t.type === type);
+  }
+
+  // 拉取回收站（type=all 一次拉全，列表与统计共用；失败回退本地模拟）
+  function loadTrash() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.get('/photos/trash?type=all&pageSize=100').then(function (data) {
+      if (!data) return;
+      trashMode = true;
+      trashItems = data.list || [];
+      trashTotal = data.total || trashItems.length;
+      applyTrashCounts();
+      renderDeletedMarkers();
+      renderDeletedPhotos();
+    }).catch(function (e) {
+      console.warn('[trash] 拉取失败，使用本地回收站：', e && e.message);
+    });
+  }
+
+  // 联动"已删除"统计与菜单徽章（真实数据）
+  function applyTrashCounts() {
+    const coordCount = getTrashByType('coord').length;
+    const photoCount = getTrashByType('photo').length;
+    const markerBadge = document.querySelector('#deletedMarkersEntry .menu-badge');
+    if (markerBadge) markerBadge.textContent = coordCount;
+    const photoBadge = document.querySelector('#deletedPhotosEntry .menu-badge');
+    if (photoBadge) photoBadge.textContent = photoCount;
+    const statEls = document.querySelectorAll('.profile-stats .stat-item .stat-num');
+    if (statEls.length >= 3) statEls[2].textContent = trashTotal;
+  }
+
+  // 恢复/永久删除（乐观更新：先移除本地条目再请求；失败重拉真实回收站恢复状态）
+  function trashAction(item, restore) {
+    const prefix = item.type === 'coord' ? '/coords/' : '/photos/';
+    const req = restore
+      ? MemoAPI.post(prefix + encodeURIComponent(item.id) + '/restore')
+      : MemoAPI.del(prefix + encodeURIComponent(item.id) + '/permanent');
+    const idx = trashItems.indexOf(item);
+    if (idx >= 0) trashItems.splice(idx, 1);
+    trashTotal = Math.max(0, trashTotal - 1);
+    applyTrashCounts();
+    renderDeletedMarkers();
+    renderDeletedPhotos();
+    req.then(function () {
+      showToast(restore
+        ? (item.type === 'coord' ? '✓ 已恢复"' + (item.title || '') + '"' : '✓ 已恢复该照片')
+        : '🗑 已永久删除');
+    }).catch(function (e) {
+      console.warn('[trash action]', e && e.message);
+      loadTrash();  // 失败回滚：重拉恢复真实状态
+    });
+  }
+
+  // 渲染删除的坐标点（真实模式：GET /photos/trash 的 coord 项；回退：本地 deletedMarkers）
   function renderDeletedMarkers() {
     const list = document.getElementById('markerList');
+
+    // 真实模式：坐标点（创建日期后端未返回，📅 显示删除日期，🗑 显示照片数）
+    if (trashMode) {
+      const items = getTrashByType('coord');
+      if (items.length === 0) {
+        list.innerHTML = '<div class="deleted-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><p>暂无已删除的坐标点</p></div>';
+        return;
+      }
+      list.innerHTML = items.map(m => `
+        <div class="deleted-marker-card">
+          <div class="deleted-marker-header">
+            <div class="deleted-marker-dot" style="background: #B85E3C;"></div>
+            <div class="deleted-marker-info">
+              <div class="deleted-marker-name">${escapeHtml(m.title)}</div>
+              <div class="deleted-marker-coords">经度 ${m.lng}° · 纬度 ${m.lat}°</div>
+            </div>
+          </div>
+          <div class="deleted-marker-meta">
+            <span>📅 ${formatDate(m.deletedAt)}</span>
+            <span>🗑 ${m.photoCount || 0} 张照片</span>
+          </div>
+          <div class="deleted-marker-actions">
+            <button class="restore-btn" data-id="${escapeHtml(m.id)}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+              </svg>
+              恢复
+            </button>
+            <button class="restore-permanent" data-perm="${escapeHtml(m.id)}">永久删除</button>
+          </div>
+        </div>
+      `).join('');
+
+      list.querySelectorAll('.restore-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const item = items.find(t => t.id === btn.dataset.id);
+          if (item) trashAction(item, true);
+        });
+      });
+      list.querySelectorAll('.restore-permanent').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const item = items.find(t => t.id === btn.dataset.perm);
+          if (item && confirm('确定要永久删除"' + item.title + '"吗？')) trashAction(item, false);
+        });
+      });
+      return;
+    }
+
     if (deletedMarkers.length === 0) {
       list.innerHTML = '<div class="deleted-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><p>暂无已删除的坐标点</p></div>';
       return;
@@ -1660,9 +1784,42 @@
     });
   }
 
-  // 渲染删除的照片
+  // 渲染删除的照片（真实模式：GET /photos/trash 的 photo 项，缩略图作卡片背景；回退：本地 deletedPhotos）
   function renderDeletedPhotos() {
     const grid = document.getElementById('photoGrid');
+
+    if (trashMode) {
+      const photos = getTrashByType('photo');
+      const list = document.getElementById('photoList');
+      if (photos.length === 0) {
+        list.innerHTML = '<div class="deleted-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><p>暂无已删除的照片</p></div>';
+        return;
+      }
+      list.innerHTML = '';
+      const gridDiv = document.createElement('div');
+      gridDiv.className = 'deleted-photos';
+      gridDiv.id = 'photoGrid';
+      gridDiv.innerHTML = photos.map(p => `
+        <div class="deleted-photo" style="background-image:url('${escapeHtml(p.thumbnailUrl || p.imageUrl)}');background-size:cover;background-position:center;">
+          <div class="deleted-photo-restore" data-id="${escapeHtml(p.id)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+          </div>
+        </div>
+      `).join('');
+      list.appendChild(gridDiv);
+
+      gridDiv.querySelectorAll('.deleted-photo-restore').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const p = photos.find(x => x.id === btn.dataset.id);
+          if (p) trashAction(p, true);
+        });
+      });
+      return;
+    }
+
     if (deletedPhotos.length === 0) {
       grid.innerHTML = '';
       const list = document.getElementById('photoList');
@@ -1939,6 +2096,84 @@
     });
   }
 
+  // ========== 用户资料真实对接（已登录 → GET /users/me） ==========
+  // 已登录：昵称/头像/简介 + 统计替换硬编码"旅行者"；未登录/接口失败回退原有静态文案
+  let serverProfileLoaded = false;
+  let serverProfile = null;
+
+  function loadUserProfile() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.get('/users/me').then(function (data) {
+      if (!data) return;
+      serverProfileLoaded = true;
+      serverProfile = data;
+      applyUserProfile();
+    }).catch(function (e) {
+      console.warn('[users/me] 拉取失败，使用本地资料：', e && e.message);
+    });
+  }
+
+  // 应用真实资料：昵称/简介/头像 + 统计（"已删除"统计来自回收站接口）
+  function applyUserProfile() {
+    if (!serverProfile) return;
+    const d = serverProfile;
+    const name = d.nickname || '旅行者';
+    const bio = d.bio || '记录旅途的每一个瞬间';
+
+    const nameEl = document.querySelector('.profile-name');
+    if (nameEl) nameEl.textContent = name;
+    const descEl = document.querySelector('.profile-desc');
+    if (descEl) descEl.textContent = bio;
+    const myNameEl = document.getElementById('myHomeName');
+    if (myNameEl) myNameEl.textContent = name;
+    const myBioEl = document.getElementById('myHomeBio');
+    if (myBioEl) myBioEl.textContent = bio;
+
+    // 头像：有真实头像时用图片替换占位图标（容器已有圆角裁剪）
+    if (d.avatar) {
+      [document.querySelector('.profile-avatar'), document.getElementById('myHomeAvatar')].forEach(box => {
+        if (!box) return;
+        box.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = d.avatar;
+        img.alt = '';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        box.appendChild(img);
+      });
+    }
+
+    // 统计：标记点 / 照片 / 获赞（我的主页视图）
+    if (d.stats) {
+      const statEls = document.querySelectorAll('.profile-stats .stat-item .stat-num');
+      if (statEls.length >= 3) {
+        if (d.stats.coordCount != null) statEls[0].textContent = d.stats.coordCount;
+        if (d.stats.photoCount != null) statEls[1].textContent = d.stats.photoCount;
+      }
+      const coordEl = document.getElementById('myHomeCoordCount');
+      if (coordEl && d.stats.coordCount != null) coordEl.textContent = d.stats.coordCount;
+      const photoEl = document.getElementById('myHomePhotoCount');
+      if (photoEl && d.stats.photoCount != null) photoEl.textContent = d.stats.photoCount;
+      const likeEl = document.getElementById('myHomeLikeCount');
+      if (likeEl && d.stats.likeCount != null) likeEl.textContent = d.stats.likeCount;
+    }
+    applyTrashCounts();
+  }
+
+  // ========== 我的照片真实对接（已登录 → GET /photos/mine?sortBy=coord） ==========
+  // 已登录：按坐标分组的真实照片渲染首页网格（每坐标取前几张）；失败回退原有随机渐变
+  let serverCoordPhotos = null;
+
+  function loadMyCoordPhotos() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.get('/photos/mine?sortBy=coord&pageSize=100').then(function (data) {
+      if (!data || !data.list || !data.list.length) return;
+      serverCoordPhotos = data.list;
+      renderMyPhotos();
+    }).catch(function (e) {
+      console.warn('[my photos] 拉取失败，使用本地模拟：', e && e.message);
+    });
+  }
+
   // DOM 引用
   const memberBadge = document.getElementById('memberBadge');
   const memberStatusBadge = document.getElementById('memberStatusBadge');
@@ -2075,6 +2310,39 @@
 
   // 生成假数据模拟“我的照片”列表
   function renderMyPhotos() {
+    const container = myHomeCoordsContainer;
+
+    // 真实模式：按坐标分组的我的照片（每坐标取前 3 张，共最多 12 张；缩略图作封面，无图保留渐变）
+    if (serverCoordPhotos && serverCoordPhotos.length) {
+      let html = '';
+      let shown = 0;
+      serverCoordPhotos.forEach(cg => {
+        const photos = cg.photos || [];
+        for (let i = 0; i < photos.length && shown < 12; i++, shown++) {
+          const p = photos[i];
+          const bg = p.thumbnailUrl
+            ? `background-image:url('${escapeHtml(p.thumbnailUrl)}');background-size:cover;background-position:center;`
+            : 'background:linear-gradient(135deg,#F0A040,#D4691C);';
+          html += `
+            <div class="myhome-photo-card" data-id="${escapeHtml(p.id)}">
+              <div class="bg" style="${bg}"></div>
+              <div class="myhome-photo-overlay">
+                <div class="myhome-photo-stat">❤️ ${p.likes || 0}</div>
+                <div class="myhome-photo-stat">🎁 ${p.tips || 0}</div>
+              </div>
+            </div>
+          `;
+        }
+      });
+      container.innerHTML = html;
+      container.querySelectorAll('.myhome-photo-card').forEach(card => {
+        card.addEventListener('click', () => {
+          showToast('打开照片详情');
+        });
+      });
+      return;
+    }
+
     // 假设这些是“我”上传的 12 张照片
     const myPhotos = Array.from({ length: 12 }).map((_, i) => {
       // 随机生成一些渐变色来模拟照片封面
@@ -2414,6 +2682,10 @@
   }
   // 已登录时拉取真实会员/摄影师状态；未登录或接口失败自动回退 localStorage 逻辑（页面不崩）
   loadMemberStatus();
+  // 已登录时拉取真实用户资料 / 我的照片 / 回收站；未登录或接口失败自动回退本地模拟（页面不崩）
+  loadUserProfile();
+  loadMyCoordPhotos();
+  loadTrash();
 </script>
 
 </body>
