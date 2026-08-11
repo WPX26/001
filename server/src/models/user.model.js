@@ -26,6 +26,8 @@ const userSchema = new Schema(
     isPhotographer: { type: Boolean, default: false },
     memberStatus: { type: String, enum: ['none', 'active', 'expired'], default: 'none' },
     memberExpireAt: { type: Date, default: null },
+    // 自动续费默认开启；关闭后会员到期即失效（收回摄影师认证）
+    autoRenew: { type: Boolean, default: true },
     // 冗余计数（关注/粉丝数，避免实时聚合）
     followerCount: { type: Number, default: 0 },
     followingCount: { type: Number, default: 0 },

@@ -44,6 +44,42 @@ export async function requireAuth(req, res, next) {
 }
 
 /**
+ * 管理端鉴权中间件：校验管理员 Token（payload.type === 'admin'）
+ * 校验通过后把 token payload 挂到 req.admin；管理端接口统一使用
+ * ADMIN_PASSWORD 未配置时管理端接口直接 503/1007（防漏配上线）
+ */
+export async function requireAdmin(req, res, next) {
+  try {
+    if (!env.ADMIN_PASSWORD) {
+      throw new AppError(ERR.SERVICE_CONFIG, '管理端未配置密码，请联系管理员', 503);
+    }
+
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+    if (!token) {
+      throw new AppError(ERR.AUTH, '未登录：请携带管理员 Token', 401);
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(token, env.JWT_SECRET);
+    } catch (e) {
+      throw new AppError(ERR.AUTH, 'Token 已过期或无效', 401);
+    }
+
+    // 只接受管理员 token（用户 access token 无管理权限）
+    if (payload.type !== 'admin') {
+      throw new AppError(ERR.AUTH, '无管理员权限', 401);
+    }
+
+    req.admin = payload;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * 可选认证中间件：有合法 token 则挂载 req.user，无 token / 无效 token 一律放行
  * 用于"登录可用、未登录也可用"的接口（如地图行政区聚合）
  */

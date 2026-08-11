@@ -42,3 +42,16 @@ export const MARKER_COLOR = {
   inspire: '#E53935', // 灵感红
   explore: '#7B1FA2', // 探索紫蓝
 };
+
+/** 会员月卡套餐（王总定稿：仅 ¥6/月，订阅即认证摄影师，半自动人工确认支付） */
+export const MEMBER_PLAN = {
+  planId: 'plan_pro_monthly',
+  planName: '高级会员',
+  amount: 600, // 分（¥6）
+  period: 'month',
+  days: 30, // 激活后有效天数（续费顺延 30 天）
+  benefits: ['订阅即认证摄影师', '作品进入探索池展示', '照片上传不限量', '高清原图保存'],
+};
+
+/** 会员订单超时未确认（pending_confirm）的惰性过期时长：48 小时 */
+export const MEMBER_PENDING_EXPIRE_MS = 48 * 3600 * 1000;

@@ -60,6 +60,18 @@ const env = {
 
   /** 天地图 Key（地名搜索/地理编码，见 .env.example 说明；未配置时地图搜索降级为空结果） */
   TDT_KEY: str('TDT_KEY', ''),
+
+  /** 管理端登录密码（未配置时管理端接口返回 503/1007） */
+  ADMIN_PASSWORD: str('ADMIN_PASSWORD', ''),
+  /**
+   * 收款码图片地址（会员下单时展示给用户扫码付款）
+   * 默认指向本地静态托管的占位图（LOCAL_BASE_URL + /uploads/pay-qrcode.png）；
+   * .env 中显式置空视为"未配置"，会员下单返回 503/1007
+   */
+  PAY_QRCODE_URL: str(
+    'PAY_QRCODE_URL',
+    `${str('LOCAL_BASE_URL', 'http://localhost:3000').replace(/\/+$/, '')}/uploads/pay-qrcode.png`
+  ),
 };
 
 // 开发环境使用默认 JWT 密钥时给出警告（生产环境强制要求显式配置）

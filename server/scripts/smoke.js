@@ -13,8 +13,9 @@
 import mongoose from 'mongoose';
 import app from '../src/app.js';
 import env from '../src/config/env.js';
-import { VerificationCode } from '../src/models/index.js';
+import { VerificationCode, MemberOrder, User } from '../src/models/index.js';
 import * as smsService from '../src/services/sms.service.js';
+import { expireMembership } from '../src/services/membership.service.js';
 
 const results = [];
 let tokenA = '';
@@ -224,6 +225,161 @@ try {
     check('非摄影师切工作模式 → 403/1003', modeWork.status === 403 && modeWork.body?.code === 1003);
     const modeLife = await call('PUT', '/api/v1/users/me/mode', { body: { mode: 'life' }, token: tokenA });
     check('切换回生活模式 → 200/0', modeLife.status === 200 && modeLife.body?.code === 0);
+
+    // ================= 会员订阅（半自动人工确认支付） =================
+    console.log('\n========== 会员订阅冒烟 ==========');
+
+    const plans = await call('GET', '/api/v1/member/plans', { token: tokenA });
+    const plan = plans.body?.data;
+    check(
+      'GET /member/plans → 高级会员 ¥6/月（plan_pro_monthly）',
+      plans.status === 200 &&
+        plan?.planId === 'plan_pro_monthly' &&
+        plan?.price === 600 &&
+        plan?.priceYuan === 6 &&
+        plan?.period === 'month' &&
+        Array.isArray(plan?.benefits) &&
+        plan.benefits.length > 0
+    );
+
+    const badPlan = await call('POST', '/api/v1/member/order', { body: { planId: 'plan_hacker' }, token: tokenA });
+    check('POST /member/order 非法 planId → 400/1001', badPlan.status === 400 && badPlan.body?.code === 1001);
+
+    const order1 = await call('POST', '/api/v1/member/order', { body: { planId: 'plan_pro_monthly' }, token: tokenA });
+    const orderData = order1.body?.data || {};
+    check(
+      'POST /member/order → pending_confirm + orderId/orderNo(M+6位)/收款码/备注',
+      order1.status === 200 &&
+        order1.body?.code === 0 &&
+        Boolean(orderData.orderId) &&
+        /^M\d{6}$/.test(orderData.orderNo || '') &&
+        orderData.status === 'pending_confirm' &&
+        Boolean(orderData.payeeQrCodeUrl) &&
+        (orderData.remark || '').includes(orderData.orderNo)
+    );
+
+    const orderDup = await call('POST', '/api/v1/member/order', { body: { planId: 'plan_pro_monthly' }, token: tokenA });
+    check('重复下单 → 幂等返回同一订单', orderDup.status === 200 && orderDup.body?.data?.orderId === orderData.orderId);
+
+    const orderDetail = await call('GET', `/api/v1/member/order/${orderData.orderId}`, { token: tokenA });
+    check(
+      'GET /member/order/:orderId → 本人可查 pending_confirm',
+      orderDetail.status === 200 && orderDetail.body?.code === 0 && orderDetail.body?.data?.status === 'pending_confirm'
+    );
+
+    const status0 = await call('GET', '/api/v1/member/status', { token: tokenA });
+    check(
+      'GET /member/status → 未开通：none/非摄影师/autoRenew=true',
+      status0.status === 200 &&
+        status0.body?.data?.memberStatus === 'none' &&
+        status0.body?.data?.isPhotographer === false &&
+        status0.body?.data?.autoRenew === true &&
+        status0.body?.data?.remainingDays === 0
+    );
+
+    const cancel = await call('POST', '/api/v1/member/cancel-renewal', { token: tokenA });
+    check('POST /member/cancel-renewal → autoRenew=false', cancel.status === 200 && cancel.body?.data?.autoRenew === false);
+    const cancelDup = await call('POST', '/api/v1/member/cancel-renewal', { token: tokenA });
+    check('重复关闭自动续费 → 幂等 200', cancelDup.status === 200 && cancelDup.body?.code === 0);
+
+    // 管理端确认闭环（需 ADMIN_PASSWORD；未配置时标记跳过）
+    let adminToken = '';
+    if (env.ADMIN_PASSWORD) {
+      const adminLogin = await call('POST', '/api/v1/admin/auth/login', { body: { password: env.ADMIN_PASSWORD } });
+      adminToken = adminLogin.body?.data?.token || '';
+      check('管理员登录 → 返回 admin token', adminLogin.status === 200 && Boolean(adminToken));
+
+      const forbidden = await call('GET', '/api/v1/member/orders?status=pending_confirm', { token: tokenA });
+      check('用户 token 访问 /member/orders → 401/1002', forbidden.status === 401 && forbidden.body?.code === 1002);
+
+      const pendingBefore = await call('GET', '/api/v1/member/orders?status=pending_confirm', { token: adminToken });
+      check(
+        'GET /member/orders?status=pending_confirm → 待确认列表含该订单',
+        pendingBefore.status === 200 && (pendingBefore.body?.data?.list || []).some((o) => o.orderId === orderData.orderId)
+      );
+
+      const confirm1 = await call('POST', `/api/v1/member/order/${orderData.orderId}/confirm`, { token: adminToken });
+      check(
+        'POST /member/order/:orderId/confirm → paid + 会员激活',
+        confirm1.status === 200 &&
+          confirm1.body?.data?.status === 'paid' &&
+          confirm1.body?.data?.memberStatus === 'active'
+      );
+
+      const confirm2 = await call('POST', `/api/v1/member/order/${orderData.orderId}/confirm`, { token: adminToken });
+      check('重复确认 → 幂等 200', confirm2.status === 200 && confirm2.body?.code === 0);
+
+      // admin.html 兼容：/admin/payments/* 在新状态机下正常工作
+      const adminPending = await call('GET', '/api/v1/admin/payments/pending', { token: adminToken });
+      check(
+        'GET /admin/payments/pending → 200 且不再含已确认订单（admin.html 兼容）',
+        adminPending.status === 200 &&
+          adminPending.body?.code === 0 &&
+          !(adminPending.body?.data?.list || []).some((o) => o.orderId === orderData.orderId)
+      );
+      const adminHistory = await call('GET', '/api/v1/admin/payments/history?status=paid', { token: adminToken });
+      check(
+        'GET /admin/payments/history?status=paid → 含已确认订单（admin.html 兼容）',
+        adminHistory.status === 200 && (adminHistory.body?.data?.list || []).some((o) => o.orderId === orderData.orderId)
+      );
+    } else {
+      check('管理端冒烟（需 ADMIN_PASSWORD 环境变量）', true, 'SKIP');
+    }
+
+    const statusAfter = await call('GET', '/api/v1/member/status', { token: tokenA });
+    check(
+      '确认后 → active/摄影师/autoRenew=true/剩余≈30天',
+      statusAfter.status === 200 &&
+        statusAfter.body?.data?.memberStatus === 'active' &&
+        statusAfter.body?.data?.isPhotographer === true &&
+        statusAfter.body?.data?.autoRenew === true &&
+        statusAfter.body?.data?.remainingDays >= 29 &&
+        statusAfter.body?.data?.remainingDays <= 30
+    );
+
+    // 服务层：到期 + autoRenew=true → 模拟顺延 30 天并落 mock 订单
+    const userDoc = await User.findOne({ phone: '13800138000' });
+    userDoc.memberStatus = 'active';
+    userDoc.memberExpireAt = new Date(Date.now() - 1000);
+    userDoc.autoRenew = true;
+    userDoc.isPhotographer = true;
+    await userDoc.save();
+
+    const autoRenewed = await call('GET', '/api/v1/member/status', { token: tokenA });
+    check(
+      '到期+autoRenew=true → 懒检查模拟顺延 30 天',
+      autoRenewed.status === 200 &&
+        autoRenewed.body?.data?.memberStatus === 'active' &&
+        autoRenewed.body?.data?.remainingDays >= 29 &&
+        autoRenewed.body?.data?.isPhotographer === true
+    );
+    const mockCount = await MemberOrder.countDocuments({ userId: userDoc._id, status: 'paid', autoRenewed: true });
+    check('顺延已落 mock 订单（paid + autoRenewed）', mockCount >= 1);
+
+    // 服务层：到期 + autoRenew=false → 收回认证 + mode 回落 life
+    userDoc.memberStatus = 'active';
+    userDoc.memberExpireAt = new Date(Date.now() - 1000);
+    userDoc.autoRenew = false;
+    userDoc.isPhotographer = true;
+    userDoc.mode = 'work';
+    await userDoc.save();
+
+    const revoked = await call('GET', '/api/v1/member/status', { token: tokenA });
+    check(
+      '到期+autoRenew=false → expired/收回认证/mode 回落 life',
+      revoked.status === 200 &&
+        revoked.body?.data?.memberStatus === 'expired' &&
+        revoked.body?.data?.isPhotographer === false &&
+        revoked.body?.data?.remainingDays === 0
+    );
+
+    // 每日扫描（幂等：第二轮不再产生变更）
+    const scan1 = await expireMembership();
+    const scan2 = await expireMembership();
+    check(
+      '每日扫描幂等（二轮不再产生变更）',
+      scan1.renewed + scan1.revoked >= 0 && scan2.renewed === 0 && scan2.revoked === 0 && scan2.staleOrders === 0
+    );
 
     // 软删除 → 详情 404 → 恢复 → 详情 OK
     const del = await call('DELETE', `/api/v1/coords/${coordId}`, { token: tokenA });
