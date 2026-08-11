@@ -269,11 +269,11 @@ try {
 
     const status0 = await call('GET', '/api/v1/member/status', { token: tokenA });
     check(
-      'GET /member/status → 未开通：none/非摄影师/autoRenew=true',
+      'GET /member/status → 未开通：none/非摄影师/autoRenew=false（默认关闭）',
       status0.status === 200 &&
         status0.body?.data?.memberStatus === 'none' &&
         status0.body?.data?.isPhotographer === false &&
-        status0.body?.data?.autoRenew === true &&
+        status0.body?.data?.autoRenew === false &&
         status0.body?.data?.remainingDays === 0
     );
 
@@ -328,57 +328,79 @@ try {
 
     const statusAfter = await call('GET', '/api/v1/member/status', { token: tokenA });
     check(
-      '确认后 → active/摄影师/autoRenew=true/剩余≈30天',
+      '确认后 → active/摄影师/autoRenew=false（激活不开续费）/剩余≈30天',
       statusAfter.status === 200 &&
         statusAfter.body?.data?.memberStatus === 'active' &&
         statusAfter.body?.data?.isPhotographer === true &&
-        statusAfter.body?.data?.autoRenew === true &&
+        statusAfter.body?.data?.autoRenew === false &&
         statusAfter.body?.data?.remainingDays >= 29 &&
         statusAfter.body?.data?.remainingDays <= 30
     );
 
-    // 服务层：到期 + autoRenew=true → 模拟顺延 30 天并落 mock 订单
+    // 服务层：到期 → 一律收回认证（方案 B：显式置 autoRenew=true 也不顺延、不落 mock 订单）
     const userDoc = await User.findOne({ phone: '13800138000' });
     userDoc.memberStatus = 'active';
     userDoc.memberExpireAt = new Date(Date.now() - 1000);
-    userDoc.autoRenew = true;
-    userDoc.isPhotographer = true;
-    await userDoc.save();
-
-    const autoRenewed = await call('GET', '/api/v1/member/status', { token: tokenA });
-    check(
-      '到期+autoRenew=true → 懒检查模拟顺延 30 天',
-      autoRenewed.status === 200 &&
-        autoRenewed.body?.data?.memberStatus === 'active' &&
-        autoRenewed.body?.data?.remainingDays >= 29 &&
-        autoRenewed.body?.data?.isPhotographer === true
-    );
-    const mockCount = await MemberOrder.countDocuments({ userId: userDoc._id, status: 'paid', autoRenewed: true });
-    check('顺延已落 mock 订单（paid + autoRenewed）', mockCount >= 1);
-
-    // 服务层：到期 + autoRenew=false → 收回认证 + mode 回落 life
-    userDoc.memberStatus = 'active';
-    userDoc.memberExpireAt = new Date(Date.now() - 1000);
-    userDoc.autoRenew = false;
+    userDoc.autoRenew = true; // 显式置 true，验证 autoRenew 已不再影响到期行为
     userDoc.isPhotographer = true;
     userDoc.mode = 'work';
     await userDoc.save();
 
     const revoked = await call('GET', '/api/v1/member/status', { token: tokenA });
     check(
-      '到期+autoRenew=false → expired/收回认证/mode 回落 life',
+      '到期 → 一律收回认证（即使 autoRenew=true 也不自动顺延）',
       revoked.status === 200 &&
         revoked.body?.data?.memberStatus === 'expired' &&
         revoked.body?.data?.isPhotographer === false &&
         revoked.body?.data?.remainingDays === 0
     );
+    const revokedUser = await User.findOne({ phone: '13800138000' });
+    check('到期收回后 mode 回落 life', revokedUser.mode === 'life');
+    const mockOrders = await MemberOrder.countDocuments({ userId: userDoc._id, status: 'paid', autoRenewed: true });
+    check('到期未生成 mock 续费订单', mockOrders === 0);
 
-    // 每日扫描（幂等：第二轮不再产生变更）
+    // 服务层：重新订阅 → 新订单 → 管理端确认 → 会员恢复（作品数据保留，重新开通）
+    if (adminToken) {
+      const resub = await call('POST', '/api/v1/member/order', { body: { planId: 'plan_pro_monthly' }, token: tokenA });
+      const resubData = resub.body?.data || {};
+      check(
+        '到期后再下单 → 生成新订单 pending_confirm（非旧单复用）',
+        resub.status === 200 &&
+          resub.body?.code === 0 &&
+          resubData.orderId !== orderData.orderId &&
+          resubData.status === 'pending_confirm'
+      );
+      const resubConfirm = await call('POST', `/api/v1/member/order/${resubData.orderId}/confirm`, { token: adminToken });
+      check(
+        '重新订阅确认 → paid + 会员恢复 active',
+        resubConfirm.status === 200 &&
+          resubConfirm.body?.data?.status === 'paid' &&
+          resubConfirm.body?.data?.memberStatus === 'active'
+      );
+      const statusResub = await call('GET', '/api/v1/member/status', { token: tokenA });
+      check(
+        '重新订阅恢复 → active/摄影师/autoRenew=false/剩余≈30天',
+        statusResub.status === 200 &&
+          statusResub.body?.data?.memberStatus === 'active' &&
+          statusResub.body?.data?.isPhotographer === true &&
+          statusResub.body?.data?.autoRenew === false &&
+          statusResub.body?.data?.remainingDays >= 29 &&
+          statusResub.body?.data?.remainingDays <= 30
+      );
+    } else {
+      check('重新订阅恢复（需 ADMIN_PASSWORD）', true, 'SKIP');
+    }
+
+    // 每日扫描：再造一个到期会员 → 扫描收回 1 人 → 二轮不再命中（幂等）
+    userDoc.memberStatus = 'active';
+    userDoc.memberExpireAt = new Date(Date.now() - 1000);
+    userDoc.isPhotographer = true;
+    await userDoc.save();
     const scan1 = await expireMembership();
     const scan2 = await expireMembership();
     check(
-      '每日扫描幂等（二轮不再产生变更）',
-      scan1.renewed + scan1.revoked >= 0 && scan2.renewed === 0 && scan2.revoked === 0 && scan2.staleOrders === 0
+      '每日扫描：到期收回 1 人且幂等（二轮不再命中）',
+      scan1.revoked === 1 && scan1.staleOrders === 0 && scan2.revoked === 0 && scan2.staleOrders === 0
     );
 
     // 软删除 → 详情 404 → 恢复 → 详情 OK

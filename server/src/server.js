@@ -26,7 +26,7 @@ async function main() {
     console.log(`[Server] 健康检查：http://localhost:${env.PORT}/health`);
   });
 
-  // 会员到期每日扫描：自动续费模拟顺延 / 到期收回认证 / 超时未确认订单过期
+  // 会员到期每日扫描：到期收回认证（方案 B，不自动续费）/ 超时未确认订单过期
   // 幂等：处理完的会员不再命中条件，重复扫描不产生副作用
   let scanRunning = false;
   const runMembershipScan = async () => {
@@ -35,7 +35,7 @@ async function main() {
     try {
       const r = await expireMembership();
       console.log(
-        `[Member] 每日扫描完成：自动续费 ${r.renewed} 笔，到期收回 ${r.revoked} 人，超时订单过期 ${r.staleOrders} 笔`
+        `[Member] 每日扫描完成：到期收回认证 ${r.revoked} 人，超时订单过期 ${r.staleOrders} 笔`
       );
     } catch (err) {
       console.error('[Member] 每日扫描失败：', err.message);
