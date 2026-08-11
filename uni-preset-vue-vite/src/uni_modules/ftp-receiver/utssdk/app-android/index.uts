@@ -1,0 +1,380 @@
+/**
+ * app-android/index.uts —— ftp-receiver 插件 Android 平台实现（UTS 出口）
+ *
+ * 设计文档：《阶段②_UTS插件设计文档.md》v1.0（冻结）
+ *
+ * 职责：
+ *  - startServer/stopServer/onEvent 的 UTS 层实现（接口契约见 ../interface/index.uts）
+ *  - 参数校验（1003/1004/1005）→ 持久化配置 → 启动/停止 FtpForegroundService
+ *  - FtpEvents 回调桥：原生事件 → FtpServerEvent（JS 联合类型）→ 派发给 JS 回调
+ *  - FtpProtocolBridge 协议桥：为原生会话循环注入状态机实现（两阶段协议，H2）
+ *
+ * 线程模型：所有原生事件经 FtpEvents.kt 主线程 Handler 派发，JS 回调无线程竞争。
+ */
+import { FtpServerOptions, FtpStartResult, FtpFileMeta, FtpServerEvent, FtpEventCallback, FtpConnectedEvent, FtpTransferringEvent, FtpFileReceivedEvent, FtpDisconnectedEvent, FtpErrorEvent, ERR_INVALID_OPTIONS, ERR_ALREADY_RUNNING, ERR_DIR_UNAVAILABLE, ERR_START_FAILED, ERR_NOT_RUNNING } from '../interface/index.uts'
+import { FtpMachine, FtpMachineConfig, FtpInternalEvent, FtpStepResult, FtpEffect, FtpEffectOpenDataListen, FtpEffectConnectData, FtpEffectReceiveFile, FtpEffectDiscardTemp, FtpEffectCloseData, FtpEffectCloseControl, FtpEffectEmitFileReceived, FtpEffectEmitTransferring, FtpEffectEmitError, FtpEventDataListening, FtpEventDataAccepted, FtpEventDataConnected, FtpEventDataConnectFailed, FtpEventDataTimeout, FtpEventDataComplete, FtpEventTransferStalled, FtpEventTransferFailed, FtpEventCtrlIdleTimeout, FtpEventPeerClosed, createFtpMachine } from '../interface/ftp-protocol.uts'
+import { UTSAndroid } from 'io.dcloud.uts'
+import { Context } from 'android.content'
+import { Intent } from 'android.content'
+import { Build } from 'android.os'
+import { File } from 'java.io'
+import { JSONObject } from 'org.json'
+import { FtpEvents } from 'uni_modules.ftp_receiver.utssdk.app_android'
+import { FtpProtocolBridge } from 'uni_modules.ftp_receiver.utssdk.app_android'
+import { FtpForegroundService } from 'uni_modules.ftp_receiver.utssdk.app_android'
+
+// ================= 全局状态 =================
+
+/** PREFS 名与 key（与 FtpForegroundService.kt 保持一致） */
+const PREFS_NAME = 'ftp_receiver_prefs'
+const KEY_OPTIONS = 'options_json'
+
+let listeners: FtpEventCallback[] = []
+let running = false
+let nativeBridgeReady = false
+let protocolBridgeReady = false
+
+/** 启动/停止 Promise 挂起记录（UTS 要求对象字面量目标为构造类型） */
+class FtpPendingStart {
+  resolve: (r: FtpStartResult) => void = () => {}
+  reject: (e: any) => void = () => {}
+  constructor(resolve: (r: FtpStartResult) => void, reject: (e: any) => void) {
+    this.resolve = resolve
+    this.reject = reject
+  }
+}
+class FtpPendingStop {
+  // Promise<void> 执行器的 resolve 在 UTS 侧为 (value: void) => void（Kotlin 为 Function1<Unit,Unit>），
+  // 签名必须与之完全一致，否则云打包报 Function1 vs Function0 类型不匹配
+  resolve: (value: void) => void = () => {}
+  reject: (e: any) => void = () => {}
+  constructor(resolve: (value: void) => void, reject: (e: any) => void) {
+    this.resolve = resolve
+    this.reject = reject
+  }
+}
+
+/** Promise reject / catch 侧错误载荷（页面 catch(e:any) 读 e.code / e.message） */
+class FtpErrorPayload {
+  code: number = 0
+  message: string = ''
+  constructor(code: number, message: string) {
+    this.code = code
+    this.message = message
+  }
+}
+
+/** 序列化给原生协议桥的结果载荷（UTS 不允许无类型对象字面量传 JSON.stringify） */
+class FtpSerializedStep {
+  responses: string[] = []
+  effects: FtpEffect[] = []
+  fatal: boolean = false
+  constructor(responses: string[], effects: FtpEffect[], fatal: boolean) {
+    this.responses = responses
+    this.effects = effects
+    this.fatal = fatal
+  }
+}
+
+let pendingStart: FtpPendingStart | null = null
+let pendingStop: FtpPendingStop | null = null
+
+let activeMachine: FtpMachine | null = null
+let activeRoot: File | null = null
+
+const EMPTY_RESULT_JSON = '{"responses":[],"effects":[],"fatal":false}'
+const EMPTY_FATAL_JSON = '{"responses":[],"effects":[],"fatal":true}'
+
+// ================= 事件桥（原生 → JS） =================
+
+function ensureNativeBridge(): void {
+  if (nativeBridgeReady) return
+  nativeBridgeReady = true
+  FtpEvents.setListener((kind: string, payload: JSONObject): void => {
+    // —— 服务编排信号（Promise 消费，不派发给 JS）——
+    if (kind == '__ready') {
+      const ip = payload.getString('ip') ?? ''
+      const port = payload.getInt('port')
+      running = true
+      const ps = pendingStart
+      pendingStart = null
+      if (ps != null) ps.resolve(new FtpStartResult(ip, port))
+      return
+    }
+    if (kind == '__startError') {
+      const code = payload.getInt('code')
+      const message = payload.getString('message') ?? ''
+      running = false
+      const ps = pendingStart
+      pendingStart = null
+      if (ps != null) ps.reject(new FtpErrorPayload(code, message))
+      return
+    }
+    if (kind == '__stopped') {
+      running = false
+      const ps = pendingStop
+      pendingStop = null
+      if (ps != null) ps.resolve()
+      return
+    }
+    // —— 业务事件 ——
+    const ev = toServerEvent(kind, payload)
+    if (ev != null) {
+      for (let i = 0; i < listeners.length; i++) {
+        listeners[i](ev)
+      }
+    }
+  })
+}
+
+function toServerEvent(kind: string, payload: JSONObject): FtpServerEvent | null {
+  if (kind == 'connected') {
+    return new FtpConnectedEvent(payload.getString('client') ?? '')
+  }
+  if (kind == 'transferring') {
+    return new FtpTransferringEvent(payload.getString('name') ?? '', payload.getInt('size'))
+  }
+  if (kind == 'fileReceived') {
+    return new FtpFileReceivedEvent(new FtpFileMeta(payload.getString('path') ?? '', payload.getString('name') ?? '', payload.getInt('size')))
+  }
+  if (kind == 'disconnected') {
+    return new FtpDisconnectedEvent(payload.getString('client') ?? '')
+  }
+  if (kind == 'error') {
+    return new FtpErrorEvent(payload.getInt('code'), payload.getString('message') ?? '')
+  }
+  return null
+}
+
+// ================= 协议桥（原生会话循环 ↔ 状态机，H2 两阶段） =================
+
+function ensureProtocolBridge(): void {
+  if (protocolBridgeReady) return
+  protocolBridgeReady = true
+
+  // 会话建立时重置状态机（FtpServer.kt 每 accept 一个客户端调用一次）
+  FtpProtocolBridge.resetImpl = (configJson: string): void => {
+    const cfg = JSON.parse(configJson) as FtpMachineConfig
+    activeMachine = createFtpMachine(new FtpMachineConfig(cfg.user, cfg.pass, cfg.ip, cfg.peerIp, null, (name: string): boolean => {
+      if (activeRoot == null) return false
+      return new File(activeRoot, name).exists()
+    }))
+  }
+
+  // 控制行 → 状态机
+  FtpProtocolBridge.commandImpl = (line: string): string => {
+    const m = activeMachine
+    if (m == null) return EMPTY_FATAL_JSON
+    return serializeResult(m.handleCommand(line))
+  }
+
+  // 内部事件回注 → 状态机（PASV/PORT 两阶段闭环）
+  FtpProtocolBridge.eventImpl = (kind: string, payloadJson: string): string => {
+    const m = activeMachine
+    if (m == null) return EMPTY_FATAL_JSON
+    const ev = parseInternalEvent(kind, payloadJson)
+    if (ev == null) return EMPTY_RESULT_JSON
+    return serializeResult(m.handleEvent(ev))
+  }
+}
+
+/** JSON payload 解析目标（class 取代 interface，消除 as 强转灰色地带） */
+class FtpPortPayload {
+  port: number = 0
+  constructor(port: number) {
+    this.port = port
+  }
+}
+class FtpSizePayload {
+  size: number = 0
+  constructor(size: number) {
+    this.size = size
+  }
+}
+
+function parseInternalEvent(kind: string, payloadJson: string): FtpInternalEvent | null {
+  if (kind == 'dataListening') {
+    const p = JSON.parse(payloadJson) as FtpPortPayload
+    return new FtpEventDataListening(p.port)
+  }
+  if (kind == 'dataAccepted') return new FtpEventDataAccepted()
+  if (kind == 'dataConnected') return new FtpEventDataConnected()
+  if (kind == 'dataConnectFailed') return new FtpEventDataConnectFailed()
+  if (kind == 'dataTimeout') return new FtpEventDataTimeout()
+  if (kind == 'dataComplete') {
+    const p = JSON.parse(payloadJson) as FtpSizePayload
+    return new FtpEventDataComplete(p.size)
+  }
+  if (kind == 'transferStalled') return new FtpEventTransferStalled()
+  if (kind == 'transferFailed') return new FtpEventTransferFailed()
+  if (kind == 'ctrlIdleTimeout') return new FtpEventCtrlIdleTimeout()
+  if (kind == 'peerClosed') return new FtpEventPeerClosed()
+  return null
+}
+
+function serializeResult(r: FtpStepResult): string {
+  const effects: FtpEffect[] = []
+  for (let i = 0; i < r.effects.length; i++) {
+    const e: FtpEffect = r.effects[i]
+    if (e.kind == 'openDataListen') {
+      effects.push(new FtpEffectOpenDataListen())
+    } else if (e.kind == 'connectData') {
+      effects.push(new FtpEffectConnectData(e.host, e.port))
+    } else if (e.kind == 'receiveFile') {
+      effects.push(new FtpEffectReceiveFile(e.temp, e.target, e.expected))
+    } else if (e.kind == 'discardTemp') {
+      effects.push(new FtpEffectDiscardTemp(e.temp))
+    } else if (e.kind == 'closeData') {
+      effects.push(new FtpEffectCloseData())
+    } else if (e.kind == 'closeControl') {
+      effects.push(new FtpEffectCloseControl())
+    } else if (e.kind == 'emitFileReceived') {
+      effects.push(new FtpEffectEmitFileReceived(new FtpFileMeta(e.meta.path, e.meta.name, e.meta.size)))
+    } else if (e.kind == 'emitTransferring') {
+      effects.push(new FtpEffectEmitTransferring(e.name, e.size))
+    } else if (e.kind == 'emitError') {
+      effects.push(new FtpEffectEmitError(e.code, e.message))
+    }
+  }
+  return JSON.stringify(new FtpSerializedStep(r.responses, effects, r.fatal))
+}
+
+// ================= 参数校验与目录解析 =================
+
+function validateOptions(options: FtpServerOptions): number {
+  // H3：端口 1–65535 整数
+  if (options.port < 1 || options.port > 65535 || Math.floor(options.port) != options.port) {
+    return ERR_INVALID_OPTIONS
+  }
+  if (options.user.length == 0 || options.user.length > 32) {
+    return ERR_INVALID_OPTIONS
+  }
+  if (options.pass.length == 0 || options.pass.length > 32) {
+    return ERR_INVALID_OPTIONS
+  }
+  if (options.dir.length == 0) {
+    return ERR_INVALID_OPTIONS
+  }
+  return 0
+}
+
+/** dir 解析：相对基于 filesDir；绝对必须落在 filesDir 内（canonical 防穿越）。非法返回 null。 */
+function resolveRootDir(ctx: Context, dirSpec: string): File | null {
+  const base = ctx.filesDir
+  const f = new File(dirSpec)
+  let canonical: File
+  if (f.isAbsolute()) {
+    canonical = f.canonicalFile()
+  } else {
+    canonical = new File(base, dirSpec).canonicalFile()
+  }
+  // 用 java.io.File 稳定属性 absolutePath 做前缀比较（getPath() 在新版 UTS 转译下会命中
+  // Kotlin 实验性 Path API，云打包报 ExperimentalStdlibApi / Unresolved reference 'getPath'）
+  if (!canonical.absolutePath.startsWith(base.canonicalFile().absolutePath)) {
+    return null
+  }
+  return canonical
+}
+
+// ================= 公开 API（契约见 ../interface/index.uts） =================
+
+export function startServer(options: FtpServerOptions): Promise<FtpStartResult> {
+  return new Promise<FtpStartResult>((resolve, reject) => {
+    // 同步参数校验（文档 3.2 语义：非法立即 reject 1003）
+    const verr = validateOptions(options)
+    if (verr != 0) {
+      reject(new FtpErrorPayload(verr, '参数非法：端口需 1–65535 整数，账号密码非空且 ≤32 字符，dir 非空'))
+      return
+    }
+    if (running) {
+      reject(new FtpErrorPayload(ERR_ALREADY_RUNNING, '服务已运行，请先 stopServer()'))
+      return
+    }
+    ensureNativeBridge()
+    ensureProtocolBridge()
+    pendingStart = new FtpPendingStart(resolve, reject)
+    try {
+      // UTSAndroid.getAppContext() 在 Kotlin 侧返回 Context?（可空），先判空再使用
+      const ctx = UTSAndroid.getAppContext()
+      if (ctx == null) {
+        pendingStart = null
+        reject(new FtpErrorPayload(ERR_START_FAILED, '获取应用上下文失败'))
+        return
+      }
+      const root = resolveRootDir(ctx, options.dir)
+      if (root == null) {
+        pendingStart = null
+        reject(new FtpErrorPayload(ERR_INVALID_OPTIONS, '存储目录非法（必须位于应用私有目录内）'))
+        return
+      }
+      if (!root.exists() && !root.mkdirs()) {
+        pendingStart = null
+        reject(new FtpErrorPayload(ERR_DIR_UNAVAILABLE, '存储目录创建失败'))
+        return
+      }
+      activeRoot = root
+
+      // 持久化配置（START_STICKY 恢复用）
+      const json = JSON.stringify(options)
+      const prefs = ctx.getSharedPreferences(PREFS_NAME, 0)
+      prefs.edit().putString(KEY_OPTIONS, json).commit()
+
+      // 启动前台服务（UTS 不支持 ::class.java，用实例 .javaClass）
+      const intent = new Intent(ctx, new FtpForegroundService().javaClass)
+      intent.setAction(FtpForegroundService.ACTION_START)
+      intent.putExtra(FtpForegroundService.KEY_OPTIONS, json)
+      if (Build.VERSION.SDK_INT >= 26) {
+        ctx.startForegroundService(intent)
+      } else {
+        ctx.startService(intent)
+      }
+      // resolve 时机：__ready 回注（端口绑定成功、监听已开始）
+    } catch (e: Exception) {
+      pendingStart = null
+      reject(new FtpErrorPayload(ERR_START_FAILED, '启动服务失败：' + e.message))
+    }
+  })
+}
+
+export function stopServer(): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (!running) {
+      reject(new FtpErrorPayload(ERR_NOT_RUNNING, '服务未运行'))
+      return
+    }
+    ensureNativeBridge()
+    pendingStop = new FtpPendingStop(resolve, reject)
+    try {
+      const ctx = UTSAndroid.getAppContext()
+      if (ctx == null) {
+        pendingStop = null
+        reject(new FtpErrorPayload(ERR_START_FAILED, '获取应用上下文失败'))
+        return
+      }
+      // M2：主动停止清除持久化配置（防 START_STICKY 停了又起；service 内也清，双保险）
+      const prefs = ctx.getSharedPreferences(PREFS_NAME, 0)
+      prefs.edit().remove(KEY_OPTIONS).commit()
+      const intent = new Intent(ctx, new FtpForegroundService().javaClass)
+      intent.setAction(FtpForegroundService.ACTION_STOP)
+      if (Build.VERSION.SDK_INT >= 26) {
+        ctx.startForegroundService(intent)
+      } else {
+        ctx.startService(intent)
+      }
+    } catch (e: Exception) {
+      pendingStop = null
+      reject(new FtpErrorPayload(ERR_START_FAILED, '停止服务失败：' + e.message))
+    }
+  })
+}
+
+export function onEvent(handler: FtpEventCallback): () => void {
+  ensureNativeBridge()
+  listeners.push(handler)
+  return () => {
+    const idx = listeners.indexOf(handler)
+    if (idx >= 0) {
+      listeners.splice(idx, 1)
+    }
+  }
+}

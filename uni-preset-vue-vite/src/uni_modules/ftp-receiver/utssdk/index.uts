@@ -1,0 +1,28 @@
+/**
+ * index.uts —— ftp-receiver 插件统一入口（UTS 插件规范：utssdk/index.uts 为程序主入口）
+ *
+ * 设计文档：《阶段②_UTS插件设计文档.md》v1.0（冻结）
+ *
+ * 业务层统一从此入口导入，平台实现由 UTS 编译器按运行平台自动匹配：
+ *   import { startServer, stopServer, onEvent } from '@/uni_modules/ftp-receiver/utssdk/index.uts'
+ *   import type { FtpServerEvent, FtpStartResult, FtpFileMeta } from '@/uni_modules/ftp-receiver/utssdk/index.uts'
+ *
+ * 导出内容：
+ *  - ./interface/index.uts      契约层：类型（FtpServerOptions / FtpFileMeta / FtpServerEvent /
+ *                              FtpEventCallback / FtpStartResult）与错误码常量（ERR_*，1000–1008）
+ *  - ./app-android/index.uts    Android 实现：startServer / stopServer / onEvent
+ *  - ./app-ios/index.uts        iOS 占位实现（D3 延期，统一抛错 9001）
+ *
+ * 三者导出符号互不冲突：interface 层仅类型+常量，平台目录仅三个函数实现，故 export * 可安全聚合。
+ */
+
+// 契约层（跨平台）：类型与错误码常量
+export * from './interface/index.uts'
+
+// 平台实现（UTS 条件编译按平台导出）
+// #ifdef APP-ANDROID
+export * from './app-android/index.uts'
+// #endif
+// #ifdef APP-IOS
+export * from './app-ios/index.uts'
+// #endif

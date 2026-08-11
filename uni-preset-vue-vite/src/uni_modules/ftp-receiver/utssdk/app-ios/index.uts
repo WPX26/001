@@ -1,0 +1,22 @@
+/**
+ * app-ios/index.uts —— iOS 占位实现（D3 延期，设计文档第 9 章）
+ *
+ * 签名与 interface 完全一致（类型定义不重复），实现体统一抛错（错误码 9001）。
+ * 激活条件（文档 9.2）：王总确认启动 iOS 后，
+ *   ① interface 层状态机纯函数原样复用；
+ *   ② 编写 iOS 副作用执行器（socket 层 + 后台运行声明）；
+ *   ③ 本文件从占位改为真实实现，API 签名零改动，业务层无感知。
+ */
+import { FtpServerOptions, FtpStartResult, FtpEventCallback } from '../interface/index.uts'
+
+export function startServer(options: FtpServerOptions): Promise<FtpStartResult> {
+  return Promise.reject({ code: 9001, message: 'iOS 未实现（D3 延期，待王总确认后激活）' })
+}
+
+export function stopServer(): Promise<void> {
+  return Promise.reject({ code: 9001, message: 'iOS 未实现（D3 延期）' })
+}
+
+export function onEvent(handler: FtpEventCallback): () => void {
+  return () => {}
+}
