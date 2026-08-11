@@ -42,3 +42,29 @@ export function haversineKm(a, b) {
 export function escapeRegex(text) {
   return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/** 1° 纬度对应的米数（估算，用于米 → 度换算） */
+const METERS_PER_DEG = 111320;
+
+/**
+ * 搜索半径 → 经纬度偏移量（用于 bbox 索引预过滤，灵感/探索模式共用）
+ * 约定：radius ≤ 180 视为度数（°），> 180 视为米（api.md 4.1 默认 5000 米）
+ * 经度方向按纬度修正（cos(lat) 收缩），纬度方向恒定
+ * @param {number} radius 米或度
+ * @param {number} lat 中心纬度（用于经度修正）
+ * @returns {{dLat:number, dLng:number}|null} 非法/非正数返回 null（表示不限范围）
+ */
+export function radiusDelta(radius, lat) {
+  const r = Number(radius);
+  if (!Number.isFinite(r) || r <= 0) return null;
+  const degrees = r <= 180 ? r : r / METERS_PER_DEG;
+  const cos = Math.max(0.05, Math.cos((lat * Math.PI) / 180));
+  return { dLat: degrees, dLng: degrees / cos };
+}
+
+/** 半径对应的最大球面距离（公里），与 radiusDelta 同一约定（度数 × 111.32km/°） */
+export function radiusMaxKm(radius) {
+  const r = Number(radius);
+  if (!Number.isFinite(r) || r <= 0) return null;
+  return r <= 180 ? r * 111.32 : r / 1000;
+}

@@ -24,6 +24,8 @@ const coordSchema = new Schema(
     gridKey: { type: String, index: true },
     // 收藏该坐标的用户（灵感模式收藏，api.md 4.2）
     collectedBy: [{ type: Types.ObjectId, ref: 'User' }],
+    // 冗余收藏计数（列表/卡片直接使用，避免每次取数组长度）
+    collectedCount: { type: Number, default: 0 },
     // 软删除标记（回收站 30 天内可恢复）
     deletedAt: { type: Date, default: null, index: true },
   },
