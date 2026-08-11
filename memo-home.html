@@ -2960,12 +2960,48 @@
   .detail-dot.active { background: #E89020; }
   /* Leaflet 弹窗样式适配 */
 
+  /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，默认不影响 Web 端展示） ===== */
+  body.full-embed { padding: 0; }
+  body.full-embed .container { max-width: none; gap: 0; }
+  body.full-embed .phone-wrapper { width: 100%; }
+  body.full-embed .phone-frame {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  body.full-embed .phone-frame::before { display: none; }
+  body.full-embed .phone-screen { border-radius: 0; }
+  body.full-embed .status-bar { display: none; }
+
 </style>
 <!-- Leaflet + 天地图瓦片 -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
 <script src="api.js"></script>
+<script>
+// ===== 移动端 web-view 桥接（不影响 Web 端 UI/功能） =====
+// 1) URL 带 token 时写入 localStorage.memo_token 并清理 URL（uni-app web-view 跨域隔离，无法直接写 H5 localStorage）
+// 2) URL 带 full=1 时进入全屏嵌入模式（App 内主地图）
+(function () {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var token = params.get('token');
+    if (token) {
+      localStorage.setItem('memo_token', token);
+      params.delete('token');
+      var qs = params.toString();
+      var url = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+      window.history.replaceState({}, '', url);
+    }
+    if (params.get('full') === '1') {
+      document.body.classList.add('full-embed');
+    }
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 
