@@ -10,6 +10,7 @@ import { requireAdmin } from '../middleware/auth.js';
 import { ERR } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
 import * as admin from '../controllers/admin.controller.js';
+import * as invite from '../controllers/invite.controller.js';
 
 const router = Router();
 
@@ -49,5 +50,21 @@ const qrcodeUpload = multer({
 
 // 上传/更换收款码图片（覆盖式写 /uploads/pay-qrcode.png，免进容器操作）
 router.post('/payments/qrcode', qrcodeUpload.single('file'), admin.uploadPayQrcode);
+
+// ============ 邀请码（管理员生成、一次性、可叠加兑换） ============
+// 生成 count 个一次性邀请码（1-100，格式 VIP+8 位大写字母数字）
+router.post(
+  '/invite-codes/generate',
+  [
+    body('count')
+      .isInt({ min: 1, max: 100 })
+      .withMessage('count 需为 1-100 的整数'),
+    validate,
+  ],
+  invite.generateInviteCodes
+);
+
+// 邀请码列表（分页，used/unused + usedBy 昵称）
+router.get('/invite-codes', invite.listInviteCodes);
 
 export default router;

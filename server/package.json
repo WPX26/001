@@ -11,7 +11,11 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "smoke": "node scripts/smoke.js"
+    "smoke": "node scripts/smoke.js",
+    "smoke:invite": "node scripts/smoke-invite.js"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.2.0"
   },
   "dependencies": {
     "@alicloud/dysmsapi20170525": "^4.6.0",

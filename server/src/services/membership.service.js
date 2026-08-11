@@ -9,6 +9,8 @@
  * - 严禁触碰 Photo/Coord 数据：探索池隐藏靠 isPhotographer/mode 过滤（已在现有代码实现）
  */
 import { MEMBER_PLAN, MEMBER_PENDING_EXPIRE_MS } from '../config/constants.js';
+import { ERR } from '../config/constants.js';
+import { AppError } from '../utils/errors.js';
 import { MemberOrder, User } from '../models/index.js';
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -32,8 +34,9 @@ export function genOrderNo() {
 /**
  * 计算续期后的到期时间：已有未过期会员期则顺延（防重复购买丢天数），否则从当前时间新开一期
  * @param {import('mongoose').Document} user
+ * @param {number} [days] 本次续期天数（默认 MEMBER_PLAN.days=30；邀请码兑换可传 rewardDays）
  */
-function nextExpireAt(user) {
+function nextExpireAt(user, days = MEMBER_PLAN.days) {
   const now = Date.now();
   const base =
     user.memberStatus === 'active' &&
@@ -41,23 +44,60 @@ function nextExpireAt(user) {
     user.memberExpireAt.getTime() > now
       ? user.memberExpireAt
       : new Date();
-  return new Date(base.getTime() + MEMBER_PLAN.days * DAY_MS);
+  return new Date(base.getTime() + days * DAY_MS);
 }
 
 /**
  * 激活/续期会员（管理端确认支付后调用）
  * - 置 memberStatus=active、isPhotographer=true、autoRenew=false（方案 B：自动续费保持关闭）
- * - memberExpireAt 顺延 30 天（续费顺延：已有未过期会员期在其到期点上追加，否则从当前起算）
+ * - memberExpireAt 顺延 days 天（续费顺延：已有未过期会员期在其到期点上追加，否则从当前起算）
  * @param {import('mongoose').Document} user
  * @param {object} [order] 关联订单（预留；金额/天数由服务端 MEMBER_PLAN 决定，不信任入参）
+ * @param {number} [days] 本次续期天数（默认 MEMBER_PLAN.days）
  */
-export async function activateMembership(user, order = null) {
+export async function activateMembership(user, order = null, days = MEMBER_PLAN.days) {
   user.memberStatus = 'active';
   user.isPhotographer = true;
   user.autoRenew = false;
-  user.memberExpireAt = nextExpireAt(user);
+  user.memberExpireAt = nextExpireAt(user, days);
   await user.save();
   return user;
+}
+
+/**
+ * 原子续期（邀请码兑换专用，单条聚合管道更新，无读-改-写竞态）：
+ * - memberExpireAt = max(当前时间, 原 memberExpireAt) + days 天（null 按当前时间起算）
+ *   → 现有 active 未过期会员在到期点上顺延（多码连续兑换不丢天数）；
+ *     非会员 / 已过期会员从当前时间新开一期
+ * - 置 memberStatus=active、isPhotographer=true（兑换即认证）、autoRenew=false
+ * - 同一用户并发兑换多个码时，每次更新都在服务端原子完成，时长正确累加
+ * @param {import('mongoose').Types.ObjectId|string} userId
+ * @param {number} days 本次续期天数
+ * @returns {Promise<import('mongoose').Document>} 更新后的用户文档
+ */
+export async function extendMembershipByDays(userId, days) {
+  const updated = await User.findOneAndUpdate(
+    { _id: userId },
+    [
+      {
+        $set: {
+          memberStatus: 'active',
+          isPhotographer: true,
+          autoRenew: false,
+          memberExpireAt: {
+            $dateAdd: {
+              startDate: { $max: ['$$NOW', { $ifNull: ['$memberExpireAt', '$$NOW'] }] },
+              unit: 'day',
+              amount: days,
+            },
+          },
+        },
+      },
+    ],
+    { returnDocument: 'after' }
+  );
+  if (!updated) throw new AppError(ERR.NOT_FOUND, '用户不存在', 404);
+  return updated;
 }
 
 /**

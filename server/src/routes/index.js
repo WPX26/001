@@ -1,8 +1,8 @@
 /**
  * 路由统一出口（挂载于 /api/v1，api.md 前缀约定）
  *
- * P0 已实现模块：auth / map / coords / photos / users / upload / member / admin
- * P1 预留模块（模型已建，路由待接入）：inspire / explore / comments / tether / chat / photographer / invite / notifications / report
+ * P0 已实现模块：auth / map / coords / photos / users / upload / member / admin / invite（邀请码兑换）
+ * P1 预留模块（模型已建，路由待接入）：inspire / explore / comments / tether / chat / photographer / notifications / report
  */
 import { Router } from 'express';
 import authRoutes from './auth.routes.js';
@@ -13,6 +13,7 @@ import userRoutes from './user.routes.js';
 import uploadRoutes from './upload.routes.js';
 import memberRoutes from './member.routes.js';
 import adminRoutes from './admin.routes.js';
+import inviteRoutes from './invite.routes.js';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use('/users', userRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/member', memberRoutes);
 router.use('/admin', adminRoutes);
+router.use('/invite', inviteRoutes);
 
 export default router;

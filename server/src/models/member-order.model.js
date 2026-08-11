@@ -4,6 +4,7 @@
  * - pending_confirm：用户下单扫码付款后待管理端人工核对（超 48h 惰性置 expired）
  * - paid：管理端已确认收款，会员已激活；自动续费模拟顺延时也会落 paid 订单（autoRenewed=true，无真实付款）
  * - expired：超时未确认 / 已过期订单
+ * 邀请码兑换记录：paymentMethod=invite、amount=0 的 paid 订单（不产生支付、不入 pending，直接落账留痕）
  */
 import mongoose from 'mongoose';
 
@@ -20,7 +21,7 @@ const memberOrderSchema = new Schema(
     planName: { type: String, default: '' },
     amount: { type: Number, required: true }, // 分（与支付平台对齐用整数分）
     period: { type: String, enum: ['month', 'year'], default: 'month' },
-    paymentMethod: { type: String, enum: ['wechat', 'alipay'], default: 'wechat' },
+    paymentMethod: { type: String, enum: ['wechat', 'alipay', 'invite'], default: 'wechat' },
     status: {
       type: String,
       enum: ['pending_confirm', 'paid', 'expired'],
@@ -29,6 +30,8 @@ const memberOrderSchema = new Schema(
     },
     // 自动续费模拟订单标记（无真实付款，仅记录模拟顺延）
     autoRenewed: { type: Boolean, default: false },
+    // 邀请码兑换来源码（paymentMethod=invite 时留痕，历史可查；其余为空）
+    inviteCode: { type: String, default: '' },
     outTradeNo: { type: String, default: '' }, // 支付平台交易号（半自动模式暂不使用）
     confirmedAt: { type: Date, default: null }, // 管理端确认时间
     paidAt: { type: Date, default: null },
