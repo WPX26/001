@@ -14,10 +14,11 @@
 # ============================================================
 FROM nginx:1.27-alpine
 
-# 9 个页面 + api.js（根目录下）
+# 9 个页面 + admin.html（管理端）+ api.js（根目录下）
 COPY album-prototype.html camera-prototype.html connect-prototype.html \
      login-prototype.html memo-home.html message-prototype.html \
      photographer-payment.html profile-prototype.html register-prototype.html \
+     admin.html \
      /usr/share/nginx/html/
 
 COPY api.js /usr/share/nginx/html/
