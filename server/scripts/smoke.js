@@ -10,9 +10,11 @@
  *    坐标详情 → 点赞/收藏（含 1005 重复）→ 我的照片 → 软删除/恢复/永久删除 → 回收站 →
  *    关注/取关 → 工作模式权限 → refresh/logout
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import mongoose from 'mongoose';
 import app from '../src/app.js';
-import env from '../src/config/env.js';
+import env, { UPLOAD_DIR } from '../src/config/env.js';
 import { VerificationCode, MemberOrder, User } from '../src/models/index.js';
 import * as smsService from '../src/services/sms.service.js';
 import { expireMembership } from '../src/services/membership.service.js';
@@ -322,6 +324,59 @@ try {
         'GET /admin/payments/history?status=paid → 含已确认订单（admin.html 兼容）',
         adminHistory.status === 200 && (adminHistory.body?.data?.list || []).some((o) => o.orderId === orderData.orderId)
       );
+
+      // ================= 收款码图片上传/更换（管理端，覆盖式） =================
+      // 备份原始占位图，测试结束后恢复，避免污染本地文件
+      const qrFilePath = path.join(UPLOAD_DIR, 'pay-qrcode.png');
+      const originalQr = fs.existsSync(qrFilePath) ? fs.readFileSync(qrFilePath) : null;
+
+      const qrBytes = Buffer.from('PAY-QR-CODE-TEST-BYTES-2026', 'utf8');
+      const qrFd = new FormData();
+      qrFd.append('file', new Blob([qrBytes], { type: 'image/png' }), 'pay-qrcode.png');
+      // FormData 上传不能预设 Content-Type（需 fetch 自动生成 multipart boundary），故绕过 call 助手直用 fetch
+      const qrUpload = await fetch(base + '/api/v1/admin/payments/qrcode', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: qrFd,
+      });
+      const qrUploadJson = await qrUpload.json();
+      const qrUrl = qrUploadJson?.data?.url || '';
+      check(
+        'POST /admin/payments/qrcode → 200 返回 /uploads/pay-qrcode.png 新 URL',
+        qrUpload.status === 200 &&
+          qrUploadJson?.code === 0 &&
+          qrUrl.endsWith('/uploads/pay-qrcode.png') &&
+          qrUploadJson?.data?.size === qrBytes.length
+      );
+
+      check(
+        '上传后文件已落盘且内容一致（覆盖式）',
+        fs.existsSync(qrFilePath) && fs.readFileSync(qrFilePath).equals(qrBytes)
+      );
+
+      const qrFetch = await fetch(base + '/uploads/pay-qrcode.png');
+      const qrBody = Buffer.from(await qrFetch.arrayBuffer());
+      check('新收款码 URL 可访问（静态托管生效）', qrFetch.status === 200 && qrBody.equals(qrBytes));
+
+      const qrForbidden = await fetch(base + '/api/v1/admin/payments/qrcode', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${tokenA}` },
+        body: qrFd,
+      });
+      check('用户 token 上传收款码 → 401/1002', qrForbidden.status === 401);
+
+      const badFd = new FormData();
+      badFd.append('file', new Blob(['not-an-image'], { type: 'text/plain' }), 'note.txt');
+      const qrBad = await fetch(base + '/api/v1/admin/payments/qrcode', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${adminToken}` },
+        body: badFd,
+      });
+      check('非图片文件上传收款码 → 400/1001', qrBad.status === 400);
+
+      // 恢复原始收款码文件（测试数据不落库不留盘）
+      if (originalQr) fs.writeFileSync(qrFilePath, originalQr);
+      else fs.rmSync(qrFilePath, { force: true });
     } else {
       check('管理端冒烟（需 ADMIN_PASSWORD 环境变量）', true, 'SKIP');
     }

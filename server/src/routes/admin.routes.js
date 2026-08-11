@@ -4,8 +4,11 @@
  */
 import { Router } from 'express';
 import { body, param } from 'express-validator';
+import multer from 'multer';
 import { validate } from '../middleware/validate.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { ERR } from '../config/constants.js';
+import { AppError } from '../utils/errors.js';
 import * as admin from '../controllers/admin.controller.js';
 
 const router = Router();
@@ -32,5 +35,19 @@ router.post(
 
 // 订单历史（分页 + status 过滤）
 router.get('/payments/history', admin.getPaymentHistory);
+
+// 收款码图片上传（multipart，字段名 file）：内存存储，仅图片，≤5MB
+// 大小超限/类型错误由 multer 抛错，errorHandler 统一转 400/1001
+const qrcodeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new AppError(ERR.VALIDATE, '仅支持图片文件（字段名 file）', 400));
+  },
+});
+
+// 上传/更换收款码图片（覆盖式写 /uploads/pay-qrcode.png，免进容器操作）
+router.post('/payments/qrcode', qrcodeUpload.single('file'), admin.uploadPayQrcode);
 
 export default router;

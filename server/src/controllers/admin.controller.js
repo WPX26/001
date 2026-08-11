@@ -4,11 +4,14 @@
  * - GET  /admin/payments/pending 待确认付款列表（?status= 可选过滤，默认 pending_confirm）
  * - POST /admin/payments/:orderId/confirm 确认收款并激活会员（同时挂载于 /member/order/:orderId/confirm）
  * - GET  /admin/payments/history 订单历史（分页 + status 过滤）
+ * - POST /admin/payments/qrcode 上传/更换收款码图片（覆盖式，免进容器操作）
  * - GET  /member/orders 管理端订单列表（复用 getPendingPayments，挂载于 member.routes）
  */
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import jwt from 'jsonwebtoken';
-import env from '../config/env.js';
+import env, { UPLOAD_DIR } from '../config/env.js';
 import { ERR } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
@@ -16,6 +19,9 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, paginated } from '../utils/pagination.js';
 import { MemberOrder, User } from '../models/index.js';
 import { activateMembership } from '../services/membership.service.js';
+
+/** 收款码图片对外相对路径（静态托管于 /uploads；容器内落盘即 /app/uploads/pay-qrcode.png） */
+const PAY_QRCODE_RELATIVE = '/uploads/pay-qrcode.png';
 
 /** 管理员 Token 有效期（秒，12 小时） */
 const ADMIN_TOKEN_EXPIRES = 12 * 3600;
@@ -171,4 +177,31 @@ export const getPaymentHistory = asyncHandler(async (req, res) => {
     createdAt: o.createdAt,
   }));
   ok(res, paginated(list, total, page, pageSize));
+});
+
+/**
+ * POST /admin/payments/qrcode 上传/更换收款码图片（覆盖式，multipart 字段名 file）
+ * 落盘固定路径 UPLOAD_DIR/pay-qrcode.png（容器内 /app/uploads/pay-qrcode.png），
+ * 静态托管 URL 与 PAY_QRCODE_URL 默认值一致，上传即对用户端生效
+ */
+export const uploadPayQrcode = asyncHandler(async (req, res) => {
+  const file = req.file;
+  if (!file || file.size === 0) {
+    throw new AppError(ERR.VALIDATE, '缺少文件（字段名 file）', 400);
+  }
+
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  fs.writeFileSync(path.join(UPLOAD_DIR, 'pay-qrcode.png'), file.buffer);
+
+  const url = `${env.LOCAL_BASE_URL.replace(/\/+$/, '')}${PAY_QRCODE_RELATIVE}`;
+  ok(
+    res,
+    {
+      url,
+      relativePath: PAY_QRCODE_RELATIVE,
+      size: file.size,
+      name: file.originalname,
+    },
+    '收款码图片已更新'
+  );
 });
