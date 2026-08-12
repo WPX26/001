@@ -98,6 +98,8 @@
   }
   
   .leaflet-container { background: #E8EEE8; }
+  /* Retina 2x 瓦片按 512px 显示时插值锐化（Chromium 优化对比度，文字边缘更实） */
+  .leaflet-tile { image-rendering: -webkit-optimize-contrast; image-rendering: optimize-contrast; }
 
   /* 地图标记点 */
   .map-marker {
@@ -7987,8 +7989,26 @@
         attributionControl: false
       });
 
-      new ResilientTileLayer(TDT_URL,  { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, updateWhenZooming: false }).addTo(map);
-      new ResilientTileLayer(TDT_LABEL, { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, updateWhenZooming: false }).addTo(map);
+      // Retina 高清：手机高分屏（dpr>=2）时 tileSize=512 + zoomOffset=1（Leaflet 原生 getTileUrl 的
+      // z 取自 _getZoomForUrl()，zoomOffset 让请求层级 +1）；实例级 patch getTileUrl 把行列乘 2
+      // （父瓦片关系）= 请求 zoom+1 级的 256px 瓦片并按 512px 显示，等效 2x 内容分辨率，文字清晰
+      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, maxNativeZoom: 18, updateWhenZooming: false };
+      if (window.devicePixelRatio >= 2) { TILE_OPTS.tileSize = 512; TILE_OPTS.zoomOffset = 1; }
+      var mkRetinaLayer = function(url, opts) {
+        var layer = new ResilientTileLayer(url, opts);
+        if (opts.tileSize === 512) {
+          // tileSize 512 时 Leaflet 的瓦片坐标 = 像素/512（= 256 网格的一半），
+          // 请求 zoom+1 级瓦片须行列乘 4（z+1 网格 = 4 倍行列）才指向同一区域
+          var baseGet = layer.getTileUrl.bind(layer);
+          layer.getTileUrl = function(coords) {
+            coords = { x: Math.floor(coords.x * 4), y: Math.floor(coords.y * 4), z: coords.z };
+            return baseGet(coords);
+          };
+        }
+        return layer;
+      };
+      mkRetinaLayer(TDT_URL,  TILE_OPTS).addTo(map);
+      mkRetinaLayer(TDT_LABEL, TILE_OPTS).addTo(map);
 
       // 缩放 → 同步细化程度
       // mapReady 延迟启用，避免地图初始化期间的缩放抖动影响细化程度
