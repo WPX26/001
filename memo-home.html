@@ -5386,11 +5386,11 @@
         var after = rm[1].replace(/^[0-9号楼]+/, '');
         if (after.length >= 2) return after;
       }
-      // 清理前导数字/"号楼"
-      return best.replace(/^[0-9号楼]+/, '');
+      // 清理前导"街道"（"街道香港中路" → "香港中路"）与数字/"号楼"
+      return best.replace(/^街道/, '').replace(/^[0-9号楼]+/, '');
     }
-    // 兜底：截前 14 字
-    return s.slice(0, 14);
+    // 兜底：去掉"街道"前缀后截前 14 字
+    return s.replace(/^街道/, '').slice(0, 14);
   }
 
   function tdtReverseFront(lng, lat) {
@@ -5411,11 +5411,14 @@
     return MemoAPI.get('/map/reverse?lng=' + encodeURIComponent(lng) + '&lat=' + encodeURIComponent(lat))
       .then(function(data) {
         var name = (data && typeof data.name === 'string') ? data.name.trim() : '';
-        return name || null;
+        if (name) return name;
+        // 后端返回空名（服务端 Key 调天地图被拒时降级返回 {name:''}，请求本身是 200）
+        // → 必须在此 fallback 前端直调（浏览器 Key 可用），否则命名静默失败
+        return tdtReverseFront(lng, lat);
       })
       .catch(function(e) {
         console.warn('[reverse geocode]', e && e.message);
-        // 后端不可达/无结果 → 前端直调天地图
+        // 后端不可达/网络异常 → 前端直调天地图
         return tdtReverseFront(lng, lat);
       });
   }
