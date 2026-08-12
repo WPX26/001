@@ -3712,6 +3712,8 @@
   const toast = document.getElementById('toast');
   const toastMsg = document.getElementById('toastMsg');
   function showToast(msg, type = 'success', duration = 2000) {
+    // 王总要求：去掉操作反馈弹窗——仅保留错误/警示类提示（⚠️/失败/错误/无效等）
+    if (msg && !/⚠️|失败|错误|无效|不可达|请输入|需为|不能|重复|请稍后|手动/.test(String(msg))) return;
     toastMsg.textContent = msg;
     const iconSvg = type === 'warning'
       ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'

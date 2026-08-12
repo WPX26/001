@@ -1050,6 +1050,8 @@
   // Toast
   let toastTimer;
   function showToast(msg) {
+    // 王总要求：去掉操作反馈弹窗——仅保留错误/警示类提示（⚠️/失败/错误/无效等）
+    if (msg && !/⚠️|失败|错误|无效|不可达|请输入|需为|不能|重复|请稍后|手动/.test(String(msg))) return;
     const toast = document.getElementById('toast');
     toast.textContent = msg;
     toast.classList.add('show');
