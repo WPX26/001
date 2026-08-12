@@ -5480,7 +5480,95 @@
   // 最近一次成功定位缓存（GPS 获取失败时回退用，60 秒内有效）
   var lastKnownLocation = null;
 
+  // 应用内相机：getUserMedia 摄像头预览 + 拍摄按钮，拍完自动保存（无系统相机确认）
+  // 拍完自动默认为确认，符合王总要求；不支持 getUserMedia 时降级系统相机
+  var _cameraStream = null;
   function captureWithSystemCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      legacySystemCamera();
+      return;
+    }
+    openInAppCamera();
+  }
+
+  // 应用内相机界面：全屏预览 + 底部拍摄/关闭按钮
+  function openInAppCamera() {
+    var overlay = document.createElement('div');
+    overlay.id = 'inAppCamera';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:300;background:#000;display:flex;flex-direction:column;';
+    overlay.innerHTML = '' +
+      '<video id="camVideo" autoplay playsinline style="flex:1;width:100%;object-fit:cover;"></video>' +
+      '<div style="display:flex;justify-content:space-around;align-items:center;padding:24px 40px calc(24px + env(safe-area-inset-bottom));">' +
+        '<button id="camClose" style="width:56px;height:56px;border-radius:50%;border:1px solid rgba(245,223,192,0.4);background:rgba(28,15,8,0.6);color:#F5DFC0;font-size:12px;cursor:pointer;">关闭</button>' +
+        '<button id="camShoot" style="width:76px;height:76px;border-radius:50%;border:5px solid #F5DFC0;background:rgba(255,255,255,0.15);cursor:pointer;"></button>' +
+        '<div style="width:56px;height:56px;"></div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    var video = overlay.querySelector('#camVideo');
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(function(stream) {
+        _cameraStream = stream;
+        video.srcObject = stream;
+        video.play().catch(function(){});
+      })
+      .catch(function() {
+        closeInAppCamera();
+        legacySystemCamera();
+      });
+
+    overlay.querySelector('#camShoot').addEventListener('click', function() {
+      // 拍摄：canvas 截帧 → 缩略图 + GPS → 自动保存（无确认）
+      var canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 960;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      var full = canvas.toDataURL('image/jpeg', 0.85);
+      // 缩略图
+      var thumbCanvas = document.createElement('canvas');
+      var maxSize = 200;
+      var scale = Math.min(maxSize / canvas.width, maxSize / canvas.height, 1);
+      thumbCanvas.width = canvas.width * scale;
+      thumbCanvas.height = canvas.height * scale;
+      thumbCanvas.getContext('2d').drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+      var thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.6);
+
+      closeInAppCamera();
+      // 拍照后自动确认：直接进入保存流程（GPS + 归类）
+      var getLocation = new Promise(function(resolve, reject) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        } else { reject(new Error('no geolocation')); }
+      });
+      getLocation.then(function(pos) {
+        lastKnownLocation = { lng: pos.coords.longitude, lat: pos.coords.latitude, time: Date.now() };
+        savePhotoToPending(pos.coords.longitude, pos.coords.latitude, thumbnail);
+      }).catch(function() {
+        if (lastKnownLocation && (Date.now() - lastKnownLocation.time) <= 60000) {
+          savePhotoToPending(lastKnownLocation.lng, lastKnownLocation.lat, thumbnail, 'approx');
+        } else if (map && map.getCenter) {
+          var c = map.getCenter();
+          savePhotoToPending(c.lng, c.lat, thumbnail, 'approx');
+        } else {
+          savePhotoToPending(120.3826, 36.0671, thumbnail, 'approx');
+        }
+      });
+    });
+
+    overlay.querySelector('#camClose').addEventListener('click', closeInAppCamera);
+  }
+
+  function closeInAppCamera() {
+    if (_cameraStream) {
+      _cameraStream.getTracks().forEach(function(t) { t.stop(); });
+      _cameraStream = null;
+    }
+    var ov = document.getElementById('inAppCamera');
+    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+  }
+
+  // 降级：系统相机（getUserMedia 不支持/权限失败时）
+  function legacySystemCamera() {
     var input = document.createElement('input');
     input.type = 'file';
     input.setAttribute('capture', 'camera');
