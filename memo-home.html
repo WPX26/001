@@ -209,19 +209,20 @@
 
   .top-actions {
     position: absolute;
-    top: 44px; right: 14px;
+    /* status-bar 已隐藏（full-embed），按钮组上移到顶部并加大间距分散 */
+    top: 16px; right: 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
     z-index: 10;
   }
 
   .action-btn {
-    width: 38px; height: 38px;
+    width: 44px; height: 44px;
     background: rgba(255, 250, 242, 0.95);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(212, 165, 116, 0.3);
-    border-radius: 12px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -231,13 +232,13 @@
   }
   .action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28, 15, 8, 0.15); }
   .action-btn:active { transform: scale(0.95); }
-  .action-btn svg { width: 18px; height: 18px; color: #8B5E3C; }
+  .action-btn svg { width: 22px; height: 22px; color: #8B5E3C; }
 
   /* 标点弹出菜单 */
   .mark-menu {
     position: absolute;
-    right: 52px;
-    top: 80px;
+    right: 60px;
+    top: 110px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -1198,7 +1199,7 @@
   .bottom-nav {
     position: absolute;
     bottom: 0; left: 0; right: 0;
-    height: 56px;
+    height: 64px;
     background: rgba(250, 243, 231, 0.97);
     backdrop-filter: blur(20px);
     border-top: 1px solid rgba(212, 165, 116, 0.25);
@@ -1214,26 +1215,26 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     cursor: pointer;
     padding: 6px 10px;
     border-radius: 10px;
     transition: all 0.2s ease;
     flex: 1;
-    max-width: 70px;
+    max-width: 76px;
   }
   .nav-item:hover { background: rgba(240, 160, 64, 0.1); }
   .nav-item.active .nav-label { color: #E89020; }
   .nav-item.active svg { color: #E89020; }
 
   .nav-item svg {
-    width: 22px; height: 22px;
+    width: 26px; height: 26px;
     color: #9B7B5A;
     transition: color 0.2s;
   }
 
   .nav-label {
-    font-size: 10px;
+    font-size: 11px;
     color: #9B7B5A;
     transition: color 0.2s;
   }
@@ -1241,9 +1242,9 @@
   /* 中间大按钮 */
   .nav-center {
     position: relative;
-    width: 52px;
-    height: 52px;
-    margin-top: -22px;
+    width: 60px;
+    height: 60px;
+    margin-top: -26px;
     flex-shrink: 0;
   }
 
@@ -1262,7 +1263,7 @@
   }
   .nav-center-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(232, 144, 32, 0.6); }
   .nav-center-btn:active { transform: translateY(0) scale(0.95); }
-  .nav-center-btn svg { width: 24px; height: 24px; }
+  .nav-center-btn svg { width: 28px; height: 28px; }
 
   .home-indicator {
     position: absolute;
@@ -2904,17 +2905,17 @@
   /* 细化程度控件（与右侧操作按钮同列） */
   .detail-control {
     position: relative;
-    width: 38px;
+    width: 44px;
     background: rgba(255, 250, 242, 0.95);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(212, 165, 116, 0.3);
-    border-radius: 12px;
+    border-radius: 14px;
     box-shadow: 0 2px 8px rgba(28, 15, 8, 0.1);
     overflow: hidden;
   }
 
   .detail-btn {
-    width: 36px; height: 30px;
+    width: 42px; height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2929,7 +2930,7 @@
   .detail-btn:active { transform: scale(0.9); }
   .detail-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .detail-btn:disabled:hover { background: transparent; color: #8B5E3C; }
-  .detail-btn svg { width: 14px; height: 14px; stroke-width: 2.5; }
+  .detail-btn svg { width: 16px; height: 16px; stroke-width: 2.5; }
 
   .detail-level-display {
     width: 100%;
@@ -2944,7 +2945,7 @@
   }
 
   .detail-level-text {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     color: #1C0F08;
     line-height: 1;
@@ -2964,12 +2965,17 @@
   /* Leaflet 弹窗样式适配 */
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，默认不影响 Web 端展示） ===== */
-  body.full-embed { padding: 0; }
+  body.full-embed {
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+  }
   body.full-embed .container { max-width: none; gap: 0; }
   body.full-embed .phone-wrapper { width: 100%; }
   body.full-embed .phone-frame {
     width: 100vw;
-    height: 100vh;
+    /* --app-h 由 JS 按实际可视高度注入（100vh 在手机浏览器含地址栏动态高度，会留上下空隙） */
+    height: var(--app-h, 100vh);
     border-radius: 0;
     padding: 0;
     box-shadow: none;
@@ -2977,6 +2983,8 @@
   body.full-embed .phone-frame::before { display: none; }
   body.full-embed .phone-screen { border-radius: 0; }
   body.full-embed .status-bar { display: none; }
+  /* status-bar 隐藏后，顶部渐变空条一并隐藏（避免顶部残留米色带） */
+  body.full-embed .map-overlay-top { display: none; }
   /* App 内由原生 tabBar 承担导航，隐藏 H5 底部导航避免双导航叠加 */
   body.full-embed .bottom-nav,
   body.full-embed .home-indicator { display: none; }
@@ -2986,7 +2994,8 @@
   /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
   body.full-embed.mobile-browser .bottom-nav,
   body.full-embed.mobile-browser .home-indicator { display: flex; }
-  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56px); }
+  /* 底部导航在 phone-screen 内 absolute 贴底，页面高度直接 = 实际可视高度（不再 -56px 造成导航悬浮+下方空隙） */
+  body.full-embed.mobile-browser .phone-frame { height: var(--app-h, 100vh); }
 
 </style>
 <!-- Leaflet + 天地图瓦片 -->
@@ -3012,6 +3021,15 @@
     // 本段 JS 位于 <head>，此时 document.body 尚未解析（为 null）
     // 直接 classList.add 会抛 TypeError 被 catch 吞掉 → full-embed 静默失效
     // 改为：body 已存在则立即加类，否则等 DOMContentLoaded
+    // 动态可视高度：手机浏览器地址栏展开/收起会改变可视区，100vh 含地址栏高度导致上下留空隙
+    // 用 window.innerHeight 注入 --app-h（dvh 语义），resize/orientationchange 时刷新
+    function setVH() {
+      var v = window.innerHeight || document.documentElement.clientHeight;
+      document.documentElement.style.setProperty('--app-h', v + 'px');
+    }
+    setVH();
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', function () { setTimeout(setVH, 250); });
     function enterFull(extra) {
       var add = function () {
         document.body.classList.add('full-embed');

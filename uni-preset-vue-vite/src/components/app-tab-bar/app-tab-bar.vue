@@ -100,7 +100,7 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 112rpx;
+  height: 128rpx;
   padding-bottom: env(safe-area-inset-bottom);
   background: rgba(250, 243, 231, 0.98);
   border-top: 1px solid rgba(212, 165, 116, 0.25);
@@ -114,16 +114,16 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4rpx;
+  gap: 6rpx;
   padding: 8rpx 0;
   flex: 1;
 }
 .tab-icon {
-  width: 56rpx;
-  height: 56rpx;
+  width: 52rpx;
+  height: 52rpx;
 }
 .tab-label {
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: #9b7b5a;
 }
 .tab-item.active .tab-label {
@@ -131,21 +131,21 @@ export default {
 }
 /* 中间凸起相机按钮 */
 .tab-item.center {
-  flex: 0 0 112rpx;
+  flex: 0 0 120rpx;
 }
 .center-btn {
-  width: 96rpx;
-  height: 96rpx;
+  width: 120rpx;
+  height: 120rpx;
   border-radius: 50%;
   background: linear-gradient(135deg, #f0a040 0%, #d4691c 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 8rpx 24rpx rgba(232, 144, 32, 0.5), inset 0 2rpx 0 rgba(255, 233, 184, 0.4);
-  transform: translateY(-16rpx);
+  transform: translateY(-28rpx);
 }
 .center-icon {
-  width: 48rpx;
-  height: 48rpx;
+  width: 56rpx;
+  height: 56rpx;
 }
 </style>
