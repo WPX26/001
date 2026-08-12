@@ -4259,6 +4259,45 @@
   }
 
   // 像素聚合簇 → 标记数据（单点直通精确坐标；多点 → 质心转回经纬度 + 现有命名逻辑）
+  // ===== 知名地点库：聚合点重新命名依据 =====
+  // 根据"地点的著名程度"与"所包含的范围"：聚合点形成时，用簇范围内知名度最高的
+  // 地点重新命名——区域（region）直接用区域名（如"黄岛"），知名 POI 命名"XX周边"（如"五四广场周边"）。
+  // 新增地点：{ name, lng, lat, type: 'region'|'poi', fame: 知名度(越大越优先), radius: 覆盖半径(度) }
+  const FAMOUS_PLACES = [
+    // 区域（覆盖范围大，直接以区域名命名聚合点）
+    { name: '崂山', lng: 120.62, lat: 36.19, type: 'region', fame: 92, radius: 0.30 },
+    { name: '黄岛', lng: 120.16, lat: 35.97, type: 'region', fame: 90, radius: 0.22 },
+    { name: '市南', lng: 120.38, lat: 36.07, type: 'region', fame: 85, radius: 0.10 },
+    { name: '浮山湾', lng: 120.386, lat: 36.062, type: 'region', fame: 82, radius: 0.06 },
+    { name: '李沧', lng: 120.41, lat: 36.17, type: 'region', fame: 80, radius: 0.18 },
+    { name: '市北', lng: 120.36, lat: 36.10, type: 'region', fame: 78, radius: 0.12 },
+    // 知名地点（聚合时命名"XX周边"）
+    { name: '五四广场', lng: 120.3826, lat: 36.0671, type: 'poi', fame: 98, radius: 0.025 },
+    { name: '奥帆中心', lng: 120.3894, lat: 36.0580, type: 'poi', fame: 92, radius: 0.02 },
+    { name: '栈桥', lng: 120.3151, lat: 36.0613, type: 'poi', fame: 90, radius: 0.02 },
+    { name: '八大关', lng: 120.3467, lat: 36.0580, type: 'poi', fame: 86, radius: 0.02 },
+    { name: '台东步行街', lng: 120.3640, lat: 36.0920, type: 'poi', fame: 75, radius: 0.02 },
+    { name: '中山公园', lng: 120.3547, lat: 36.0642, type: 'poi', fame: 72, radius: 0.02 },
+    { name: '中国石油大学', lng: 120.133, lat: 35.950, type: 'poi', fame: 65, radius: 0.02 },
+    { name: '山东科技大学', lng: 120.115, lat: 35.963, type: 'poi', fame: 60, radius: 0.02 }
+  ];
+
+  // 聚合点命名：簇中心半径内取知名度最高的地点 → region 用区域名，poi 用"XX周边"；无匹配返回 null
+  function nameClusterByFamousPlace(members) {
+    if (!members || !members.length) return null;
+    var cx = 0, cy = 0;
+    for (var i = 0; i < members.length; i++) { cx += members[i].lng; cy += members[i].lat; }
+    cx /= members.length; cy /= members.length;
+    var best = null;
+    FAMOUS_PLACES.forEach(function (fp) {
+      var dx = fp.lng - cx, dy = fp.lat - cy;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      if (d <= fp.radius && (!best || fp.fame > best.fame)) best = fp;
+    });
+    if (!best) return null;
+    return best.type === 'region' ? best.name : best.name + '周边';
+  }
+
   function pixelClusterToMarker(cluster) {
     if (cluster.members.length === 1) {
       const it = cluster.members[0];
@@ -4270,7 +4309,8 @@
     const pos = map.containerPointToLatLng([cluster.x, cluster.y]);
     return {
       id: cluster.members.map(function(m) { return m.id || m.title; }).sort().join('_'), // 稳定ID，DOM 复用平滑动画
-      title: mainItem.title + (cluster.members.length > 1 ? '及周边' : ''),
+      // 聚合点命名优先用知名地点/覆盖范围（五四广场周边/黄岛），无匹配时兜底"主点及周边"
+      title: nameClusterByFamousPlace(cluster.members) || (mainItem.title + (cluster.members.length > 1 ? '及周边' : '')),
       lng: pos.lng,
       lat: pos.lat,
       date: mainItem.date,
@@ -4367,7 +4407,8 @@
           const cy = cluster.reduce((sum, item) => sum + item.lat, 0) / cluster.length;
           return {
             id: stableId,
-            title: mainItem.title + (cluster.length > 1 ? '及周边' : ''),
+            // 聚合点命名优先用知名地点/覆盖范围（五四广场周边/黄岛），无匹配时兜底"主点及周边"
+            title: nameClusterByFamousPlace(cluster) || (mainItem.title + (cluster.length > 1 ? '及周边' : '')),
             lng: cx,
             lat: cy,
             date: mainItem.date,
@@ -6772,7 +6813,8 @@
 
       return {
         id: stableId,
-        title: '附近灵感 (' + cluster.length + '处)',
+        // 聚合点命名优先用知名地点/覆盖范围（五四广场周边/黄岛），无匹配时兜底"附近灵感"
+        title: nameClusterByFamousPlace(cluster) || ('附近灵感 (' + cluster.length + '处)'),
         date: cluster[0].date,
         time: cluster[0].time,
         x: snapped.x,
@@ -7034,7 +7076,8 @@
 
       return {
         id: stableId,
-        title: '附近探索 (' + cluster.length + '处)',
+        // 聚合点命名优先用知名地点/覆盖范围（五四广场周边/黄岛），无匹配时兜底"附近探索"
+        title: nameClusterByFamousPlace(cluster) || ('附近探索 (' + cluster.length + '处)'),
         date: cluster[0].date,
         time: cluster[0].time,
         x: snapped.x,
