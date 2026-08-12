@@ -3771,19 +3771,9 @@
   // 细化程度层级数据
   // 联合重构：废弃硬编码的 Level 1 和 2，仅保留 Level 3 作为底层真实原子数据池
   const detailLevels = {
-    3: [
-      { title: '五四广场', lng: 120.3826, lat: 36.0671, date: '2026年8月4日', count: 5, color: '#2196F3', current: true },
-      { title: '奥帆中心', lng: 120.3951, lat: 36.0591, date: '2026年7月23日', count: 2, color: '#E89020' },
-      { title: '情人坝', lng: 120.3918, lat: 36.0587, date: '2026年7月23日', count: 2, color: '#E89020' },
-      { title: '音乐广场', lng: 120.3855, lat: 36.0620, date: '2026年7月23日', count: 2, color: '#D49840' },
-      { title: '第三海水浴场', lng: 120.3762, lat: 36.0545, date: '2026年7月23日', count: 2, color: '#C98838' },
-      { title: '八大关', lng: 120.3589, lat: 36.0535, date: '2026年7月4日', count: 1, color: '#B85E3C' },
-      { title: '花石楼', lng: 120.3580, lat: 36.0510, date: '2026年7月4日', count: 1, color: '#B85E3C' },
-      { title: '第二海水浴场', lng: 120.3675, lat: 36.0520, date: '2026年7月4日', count: 2, color: '#D4A870' },
-      { title: '万象城', lng: 120.3783, lat: 36.0734, date: '2026年7月22日', count: 6, color: '#D4691C' },
-      { title: '海信广场', lng: 120.3895, lat: 36.0720, date: '2026年7月22日', count: 4, color: '#E8A850' },
-      { title: '湛山寺', lng: 120.3640, lat: 36.0680, date: '2026年7月22日', count: 4, color: '#F0C070' }
-    ]
+    // 真实数据优先：登录后由 /map/markers 远程数据填充；未登录显示空地图 + 登录引导
+    // （原 11 个演示坐标点已移除——模拟数据与真实交互不符）
+    3: []
   };
 
   const DETAIL_CLUSTER_THRESHOLDS = { 1: 40, 2: 15, 3: 0 };
@@ -8537,6 +8527,28 @@
       });
     }
     bindMount();
+  } catch (e) {}
+})();
+</script>
+
+
+<script>
+// ===== 未登录登录引导（真实交互：未登录且无本地标记时显示） =====
+(function () {
+  try {
+    if (typeof MemoAPI === 'undefined' || MemoAPI.isLoggedIn()) return;
+    var hasLocal = false;
+    try { hasLocal = !!(detailLevels[3] && detailLevels[3].length); } catch (e) {}
+    if (hasLocal) return;
+    var el = document.createElement('div');
+    el.id = 'loginGuide';
+    el.style.cssText = 'position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:50;background:rgba(250,243,231,0.97);border:1px solid rgba(212,165,116,0.4);border-radius:16px;padding:20px 28px;text-align:center;box-shadow:0 8px 32px rgba(28,15,8,0.2);font-size:14px;color:#6b4423;';
+    el.innerHTML = '<div style="font-size:32px;margin-bottom:8px">🗺️</div><div style="font-weight:700;color:#1c0f08;margin-bottom:6px">登录后查看坐标点</div><div style="margin-bottom:14px;font-size:12px;color:#8b5e3c">地图上的坐标与照片来自您的真实数据</div><button id="loginGuideBtn" style="background:linear-gradient(135deg,#F0A040,#D4691C);border:none;border-radius:10px;color:#fff;padding:9px 32px;font-size:14px;font-weight:600;cursor:pointer;">去登录</button>';
+    var container = document.querySelector('.phone-screen') || document.body;
+    container.appendChild(el);
+    document.getElementById('loginGuideBtn').addEventListener('click', function () {
+      window.location.href = 'login-prototype.html';
+    });
   } catch (e) {}
 })();
 </script>
