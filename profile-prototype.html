@@ -1133,6 +1133,45 @@
     background: #0a0a0a;
   }
 
+  /* 坐标点视图搜索栏（搜索城市或地点，其他坐标点隐藏） */
+  .myhome-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(28, 15, 8, 0.5);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    border-radius: 12px;
+    padding: 9px 12px;
+    margin-bottom: 12px;
+  }
+  .myhome-search:focus-within { border-color: rgba(212, 165, 116, 0.5); }
+  .myhome-search-icon { width: 16px; height: 16px; color: rgba(245, 223, 192, 0.5); flex-shrink: 0; }
+  .myhome-search input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #F5DFC0;
+    font-size: 13px;
+  }
+  .myhome-search input::placeholder { color: rgba(245, 223, 192, 0.4); }
+  .myhome-search-clear {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: rgba(245, 223, 192, 0.6);
+    font-size: 12px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .myhome-search-clear.show { display: flex; }
+
   /* 照片/获赞视图：三栏网格 */
   .myhome-photo-grid {
     display: grid;
@@ -1731,6 +1770,14 @@
 
             <!-- 视图一：坐标点列表（卡片 = 序号+名称+最新拍摄时间+定位键，下方三栏照片网格） -->
             <div class="myhome-tabview" id="myHomeTabCoord">
+              <!-- 搜索栏：输入城市或准确地点 → 其他坐标点隐藏 -->
+              <div class="myhome-search">
+                <svg class="myhome-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input id="myHomeCoordSearch" type="text" placeholder="搜索城市或地点（如：青岛、西湖断桥）" />
+                <button class="myhome-search-clear" id="myHomeCoordSearchClear" title="清除">✕</button>
+              </div>
               <div id="myHomeCoordsList">
                 <!-- 由JS动态生成 -->
               </div>
@@ -2717,6 +2764,79 @@
     return '#' + ch(((n >> 16) & 255) * (1 + percent)) + ch(((n >> 8) & 255) * (1 + percent)) + ch((n & 255) * (1 + percent));
   }
 
+  // 常用城市表（省 + 市 + 中心坐标）：坐标点名称标准化为"省·市·地点名"
+  // 覆盖演示数据所在城市与常见城市；坐标 → 最近城市中心匹配
+  const MYHOME_CITIES = [
+    { province: '山东', city: '青岛', lng: 120.38, lat: 36.07 },
+    { province: '山东', city: '济南', lng: 117.12, lat: 36.65 },
+    { province: '山东', city: '烟台', lng: 121.45, lat: 37.46 },
+    { province: '山东', city: '威海', lng: 122.12, lat: 37.51 },
+    { province: '山东', city: '潍坊', lng: 119.16, lat: 36.71 },
+    { province: '山东', city: '淄博', lng: 118.05, lat: 36.81 },
+    { province: '山东', city: '日照', lng: 119.53, lat: 35.42 },
+    { province: '山东', city: '临沂', lng: 118.35, lat: 35.10 },
+    { province: '浙江', city: '杭州', lng: 120.15, lat: 30.27 },
+    { province: '浙江', city: '宁波', lng: 121.55, lat: 29.87 },
+    { province: '浙江', city: '温州', lng: 120.70, lat: 28.00 },
+    { province: '浙江', city: '嘉兴', lng: 120.76, lat: 30.75 },
+    { province: '浙江', city: '绍兴', lng: 120.58, lat: 30.03 },
+    { province: '北京', city: '北京', lng: 116.41, lat: 39.90 },
+    { province: '上海', city: '上海', lng: 121.47, lat: 31.23 },
+    { province: '天津', city: '天津', lng: 117.20, lat: 39.13 },
+    { province: '重庆', city: '重庆', lng: 106.55, lat: 29.56 },
+    { province: '江苏', city: '南京', lng: 118.80, lat: 32.06 },
+    { province: '江苏', city: '苏州', lng: 120.58, lat: 31.30 },
+    { province: '江苏', city: '无锡', lng: 120.31, lat: 31.49 },
+    { province: '江苏', city: '常州', lng: 119.97, lat: 31.81 },
+    { province: '广东', city: '广州', lng: 113.26, lat: 23.13 },
+    { province: '广东', city: '深圳', lng: 114.06, lat: 22.55 },
+    { province: '广东', city: '佛山', lng: 113.12, lat: 23.02 },
+    { province: '广东', city: '东莞', lng: 113.75, lat: 23.02 },
+    { province: '广东', city: '珠海', lng: 113.58, lat: 22.27 },
+    { province: '四川', city: '成都', lng: 104.07, lat: 30.57 },
+    { province: '湖北', city: '武汉', lng: 114.31, lat: 30.59 },
+    { province: '陕西', city: '西安', lng: 108.94, lat: 34.34 },
+    { province: '河南', city: '郑州', lng: 113.63, lat: 34.75 },
+    { province: '湖南', city: '长沙', lng: 112.94, lat: 28.23 },
+    { province: '福建', city: '福州', lng: 119.30, lat: 26.07 },
+    { province: '福建', city: '厦门', lng: 118.09, lat: 24.48 },
+    { province: '安徽', city: '合肥', lng: 117.23, lat: 31.82 },
+    { province: '云南', city: '昆明', lng: 102.83, lat: 24.88 },
+    { province: '贵州', city: '贵阳', lng: 106.63, lat: 26.65 },
+    { province: '辽宁', city: '沈阳', lng: 123.43, lat: 41.80 },
+    { province: '辽宁', city: '大连', lng: 121.61, lat: 38.91 },
+    { province: '吉林', city: '长春', lng: 125.32, lat: 43.90 },
+    { province: '黑龙江', city: '哈尔滨', lng: 126.53, lat: 45.80 },
+    { province: '河北', city: '石家庄', lng: 114.51, lat: 38.04 },
+    { province: '山西', city: '太原', lng: 112.55, lat: 37.87 },
+    { province: '内蒙古', city: '呼和浩特', lng: 111.75, lat: 40.84 },
+    { province: '江西', city: '南昌', lng: 115.86, lat: 28.68 },
+    { province: '广西', city: '南宁', lng: 108.37, lat: 22.82 },
+    { province: '海南', city: '海口', lng: 110.32, lat: 20.03 },
+    { province: '甘肃', city: '兰州', lng: 103.83, lat: 36.06 },
+    { province: '青海', city: '西宁', lng: 101.78, lat: 36.62 },
+    { province: '宁夏', city: '银川', lng: 106.23, lat: 38.49 },
+    { province: '新疆', city: '乌鲁木齐', lng: 87.62, lat: 43.83 },
+    { province: '西藏', city: '拉萨', lng: 91.14, lat: 29.65 },
+    { province: '台湾', city: '台北', lng: 121.56, lat: 25.03 },
+    { province: '香港', city: '香港', lng: 114.17, lat: 22.32 },
+    { province: '澳门', city: '澳门', lng: 113.54, lat: 22.19 }
+  ];
+
+  // 坐标 → 最近城市 → 标准前缀（如"浙江省·杭州市"）；直辖市只显示一次（"北京市"）；无匹配返回 ''
+  function cityPrefixFor(lng, lat) {
+    if (!isFinite(lng) || !isFinite(lat)) return '';
+    var best = null, bestD = Infinity;
+    MYHOME_CITIES.forEach(function (c) {
+      var dx = c.lng - lng, dy = c.lat - lat;
+      var d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = c; }
+    });
+    if (!best || bestD > 4) return '';   // 超出覆盖范围（约 2°）不强行归类
+    if (best.province === best.city) return best.city + '市';   // 直辖市
+    return best.province + '省·' + best.city + '市';
+  }
+
   function getMyHomeData() {
     if (serverCoordPhotos && serverCoordPhotos.length) {
       return serverCoordPhotos.map(cg => {
@@ -2726,8 +2846,10 @@
           ts: Date.parse(p.takenAt) || 0,
           timeLabel: formatViewerDate(p.takenAt)
         }));
+        const cityPrefix = cityPrefixFor(cg.lng, cg.lat);
         return {
           title: cg.coordTitle || '坐标点',
+          cityPrefix: cityPrefix,   // "省·市"（如"浙江省·杭州市"）
           lng: cg.lng, lat: cg.lat,
           photos: photos,
           latestTs: photos.reduce((mx, p) => Math.max(mx, p.ts || 0), 0) || Date.parse(cg.date) || 0
@@ -2745,7 +2867,8 @@
         color1: c.color,
         color2: shadeColor(c.color, 0.35)
       }));
-      return { title: c.title, lng: c.lng, lat: c.lat, photos: photos, latestTs: baseTs + 17 * 3600 * 1000 };
+      const cityPrefix = cityPrefixFor(c.lng, c.lat);
+      return { title: c.title, cityPrefix: cityPrefix, lng: c.lng, lat: c.lat, photos: photos, latestTs: baseTs + 17 * 3600 * 1000 };
     });
   }
 
@@ -2769,11 +2892,14 @@
           data-title="${escapeHtml(cg.title)}" data-time="${escapeHtml(p.timeLabel || '')}"
           data-url="${escapeHtml(p.url)}" data-color1="${p.color1 || ''}" data-color2="${p.color2 || ''}"></div>`;
       }).join('');
+      // 名称标准化："省·市·地点名"（如"浙江省·杭州市·西湖断桥"）；搜索串 = 标准前缀+名
+      const fullTitle = (cg.cityPrefix ? cg.cityPrefix + '·' : '') + cg.title;
+      const searchKey = (cg.cityPrefix ? cg.cityPrefix + cg.title : cg.title);
       return `
-        <div class="myhome-coord-card">
+        <div class="myhome-coord-card" data-search="${escapeHtml(searchKey)}">
           <div class="myhome-coord-card-header">
             <div class="myhome-coord-idx">${i + 1}</div>
-            <div class="myhome-coord-name">${escapeHtml(cg.title)}</div>
+            <div class="myhome-coord-name" title="${escapeHtml(fullTitle)}">${escapeHtml(fullTitle)}</div>
             <div class="myhome-coord-time">最新 ${formatLatestTime(cg.latestTs)}</div>
             <button class="myhome-coord-locate" title="定位到此坐标">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2905,6 +3031,23 @@
   myHomeViewerLocate.addEventListener('click', () => {
     if (!myHomeViewerLocateData) return;
     window.location.href = 'memo-home.html?locate=' + myHomeViewerLocateData.lng + ',' + myHomeViewerLocateData.lat + '&level=3';
+  });
+
+  // 坐标点搜索：输入城市或准确地点 → 其他坐标点隐藏（匹配省/市/地点名）
+  const myHomeCoordSearch = document.getElementById('myHomeCoordSearch');
+  const myHomeCoordSearchClear = document.getElementById('myHomeCoordSearchClear');
+  function applyMyHomeCoordFilter() {
+    const kw = myHomeCoordSearch.value.trim();
+    myHomeCoordSearchClear.classList.toggle('show', !!kw);
+    document.querySelectorAll('#myHomeCoordsList .myhome-coord-card').forEach(card => {
+      card.style.display = (!kw || (card.dataset.search || '').includes(kw)) ? '' : 'none';
+    });
+  }
+  myHomeCoordSearch.addEventListener('input', applyMyHomeCoordFilter);
+  myHomeCoordSearchClear.addEventListener('click', () => {
+    myHomeCoordSearch.value = '';
+    applyMyHomeCoordFilter();
+    myHomeCoordSearch.focus();
   });
 
   // 统计栏三 tab 切换：点击项文字+数字泛起光晕（持续光晕=激活项），下方切换三视图
