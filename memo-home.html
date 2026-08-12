@@ -39,7 +39,7 @@
     background: #F0E4CE;
     border-radius: 42px;
     padding: 8px;
-    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(212, 165, 116, 0.35);
+    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(245, 223, 192, 0.35);
     position: relative;
   }
 
@@ -60,7 +60,7 @@
     border-radius: 30px;
     overflow: hidden;
     position: relative;
-    background: #FFF5E6;
+    background: #0a0a0a;
     display: flex;
     flex-direction: column;
   }
@@ -100,6 +100,8 @@
   .leaflet-container { background: #E8EEE8; }
   /* Retina 2x 瓦片按 512px 显示时插值锐化（Chromium 优化对比度，文字边缘更实） */
   .leaflet-tile { image-rendering: -webkit-optimize-contrast; image-rendering: optimize-contrast; }
+  /* 暗色地图模式：天地图瓦片反相（invert+hue-rotate），深色底图与深色 UI 风格统一；仅瓦片层，标记点不受影响 */
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.88) contrast(0.88) saturate(0.65); }
 
   /* 地图标记点 */
   .map-marker {
@@ -191,7 +193,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(180deg, rgba(255, 245, 230, 0.95) 0%, transparent 100%);
+    background: linear-gradient(180deg, rgba(28, 15, 8, 0.95) 0%, transparent 100%);
     z-index: 10;
     pointer-events: none;
   }
@@ -202,7 +204,7 @@
     align-items: center;
     width: 100%;
     padding: 0 8px;
-    color: #1C0F08;
+    color: #F5DFC0;
     font-size: 13px;
     font-weight: 600;
   }
@@ -222,9 +224,9 @@
 
   .action-btn {
     width: 44px; height: 44px;
-    background: rgba(255, 250, 242, 0.95);
+    background: rgba(28, 15, 8, 0.9);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border: 1px solid rgba(245, 223, 192, 0.2);
     border-radius: 14px;
     display: flex;
     align-items: center;
@@ -235,7 +237,7 @@
   }
   .action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28, 15, 8, 0.15); }
   .action-btn:active { transform: scale(0.95); }
-  .action-btn svg { width: 22px; height: 22px; color: #8B5E3C; }
+  .action-btn svg { width: 22px; height: 22px; color: rgba(245, 223, 192, 0.75); }
 
   /* 标点弹出菜单 */
   .mark-menu {
@@ -245,9 +247,9 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    background: rgba(255, 250, 242, 0.97);
+    background: rgba(28, 15, 8, 0.95);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border: 1px solid rgba(245, 223, 192, 0.2);
     border-radius: 12px;
     padding: 6px;
     box-shadow: 0 6px 20px rgba(28, 15, 8, 0.15);
@@ -275,7 +277,7 @@
     transition: all 0.18s;
     font-size: 13px;
     font-weight: 600;
-    color: #5C3D2E;
+    color: rgba(245, 223, 192, 0.85);
   }
   .mark-menu-item:hover {
     background: rgba(240, 160, 64, 0.15);
@@ -399,7 +401,7 @@
 
   .upload-popup-handle {
     width: 36px; height: 4px;
-    background: rgba(212, 184, 150, 0.4);
+    background: rgba(245, 223, 192, 0.2);
     border-radius: 2px;
     margin: 8px auto 0;
     flex-shrink: 0;
@@ -407,7 +409,7 @@
 
   .upload-popup-header {
     padding: 10px 16px 10px;
-    border-bottom: 1px solid rgba(212, 184, 150, 0.15);
+    border-bottom: 1px solid rgba(245, 223, 192, 0.12);
     flex-shrink: 0;
   }
   .upload-popup-title-row {
@@ -487,7 +489,7 @@
     padding: 0;
   }
   .upload-popup-groups::-webkit-scrollbar { width: 3px; }
-  .upload-popup-groups::-webkit-scrollbar-thumb { background: rgba(212, 184, 150, 0.3); border-radius: 2px; }
+  .upload-popup-groups::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.15); border-radius: 2px; }
 
   .upload-tg {
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -626,14 +628,14 @@
 
   .local-upload-handle {
     width: 36px; height: 4px;
-    background: rgba(212, 184, 150, 0.4);
+    background: rgba(245, 223, 192, 0.2);
     border-radius: 2px;
     margin: 8px auto 0;
     flex-shrink: 0;
   }
   .local-upload-header {
     padding: 10px 16px 10px;
-    border-bottom: 1px solid rgba(212, 184, 150, 0.15);
+    border-bottom: 1px solid rgba(245, 223, 192, 0.12);
     flex-shrink: 0;
   }
   .local-upload-title-row {
@@ -669,7 +671,7 @@
     padding: 16px;
   }
   .local-upload-body::-webkit-scrollbar { width: 3px; }
-  .local-upload-body::-webkit-scrollbar-thumb { background: rgba(212, 184, 150, 0.3); border-radius: 2px; }
+  .local-upload-body::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.15); border-radius: 2px; }
 
   .local-upload-photo-grid {
     display: grid;
@@ -992,13 +994,13 @@
 
   .delete-dialog {
     width: 240px;
-    background: rgba(250, 245, 236, 0.98);
+    background: #1C1C1E;
     backdrop-filter: blur(20px);
     border-radius: 18px;
     padding: 24px 20px 16px;
     text-align: center;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(212, 165, 116, 0.25);
+    border: 1px solid rgba(245, 223, 192, 0.15);
     animation: dialogIn 0.25s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
@@ -1031,12 +1033,12 @@
   .delete-title {
     font-size: 16px;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-bottom: 6px;
   }
   .delete-msg {
     font-size: 13px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     margin-bottom: 20px;
     line-height: 1.5;
   }
@@ -1056,10 +1058,10 @@
     border: none;
   }
   .delete-cancel {
-    background: rgba(155, 123, 90, 0.15);
-    color: #5C3D2E;
+    background: rgba(245, 223, 192, 0.12);
+    color: rgba(245, 223, 192, 0.85);
   }
-  .delete-cancel:hover { background: rgba(155, 123, 90, 0.25); }
+  .delete-cancel:hover { background: rgba(245, 223, 192, 0.2); }
   .delete-cancel:active { transform: scale(0.96); }
 
   .delete-confirm {
@@ -1146,9 +1148,9 @@
   .memo-card {
     flex-shrink: 0;
     width: 180px;
-    background: rgba(250, 243, 231, 0.95);
+    background: #1C1C1E;
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 248, 235, 0.8);
+    border: 1px solid rgba(245, 223, 192, 0.15);
     border-radius: 14px;
     padding: 12px 14px;
     box-shadow: 0 8px 24px rgba(28, 15, 8, 0.12);
@@ -1172,7 +1174,7 @@
   .memo-card-title {
     font-size: 13px;
     font-weight: 600;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
@@ -1181,7 +1183,7 @@
 
   .memo-card-desc {
     font-size: 11px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -1191,7 +1193,7 @@
 
   .memo-card-time {
     font-size: 10px;
-    color: #B89878;
+    color: rgba(245, 223, 192, 0.6);
     margin-top: 6px;
     display: flex;
     align-items: center;
@@ -1203,9 +1205,9 @@
     position: absolute;
     bottom: 0; left: 0; right: 0;
     height: 64px;
-    background: rgba(250, 243, 231, 0.97);
+    background: rgba(28, 15, 8, 0.95);
     backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(212, 165, 116, 0.25);
+    border-top: 1px solid rgba(245, 223, 192, 0.15);
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -1232,13 +1234,13 @@
 
   .nav-item svg {
     width: 26px; height: 26px;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
     transition: color 0.2s;
   }
 
   .nav-label {
     font-size: 11px;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
     transition: color 0.2s;
   }
 
@@ -1299,13 +1301,13 @@
     position: fixed;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
-    background: rgba(250, 245, 236, 0.97);
+    background: rgba(28, 15, 8, 0.92);
     backdrop-filter: blur(10px);
     padding: 16px 28px;
     border-radius: 14px;
     box-shadow: 0 10px 40px rgba(28, 15, 8, 0.22);
     font-size: 14px;
-    color: #1C0F08;
+    color: #F5DFC0;
     font-weight: 500;
     opacity: 0;
     pointer-events: none;
@@ -1364,7 +1366,7 @@
   .popup-handle {
     width: 36px;
     height: 4px;
-    background: rgba(212, 184, 150, 0.4);
+    background: rgba(245, 223, 192, 0.2);
     border-radius: 2px;
     margin: 8px auto 0;
     flex-shrink: 0;
@@ -1375,7 +1377,7 @@
 
   .popup-header {
     padding: 10px 16px 10px;
-    border-bottom: 1px solid rgba(212, 184, 150, 0.15);
+    border-bottom: 1px solid rgba(245, 223, 192, 0.12);
     flex-shrink: 0;
   }
 
@@ -1532,7 +1534,7 @@
     padding: 0;
   }
   .popup-groups::-webkit-scrollbar { width: 3px; }
-  .popup-groups::-webkit-scrollbar-thumb { background: rgba(212, 184, 150, 0.3); border-radius: 2px; }
+  .popup-groups::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.15); border-radius: 2px; }
 
   .time-group {
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -1733,7 +1735,7 @@
     padding: 12px;
   }
   .search-results::-webkit-scrollbar { width: 3px; }
-  .search-results::-webkit-scrollbar-thumb { background: rgba(212, 184, 150, 0.3); border-radius: 2px; }
+  .search-results::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.15); border-radius: 2px; }
 
   .search-empty {
     padding: 60px 20px;
@@ -2909,9 +2911,9 @@
   .detail-control {
     position: relative;
     width: 44px;
-    background: rgba(255, 250, 242, 0.95);
+    background: rgba(28, 15, 8, 0.9);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border: 1px solid rgba(245, 223, 192, 0.2);
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(28, 15, 8, 0.1);
     overflow: hidden;
@@ -2923,7 +2925,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     transition: all 0.2s;
     background: transparent;
     border: none;
@@ -2932,7 +2934,7 @@
   .detail-btn:hover { background: rgba(240, 160, 64, 0.12); color: #E89020; }
   .detail-btn:active { transform: scale(0.9); }
   .detail-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-  .detail-btn:disabled:hover { background: transparent; color: #8B5E3C; }
+  .detail-btn:disabled:hover { background: transparent; color: rgba(245, 223, 192, 0.75); }
   .detail-btn svg { width: 16px; height: 16px; stroke-width: 2.5; }
 
   .detail-level-display {
@@ -2941,8 +2943,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    border-top: 1px solid rgba(212, 165, 116, 0.2);
-    border-bottom: 1px solid rgba(212, 165, 116, 0.2);
+    border-top: 1px solid rgba(245, 223, 192, 0.18);
+    border-bottom: 1px solid rgba(245, 223, 192, 0.18);
     background: rgba(240, 160, 64, 0.06);
     gap: 2px;
   }
@@ -2950,7 +2952,7 @@
   .detail-level-text {
     font-size: 10px;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
     line-height: 1;
   }
 
@@ -8581,8 +8583,8 @@
     if (hasLocal) return;
     var el = document.createElement('div');
     el.id = 'loginGuide';
-    el.style.cssText = 'position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:50;background:rgba(250,243,231,0.97);border:1px solid rgba(212,165,116,0.4);border-radius:16px;padding:20px 28px;text-align:center;box-shadow:0 8px 32px rgba(28,15,8,0.2);font-size:14px;color:#6b4423;';
-    el.innerHTML = '<div style="font-size:32px;margin-bottom:8px">🗺️</div><div style="font-weight:700;color:#1c0f08;margin-bottom:6px">登录后查看坐标点</div><div style="margin-bottom:14px;font-size:12px;color:#8b5e3c">地图上的坐标与照片来自您的真实数据</div><button id="loginGuideBtn" style="background:linear-gradient(135deg,#F0A040,#D4691C);border:none;border-radius:10px;color:#fff;padding:9px 32px;font-size:14px;font-weight:600;cursor:pointer;">去登录</button>';
+    el.style.cssText = 'position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:50;background:rgba(28,15,8,0.95);border:1px solid rgba(245,223,192,0.2);border-radius:16px;padding:20px 28px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-size:14px;color:rgba(245,223,192,0.75);';
+    el.innerHTML = '<div style="font-size:32px;margin-bottom:8px">🗺️</div><div style="font-weight:700;color:#F5DFC0;margin-bottom:6px">登录后查看坐标点</div><div style="margin-bottom:14px;font-size:12px;color:rgba(245,223,192,0.7)">地图上的坐标与照片来自您的真实数据</div><button id="loginGuideBtn" style="background:linear-gradient(135deg,#F0A040,#D4691C);border:none;border-radius:10px;color:#fff;padding:9px 32px;font-size:14px;font-weight:600;cursor:pointer;">去登录</button>';
     var container = document.querySelector('.phone-screen') || document.body;
     container.appendChild(el);
     document.getElementById('loginGuideBtn').addEventListener('click', function () {

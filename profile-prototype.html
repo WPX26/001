@@ -39,7 +39,7 @@
     background: #F0E4CE;
     border-radius: 42px;
     padding: 8px;
-    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(212, 165, 116, 0.35);
+    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(245, 223, 192, 0.35);
     position: relative;
   }
 
@@ -50,7 +50,7 @@
     top: 14px; left: 50%;
     transform: translateX(-50%);
     width: 120px; height: 28px;
-    background: #1C0F08;
+    background: #F5DFC0;
     border-radius: 0 0 18px 18px;
     z-index: 10;
   }
@@ -60,7 +60,7 @@
     border-radius: 30px;
     overflow: hidden;
     position: relative;
-    background: #FFF5E6;
+    background: #0a0a0a;
     display: flex;
     flex-direction: column;
   }
@@ -71,7 +71,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 14px 20px 6px;
-    color: #1C0F08;
+    color: #F5DFC0;
     font-size: 13px;
     font-weight: 600;
     flex-shrink: 0;
@@ -98,7 +98,7 @@
     position: absolute;
     bottom: -1px; left: 0; right: 0;
     height: 20px;
-    background: #FFF5E6;
+    background: #0a0a0a;
     border-radius: 20px 20px 0 0;
   }
 
@@ -140,7 +140,7 @@
     display: flex;
     justify-content: space-around;
     padding: 16px 20px;
-    background: #FFF5E6;
+    background: #0a0a0a;
     flex-shrink: 0;
   }
   .stat-item {
@@ -152,11 +152,11 @@
   .stat-num {
     font-size: 20px;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
   }
   .stat-label {
     font-size: 11px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     margin-top: 2px;
   }
 
@@ -164,10 +164,10 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 16px;
-    background: #FFF5E6;
+    background: #0a0a0a;
   }
   .profile-scroll::-webkit-scrollbar { width: 3px; }
-  .profile-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+  .profile-scroll::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.3); border-radius: 2px; }
 
   .menu-section {
     margin-top: 12px;
@@ -177,14 +177,14 @@
   .menu-title {
     font-size: 12px;
     font-weight: 700;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
     padding: 8px 4px;
     letter-spacing: 0.5px;
   }
 
   .menu-card {
-    background: rgba(250, 245, 236, 0.95);
-    border: 1px solid rgba(212, 165, 116, 0.2);
+    background: #1C1C1E;
+    border: 1px solid rgba(245, 223, 192, 0.18);
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 2px 10px rgba(28, 15, 8, 0.05);
@@ -202,7 +202,7 @@
   .menu-item:active { background: rgba(240, 160, 64, 0.15); }
 
   .menu-item + .menu-item {
-    border-top: 1px solid rgba(212, 165, 116, 0.12);
+    border-top: 1px solid rgba(245, 223, 192, 0.2);
   }
 
   .menu-item-left {
@@ -224,7 +224,7 @@
   .menu-label {
     font-size: 14px;
     font-weight: 600;
-    color: #1C0F08;
+    color: #F5DFC0;
   }
 
   .menu-item-right {
@@ -234,14 +234,14 @@
   }
   .menu-badge {
     font-size: 11px;
-    color: #8B5E3C;
-    background: rgba(155, 123, 90, 0.12);
+    color: rgba(245, 223, 192, 0.75);
+    background: rgba(245, 223, 192, 0.2);
     padding: 2px 8px;
     border-radius: 8px;
   }
   .menu-arrow {
     width: 14px; height: 14px;
-    color: #B89878;
+    color: rgba(245, 223, 192, 0.72);
   }
 
   /* ===== 我的删除页 ===== */
@@ -249,8 +249,8 @@
     display: flex;
     align-items: center;
     padding: 12px 16px;
-    background: #FAF5EC;
-    border-bottom: 1px solid rgba(212, 165, 116, 0.15);
+    background: #1C1C1E;
+    border-bottom: 1px solid rgba(245, 223, 192, 0.15);
     flex-shrink: 0;
   }
   .sub-back {
@@ -259,7 +259,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #5C3D2E;
+    color: rgba(245, 223, 192, 0.8);
     border-radius: 8px;
     transition: background 0.2s;
   }
@@ -268,7 +268,7 @@
   .sub-title {
     font-size: 16px;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-left: 4px;
   }
 
@@ -276,7 +276,7 @@
     display: flex;
     padding: 10px 16px;
     gap: 8px;
-    background: #FAF5EC;
+    background: #1C1C1E;
     flex-shrink: 0;
   }
   .deleted-tab {
@@ -286,8 +286,8 @@
     border-radius: 10px;
     font-size: 13px;
     font-weight: 600;
-    color: #8B5E3C;
-    background: rgba(155, 123, 90, 0.1);
+    color: rgba(245, 223, 192, 0.75);
+    background: rgba(245, 223, 192, 0.2);
     cursor: pointer;
     transition: all 0.2s;
   }
@@ -300,23 +300,23 @@
     flex: 1;
     overflow-y: auto;
     padding: 12px 16px;
-    background: #FFF5E6;
+    background: #0a0a0a;
   }
   .deleted-list::-webkit-scrollbar { width: 3px; }
-  .deleted-list::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+  .deleted-list::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.3); border-radius: 2px; }
 
   .deleted-empty {
     text-align: center;
     padding: 40px 20px;
-    color: #B89878;
+    color: rgba(245, 223, 192, 0.72);
   }
   .deleted-empty svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5; }
   .deleted-empty p { font-size: 13px; }
 
   /* 删除的坐标点卡片 */
   .deleted-marker-card {
-    background: rgba(250, 245, 236, 0.98);
-    border: 1px solid rgba(212, 165, 116, 0.2);
+    background: #1C1C1E;
+    border: 1px solid rgba(245, 223, 192, 0.18);
     border-radius: 14px;
     padding: 14px;
     margin-bottom: 10px;
@@ -352,13 +352,13 @@
   .deleted-marker-name {
     font-size: 15px;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-bottom: 3px;
   }
 
   .deleted-marker-coords {
     font-size: 11px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     line-height: 1.5;
   }
 
@@ -367,7 +367,7 @@
     align-items: center;
     gap: 8px;
     font-size: 11px;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
     margin-bottom: 10px;
   }
 
@@ -405,10 +405,10 @@
 
   .restore-permanent {
     padding: 9px 12px;
-    background: rgba(155, 123, 90, 0.12);
+    background: rgba(245, 223, 192, 0.2);
     border: none;
     border-radius: 10px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -459,9 +459,9 @@
   /* 底部导航栏 */
   .bottom-nav {
     height: 64px;
-    background: rgba(250, 245, 236, 0.97);
+    background: rgba(28, 15, 8, 0.95);
     backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(212, 165, 116, 0.25);
+    border-top: 1px solid rgba(245, 223, 192, 0.15);
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -480,7 +480,7 @@
     transition: all 0.2s ease;
     flex: 1;
     max-width: 76px;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
   }
   .nav-item:hover { background: rgba(240, 160, 64, 0.1); }
   .nav-item.active .nav-label { color: #E89020; }
@@ -548,7 +548,7 @@
   .member-hero {
     background: linear-gradient(135deg, #2A1810 0%, #4A2818 50%, #6B3818 100%);
     padding: 24px 20px 28px;
-    color: #FAF5EC;
+    color: #1C1C1E;
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
@@ -572,7 +572,7 @@
     position: absolute;
     bottom: -1px; left: 0; right: 0;
     height: 20px;
-    background: #FFF5E6;
+    background: #0a0a0a;
     border-radius: 20px 20px 0 0;
   }
   .member-crown {
@@ -626,14 +626,14 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 16px 20px;
-    background: #FFF5E6;
+    background: #0a0a0a;
   }
   .member-scroll::-webkit-scrollbar { width: 3px; }
-  .member-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+  .member-scroll::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.3); border-radius: 2px; }
 
   /* 套餐卡片 */
   .plan-card {
-    background: linear-gradient(135deg, #FAF5EC 0%, #F4E8D6 100%);
+    background: linear-gradient(135deg, #1C1C1E 0%, #F4E8D6 100%);
     border: 1.5px solid rgba(240, 160, 64, 0.35);
     border-radius: 18px;
     padding: 20px 18px;
@@ -657,12 +657,12 @@
   .plan-name {
     font-size: 16px;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-bottom: 6px;
   }
   .plan-desc {
     font-size: 12px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     margin-bottom: 14px;
     line-height: 1.5;
   }
@@ -674,7 +674,7 @@
   }
   .plan-price-symbol { font-size: 16px; font-weight: 700; color: #D4691C; }
   .plan-price-num { font-size: 36px; font-weight: 800; color: #D4691C; line-height: 1; }
-  .plan-price-unit { font-size: 13px; color: #8B5E3C; }
+  .plan-price-unit { font-size: 13px; color: rgba(245, 223, 192, 0.75); }
 
   .plan-btn {
     width: 100%;
@@ -711,13 +711,13 @@
   .benefits-title {
     font-size: 12px;
     font-weight: 700;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
     padding: 8px 4px;
     letter-spacing: 0.5px;
   }
   .benefits-list {
-    background: rgba(250, 245, 236, 0.95);
-    border: 1px solid rgba(212, 165, 116, 0.2);
+    background: #1C1C1E;
+    border: 1px solid rgba(245, 223, 192, 0.18);
     border-radius: 14px;
     overflow: hidden;
   }
@@ -727,7 +727,7 @@
     gap: 10px;
     padding: 12px 14px;
   }
-  .benefit-item + .benefit-item { border-top: 1px solid rgba(212, 165, 116, 0.12); }
+  .benefit-item + .benefit-item { border-top: 1px solid rgba(245, 223, 192, 0.2); }
   .benefit-check {
     width: 18px; height: 18px;
     border-radius: 50%;
@@ -741,7 +741,7 @@
   .benefit-check svg { width: 10px; height: 10px; color: white; stroke-width: 3; }
   .benefit-text {
     font-size: 13px;
-    color: #1C0F08;
+    color: #F5DFC0;
     line-height: 1.5;
   }
   .benefit-text strong { color: #D4691C; }
@@ -771,13 +771,13 @@
     gap: 8px;
     font-size: 15px;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-bottom: 6px;
   }
   .invite-title svg { width: 18px; height: 18px; color: #D4691C; }
   .invite-desc {
     font-size: 12px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     line-height: 1.5;
     margin-bottom: 12px;
   }
@@ -792,19 +792,19 @@
     width: 100%;
     box-sizing: border-box;
     padding: 12px 14px;
-    border: 1.5px solid rgba(212, 165, 116, 0.4);
+    border: 1.5px solid rgba(245, 223, 192, 0.3);
     border-radius: 10px;
-    background: #FFF5E6;
+    background: #0a0a0a;
     font-size: 14px;
     font-weight: 600;
-    color: #1C0F08;
+    color: #F5DFC0;
     outline: none;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   .invite-input::placeholder {
-    color: #B89878;
+    color: rgba(245, 223, 192, 0.72);
     font-weight: 400;
     letter-spacing: 0.5px;
     text-transform: none;
@@ -832,10 +832,10 @@
   .invite-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
   .invite-tip {
     font-size: 11px;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
     text-align: center;
     padding-top: 8px;
-    border-top: 1px dashed rgba(212, 165, 116, 0.3);
+    border-top: 1px dashed rgba(245, 223, 192, 0.2);
   }
   .invite-tip span {
     font-weight: 700;
@@ -878,12 +878,12 @@
   .photographer-title {
     font-size: 14px;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-bottom: 4px;
   }
   .photographer-desc {
     font-size: 11px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     margin-bottom: 12px;
     line-height: 1.5;
   }
@@ -905,10 +905,10 @@
   /* ========== 模式切换栏（仅摄影师可见） ========== */
   .mode-switcher {
     display: none;
-    background: #FFF5E6;
+    background: #0a0a0a;
     padding: 12px 16px 14px;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(212, 165, 116, 0.15);
+    border-bottom: 1px solid rgba(245, 223, 192, 0.15);
   }
   .mode-switcher.show { display: block; animation: slideDown 0.3s ease; }
   @keyframes slideDown {
@@ -918,7 +918,7 @@
   .mode-switcher-label {
     font-size: 11px;
     font-weight: 700;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
     margin-bottom: 8px;
     letter-spacing: 0.5px;
     display: flex;
@@ -928,7 +928,7 @@
   .mode-switcher-label svg { width: 12px; height: 12px; color: #D4691C; }
   .mode-switcher-tabs {
     display: flex;
-    background: rgba(155, 123, 90, 0.1);
+    background: rgba(245, 223, 192, 0.2);
     border-radius: 10px;
     padding: 3px;
     gap: 3px;
@@ -940,7 +940,7 @@
     border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     cursor: pointer;
     transition: all 0.25s;
     display: flex;
@@ -978,10 +978,10 @@
   .myhome-scroll {
     flex: 1;
     overflow-y: auto;
-    background: #FFF5E6;
+    background: #0a0a0a;
   }
   .myhome-scroll::-webkit-scrollbar { width: 3px; }
-  .myhome-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+  .myhome-scroll::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.3); border-radius: 2px; }
 
   /* 头部 hero 区（暖橙渐变） */
   .myhome-hero {
@@ -998,7 +998,7 @@
     position: absolute;
     bottom: -1px; left: 0; right: 0;
     height: 18px;
-    background: #FFF5E6;
+    background: #0a0a0a;
     border-radius: 18px 18px 0 0;
   }
   .myhome-avatar {
@@ -1031,18 +1031,18 @@
     display: flex;
     justify-content: space-around;
     padding: 14px 20px 6px;
-    background: #FFF5E6;
+    background: #0a0a0a;
     flex-shrink: 0;
   }
   .myhome-stat { text-align: center; }
   .myhome-stat-num {
     font-size: 20px;
     font-weight: 800;
-    color: #1C0F08;
+    color: #F5DFC0;
   }
   .myhome-stat-label {
     font-size: 11px;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.75);
     margin-top: 2px;
   }
 
@@ -1050,7 +1050,7 @@
   .myhome-section-title {
     font-size: 12px;
     font-weight: 700;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.7);
     padding: 14px 20px 8px;
     letter-spacing: 0.5px;
   }
@@ -1933,10 +1933,10 @@
   // color: 坐标点颜色；photos: 该坐标下的照片色卡；likes: 该坐标总获赞数
   const myHomeCoords = [
     { id: 'mc1', title: '西湖断桥', date: '2026年8月4日', color: '#F0A040', lng: 120.1551, lat: 30.2625, photoCount: 12, likes: 86, thumbs: ['#F0A040', '#D4691C', '#E89020', '#C97B2A'] },
-    { id: 'mc2', title: '万象城', date: '2026年8月2日', color: '#D4691C', lng: 120.1632, lat: 30.2689, photoCount: 9, likes: 54, thumbs: ['#D4691C', '#B85E3C', '#9B7B5A'] },
+    { id: 'mc2', title: '万象城', date: '2026年8月2日', color: '#D4691C', lng: 120.1632, lat: 30.2689, photoCount: 9, likes: 54, thumbs: ['#D4691C', '#B85E3C', 'rgba(245, 223, 192, 0.7)'] },
     { id: 'mc3', title: '雷峰塔', date: '2026年7月28日', color: '#B85E3C', lng: 120.1489, lat: 30.2435, photoCount: 15, likes: 112, thumbs: ['#B85E3C', '#C98838', '#D4A870', '#E89020'] },
     { id: 'mc4', title: '奥帆中心', date: '2026年7月20日', color: '#E89020', lng: 120.3951, lat: 36.0591, photoCount: 8, likes: 48, thumbs: ['#E89020', '#F0A040', '#D4691C'] },
-    { id: 'mc5', title: '五四广场', date: '2026年7月15日', color: '#C97B2A', lng: 120.3826, lat: 36.0671, photoCount: 11, likes: 42, thumbs: ['#C97B2A', '#B85E3C', '#9B7B5A', '#D4A870'] }
+    { id: 'mc5', title: '五四广场', date: '2026年7月15日', color: '#C97B2A', lng: 120.3826, lat: 36.0671, photoCount: 11, likes: 42, thumbs: ['#C97B2A', '#B85E3C', 'rgba(245, 223, 192, 0.7)', '#D4A870'] }
   ];
 
   /**
@@ -2258,8 +2258,8 @@
 
     // 我的页菜单徽章
     memberBadge.textContent = isMember ? `剩余 ${serverStatusLoaded ? serverRemainingDays + ' 天' : memberMonths + ' 个月'}` : '未开通';
-    memberBadge.style.color = isMember ? '#D4691C' : '#8B5E3C';
-    memberBadge.style.background = isMember ? 'rgba(240, 160, 64, 0.18)' : 'rgba(155, 123, 90, 0.12)';
+    memberBadge.style.color = isMember ? '#D4691C' : 'rgba(245, 223, 192, 0.75)';
+    memberBadge.style.background = isMember ? 'rgba(240, 160, 64, 0.18)' : 'rgba(245, 223, 192, 0.2)';
 
     // 订阅按钮：未订阅显示"立即订阅"，已订阅显示"取消订阅"
     if (isMember) {
