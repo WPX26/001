@@ -2978,6 +2978,11 @@
   body.full-embed .bottom-nav,
   body.full-embed .home-indicator { display: none; }
 
+  /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
+  body.full-embed.mobile-browser .bottom-nav,
+  body.full-embed.mobile-browser .home-indicator { display: flex; }
+  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56px); }
+
 </style>
 <!-- Leaflet + 天地图瓦片 -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -2999,17 +3004,23 @@
       var url = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
       window.history.replaceState({}, '', url);
     }
-    if (params.get('full') === '1') {
-      // 本段 JS 位于 <head>，此时 document.body 尚未解析（为 null）
-      // 直接 classList.add 会抛 TypeError 被 catch 吞掉 → full-embed 静默失效
-      // 改为：body 已存在则立即加类，否则等 DOMContentLoaded
-      if (document.body) {
+    // 本段 JS 位于 <head>，此时 document.body 尚未解析（为 null）
+    // 直接 classList.add 会抛 TypeError 被 catch 吞掉 → full-embed 静默失效
+    // 改为：body 已存在则立即加类，否则等 DOMContentLoaded
+    function enterFull(extra) {
+      var add = function () {
         document.body.classList.add('full-embed');
-      } else {
-        document.addEventListener('DOMContentLoaded', function () {
-          document.body.classList.add('full-embed');
-        });
-      }
+        if (extra) document.body.classList.add(extra);
+      };
+      if (document.body) add();
+      else document.addEventListener('DOMContentLoaded', add);
+    }
+    if (params.get('full') === '1') {
+      // App web-view 内嵌：全屏 + 隐藏 H5 导航（原生 tabBar 承担导航）
+      enterFull();
+    } else if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 600) {
+      // 手机浏览器：自动全屏 App 化，保留 H5 导航（视觉与 App 一致）
+      enterFull('mobile-browser');
     }
   } catch (e) {}
 })();

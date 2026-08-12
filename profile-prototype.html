@@ -1110,6 +1110,11 @@
   body.full-embed .status-bar { display: none; }
   body.full-embed .bottom-nav,
   body.full-embed .home-indicator { display: none; }
+
+  /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
+  body.full-embed.mobile-browser .bottom-nav,
+  body.full-embed.mobile-browser .home-indicator { display: flex; }
+  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56px); }
 </style>
 <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
 <script src="api.js"></script>
@@ -1130,14 +1135,20 @@
       var url = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
       window.history.replaceState({}, '', url);
     }
-    if (params.get('full') === '1') {
-      if (document.body) {
+    function enterFull(extra) {
+      var add = function () {
         document.body.classList.add('full-embed');
-      } else {
-        document.addEventListener('DOMContentLoaded', function () {
-          document.body.classList.add('full-embed');
-        });
-      }
+        if (extra) document.body.classList.add(extra);
+      };
+      if (document.body) add();
+      else document.addEventListener('DOMContentLoaded', add);
+    }
+    if (params.get('full') === '1') {
+      // App web-view 内嵌：全屏 + 隐藏 H5 导航（原生 tabBar 承担导航）
+      enterFull();
+    } else if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 600) {
+      // 手机浏览器：自动全屏 App 化，保留 H5 导航（视觉与 App 一致）
+      enterFull('mobile-browser');
     }
   } catch (e) {}
 })();
