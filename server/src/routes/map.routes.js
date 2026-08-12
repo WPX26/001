@@ -42,7 +42,7 @@ router.get(
 // 3.2 逆地理编码（坐标 → 地点名称 + 地址）
 router.get(
   '/reverse',
-  requireAuth,
+  optionalAuth,
   [
     query('lng').isFloat({ min: -180, max: 180 }).withMessage('lng 必须是经度数值'),
     query('lat').isFloat({ min: -90, max: 90 }).withMessage('lat 必须是纬度数值'),

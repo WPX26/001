@@ -5282,8 +5282,48 @@
   // ========== 逆地理编码自动命名（新功能） ==========
   // 逆地理编码：GET /api/v1/map/reverse 获取地点名称（后端为可选认证：有 token 自动携带并校验、无 token 放行）。
   // 失败/无名称时 resolve(null)，不抛出（降级：保留默认名）
+  // 前端直调天地图逆地理编码（浏览器端 Key + 域名白名单内可用）：
+  // 后端不可达/未部署时兜底，确保灵感/探索坐标点也能按附近地点命名
+  // 逆地理编码名称精简：去方位距离后直接提取末尾地点词（POI 名），
+  // 不再剥离省市前缀（避免"景区/小区"的"区"被误当行政区删掉正文）
+  function simplifyAddress(addr) {
+    if (!addr) return '';
+    var s = String(addr).trim();
+    // 先去"约404米"再结尾方位词（顺序保证不会误删正文）
+    s = s.replace(/约?\d+(米|m)$/, '');
+    s = s.replace(/(东南|西南|东北|西北|东|西|南|北)$/, '');
+    // 提取地点词（馆/店/大厦/广场/酒店/中心/路/湖/桥/山等结尾的地点名）
+    var m = s.match(/[一-龥]{2,12}(?:馆|店|大厦|广场|酒店|中心|学校|医院|公园|景区|码头|沙滩|山|湖|桥|寺|村|小区|园|街道|路|市场|站|所|铺|楼|公司|剧院|博物馆)/g);
+    if (m && m.length) {
+      var best = m[m.length - 1];
+      // 若地点词含"XX路/XX街道"，取其后的具体地点（门牌+名称），如"徐州路24号5号楼金红嘉宾馆" → "金红嘉宾馆"
+      var rm = best.match(/[一-龥]{1,8}(?:路|街道)([一-龥0-9A-Za-z]+)$/);
+      if (rm && rm[1]) {
+        var after = rm[1].replace(/^[0-9号楼]+/, '');
+        if (after.length >= 2) return after;
+      }
+      // 清理前导数字/"号楼"
+      return best.replace(/^[0-9号楼]+/, '');
+    }
+    // 兜底：截前 14 字
+    return s.slice(0, 14);
+  }
+
+  function tdtReverseFront(lng, lat) {
+    var postStr = encodeURIComponent(JSON.stringify({ lon: lng, lat: lat, ver: 1 }));
+    return fetch('https://api.tianditu.gov.cn/geocoder?postStr=' + postStr + '&type=geocode&tk=ee36c38eb7777006970a6e5597f7bae9')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var rs = d && d.result;
+        if (!rs) return null;
+        var name = simplifyAddress(rs.formatted_address || rs.poi || '');
+        return name || null;
+      })
+      .catch(function () { return null; });
+  }
+
   function reverseGeocodeName(lng, lat) {
-    if (typeof MemoAPI === 'undefined') return Promise.resolve(null);
+    if (typeof MemoAPI === 'undefined') return tdtReverseFront(lng, lat);
     return MemoAPI.get('/map/reverse?lng=' + encodeURIComponent(lng) + '&lat=' + encodeURIComponent(lat))
       .then(function(data) {
         var name = (data && typeof data.name === 'string') ? data.name.trim() : '';
@@ -5291,7 +5331,8 @@
       })
       .catch(function(e) {
         console.warn('[reverse geocode]', e && e.message);
-        return null;
+        // 后端不可达/无结果 → 前端直调天地图
+        return tdtReverseFront(lng, lat);
       });
   }
 
@@ -8682,6 +8723,34 @@
   attachPopupDrag(popup, document.querySelector('.popup-handle'), hidePopup);
   attachPopupDrag(inspirePopup, document.querySelector('.inspire-popup-handle'), hideInspirePopup);
   attachPopupDrag(explorePopup, document.querySelector('.explore-popup-handle'), hideExplorePopup);
+  // 灵感/探索坐标点自动命名：根据坐标点附近的真实地点逆地理编码命名
+  // （无条件覆盖为地点名；错峰请求避免并发；命名完成后重渲染当前模式标记）
+  var _namedCoords = {};
+  function autoNameInspireExploreCoords() {
+    var targets = [];
+    inspireData.coordinates.forEach(function (c) {
+      if (!_namedCoords[c.id]) targets.push({ id: c.id, lng: c.lng, lat: c.lat, src: inspireData.coordinates });
+    });
+    exploreData.coordinates.forEach(function (c) {
+      if (!_namedCoords[c.id]) targets.push({ id: c.id, lng: c.lng, lat: c.lat, src: exploreData.coordinates });
+    });
+    targets.forEach(function (t, i) {
+      setTimeout(function () {
+        reverseGeocodeName(t.lng, t.lat).then(function (name) {
+          if (!name) return;
+          _namedCoords[t.id] = true;
+          var item = t.src.find(function (x) { return x.id === t.id; });
+          if (item && item.title !== name) {
+            item.title = name;
+            // 当前模式重渲染，让弹窗/标记显示新地点名
+            if (phoneScreen.classList.contains('inspire-mode')) renderInspireMarkers(currentDetailLevel);
+            else if (phoneScreen.classList.contains('explore-mode')) renderExploreMarkers(currentDetailLevel);
+          }
+        });
+      }, i * 500);
+    });
+  }
+  autoNameInspireExploreCoords();
 </script>
 </body>
 </html>
