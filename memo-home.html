@@ -3198,7 +3198,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>
           </svg>
-          <span>灵感模式：查看他人坐标</span>
+          <span>灵感模式：他人上传坐标</span>
           <div class="inspire-banner-close" id="inspireBannerClose">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -3210,7 +3210,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/><path d="M12 12 L12 2"/><path d="M12 12 L21 9"/><path d="M12 12 L4 16"/>
           </svg>
-          <span>探索模式：按作者发现作品</span>
+          <span>探索模式：摄影师的作品</span>
           <div class="explore-banner-close" id="exploreBannerClose">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -6534,6 +6534,9 @@
       phoneScreen.classList.add('inspire-mode');
       inspireBtn.classList.add('inspire-active');
       inspireBanner.classList.add('show');
+      // 提示词 5 秒后自动隐藏
+      clearTimeout(window._inspireBannerTimer);
+      window._inspireBannerTimer = setTimeout(function () { inspireBanner.classList.remove('show'); }, 5000);
       renderInspireMarkers(currentDetailLevel);
       renderSavedMarkers(currentDetailLevel);
       showToast('💡 灵感模式：查看他人坐标', 'success', 2000);
@@ -6792,6 +6795,9 @@
       phoneScreen.classList.add('explore-mode');
       exploreBtn.classList.add('explore-active');
       exploreBanner.classList.add('show');
+      // 提示词 5 秒后自动隐藏
+      clearTimeout(window._exploreBannerTimer);
+      window._exploreBannerTimer = setTimeout(function () { exploreBanner.classList.remove('show'); }, 5000);
       renderExploreMarkers(currentDetailLevel);
       // 探索模式下只保留紫色坐标点，隐藏其他所有坐标点
       leafletMarkers.forEach(function(lm) {
