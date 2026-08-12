@@ -8463,5 +8463,48 @@
   setTimeout(() => showHint('👆 试试在真实地图上拖拽或点击坐标点'), 500);
 </script>
 
+<script>
+// ===== App 拍照桥接（uni-app web-view 内嵌模式，不影响 Web 端）=====
+// App 相机拍完 → URL 带 photo_pending=1 → 提示用户点地图坐标挂载；
+// 照片 base64 由 App 经 evalJS 写入 window.__memo_pending_photo
+(function () {
+  try {
+    var pending = null;
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('photo_pending') === '1') {
+      if (window.uni && uni.postMessage) {
+        uni.postMessage({ data: { type: 'memo_get_pending_photo' } });
+      }
+      setTimeout(function () {
+        if (!window.__memo_pending_photo) {
+          showToast('📷 照片已拍摄，点击地图任意位置挂载');
+        }
+      }, 800);
+    }
+    // 轮询 App 注入的照片
+    var timer = setInterval(function () {
+      if (!pending && window.__memo_pending_photo) {
+        pending = window.__memo_pending_photo;
+        window.__memo_pending_photo = null;
+        showToast('📷 照片已就绪，点击地图任意位置挂载');
+      }
+    }, 600);
+    setTimeout(function () { clearInterval(timer); }, 120000);
+    // 地图点击 → 挂载照片
+    function bindMount() {
+      if (!window.map) { setTimeout(bindMount, 500); return; }
+      window.map.on('click', function (e) {
+        if (!pending) return;
+        var b64 = pending;
+        pending = null;
+        savePhotoToPending(e.latlng.lng, e.latlng.lat, b64);
+        showToast('✅ 照片已挂载到该坐标');
+      });
+    }
+    bindMount();
+  } catch (e) {}
+})();
+</script>
+
 </body>
 </html>

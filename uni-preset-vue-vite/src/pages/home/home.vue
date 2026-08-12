@@ -47,6 +47,7 @@ export default {
       this.loggedIn = true
     }
     if (this.loggedIn) this.buildWebSrc()
+    uni.$emit('tab-change', 0)
   },
   onBackPress() {
     // Android 物理返回键：web-view 内部（H5 页面跳转历史）有可回退页时先回退 H5，
@@ -67,11 +68,40 @@ export default {
       const token = memoApi.getToken()
       const sep = MEMO_HOME_URL.indexOf('?') >= 0 ? '&' : '?'
       // full=1：memo-home.html 全屏适配开关（无参时页面保持原型手机框展示，不影响 Web 端 UI）
-      this.webSrc = MEMO_HOME_URL + sep + 'token=' + encodeURIComponent(token) + '&full=1'
+      let src = MEMO_HOME_URL + sep + 'token=' + encodeURIComponent(token) + '&full=1'
+      // 相机拍完待挂载：URL 带 photo_pending=1，H5 提示用户点地图坐标挂载
+      if (uni.getStorageSync('memo_pending_photo')) {
+        src += '&photo_pending=1'
+      }
+      this.webSrc = src
     },
     handleMessage(e) {
-      // web-view postMessage 桥接预留（后续登录态变化/跳转场景使用）
-      console.log('[web-view] message', e)
+      // H5 请求照片（点地图挂载前）：读缩略图 → base64 → evalJS 注入 H5
+      const msg = e && e.detail && e.detail.data && e.detail.data[0]
+      if (msg && msg.type === 'memo_get_pending_photo') {
+        // #ifdef APP-PLUS
+        const pending = uni.getStorageSync('memo_pending_photo')
+        if (!pending || !pending.thumb) return
+        plus.io.resolveLocalFileSystemURL(
+          pending.thumb,
+          (entry) => {
+            entry.file((file) => {
+              const reader = new plus.io.FileReader()
+              reader.onloadend = (evt) => {
+                const b64 = evt.target && evt.target.result
+                if (!b64) return
+                const wv = plus.webview.currentWebview().children()[0]
+                if (wv && wv.evalJS) {
+                  wv.evalJS('window.__memo_pending_photo = ' + JSON.stringify(b64))
+                }
+              }
+              reader.readAsDataURL(file)
+            })
+          },
+          () => {}
+        )
+        // #endif
+      }
     },
     goLogin() {
       uni.reLaunch({ url: '/pages/login/login' })

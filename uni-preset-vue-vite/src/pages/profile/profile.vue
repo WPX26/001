@@ -163,6 +163,7 @@ export default {
     },
   },
   onShow() {
+    uni.$emit('tab-change', 4)
     if (!memoApi.isLoggedIn()) {
       this.loggedIn = false
       return
