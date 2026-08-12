@@ -4282,6 +4282,45 @@
     { name: '山东科技大学', lng: 120.115, lat: 35.963, type: 'poi', fame: 60, radius: 0.02 }
   ];
 
+  // 常用城市 → 省 映射（命名加省前缀用："山东省·青岛市"）；直辖市省=市
+  const CITY_PROVINCE = {
+    北京: '北京', 上海: '上海', 天津: '天津', 重庆: '重庆',
+    青岛: '山东', 济南: '山东', 烟台: '山东', 威海: '山东', 潍坊: '山东', 淄博: '山东', 日照: '山东', 临沂: '山东', 济宁: '山东',
+    杭州: '浙江', 宁波: '浙江', 温州: '浙江', 嘉兴: '浙江', 绍兴: '浙江', 台州: '浙江', 金华: '浙江',
+    广州: '广东', 深圳: '广东', 佛山: '广东', 东莞: '广东', 珠海: '广东', 中山: '广东',
+    南京: '江苏', 苏州: '江苏', 无锡: '江苏', 常州: '江苏', 徐州: '江苏',
+    成都: '四川', 绵阳: '四川', 武汉: '湖北', 西安: '陕西', 郑州: '河南', 长沙: '湖南',
+    福州: '福建', 厦门: '福建', 泉州: '福建', 合肥: '安徽', 昆明: '云南', 贵阳: '贵州',
+    沈阳: '辽宁', 大连: '辽宁', 长春: '吉林', 哈尔滨: '黑龙江', 石家庄: '河北',
+    太原: '山西', 呼和浩特: '内蒙古', 南昌: '江西', 南宁: '广西', 海口: '海南',
+    兰州: '甘肃', 西宁: '青海', 银川: '宁夏', 乌鲁木齐: '新疆', 拉萨: '西藏',
+    台北: '台湾', 香港: '香港', 澳门: '澳门'
+  };
+
+  // 区级地点库（Level 1-2 细化，zoom 10-11 聚合时命名"省·市·区"）：市南/市北/崂山等
+  const DISTRICT_PLACES = [
+    { name: '市南', lng: 120.38, lat: 36.07, radius: 0.08 },
+    { name: '市北', lng: 120.37, lat: 36.09, radius: 0.08 },
+    { name: '崂山', lng: 120.47, lat: 36.11, radius: 0.12 },
+    { name: '李沧', lng: 120.43, lat: 36.15, radius: 0.10 },
+    { name: '城阳', lng: 120.40, lat: 36.30, radius: 0.12 },
+    { name: '即墨', lng: 120.45, lat: 36.39, radius: 0.12 },
+    { name: '黄岛', lng: 120.17, lat: 35.96, radius: 0.20 },
+    { name: '西湖', lng: 120.13, lat: 30.26, radius: 0.10 },
+    { name: '上城', lng: 120.17, lat: 30.25, radius: 0.06 },
+    { name: '拱墅', lng: 120.15, lat: 30.32, radius: 0.08 },
+    { name: '滨江', lng: 120.21, lat: 30.21, radius: 0.06 },
+    { name: '余杭', lng: 120.30, lat: 30.42, radius: 0.14 }
+  ];
+
+  // 城市名 → "省·市"（如"青岛"→"山东省·青岛市"）；映射缺失时仅返回城市名
+  function provinceCityLabel(city) {
+    if (!city) return '';
+    var p = CITY_PROVINCE[city];
+    if (!p) return city;
+    return p === city ? city + '市' : p + '省·' + city + '市';
+  }
+
   // 聚合点 → 城市名（省/国家视野 zoom≤9 时使用）：取簇中心最近的城市中心
   // 数据来自后端 /map/regions?level=city（330 城市），不可用时返回 null（降级到知名地点逻辑）
   function nameClusterByCity(members) {
@@ -4297,17 +4336,51 @@
       var d = dx * dx + dy * dy;
       if (d < bestD) { bestD = d; best = c.name; }
     });
-    return best;
+    return best ? provinceCityLabel(best) : null;   // "山东省·青岛市"
   }
 
-  // 聚合点命名（分层）：
-  //   zoom ≤ 9（该省面积完全暴露在屏幕中）→ 统一用坐标点所在的城市名（"青岛"，不是"XX周边"）
-  //   否则 → 簇中心半径内取知名度最高的地点：region 用区域名（黄岛），poi 用"XX周边"（五四广场周边）
+  // 聚合点 → 区名（Level 1-2 细化，zoom 10-11）：簇中心匹配区级地点库 → "省·市·区"
+  function nameClusterByDistrict(members) {
+    if (!members || !members.length) return null;
+    var cx = 0, cy = 0;
+    for (var i = 0; i < members.length; i++) { cx += members[i].lng; cy += members[i].lat; }
+    cx /= members.length; cy /= members.length;
+    var best = null, bestD = Infinity;
+    DISTRICT_PLACES.forEach(function (d) {
+      var dx = d.lng - cx, dy = d.lat - cy;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= d.radius && dist < bestD) { bestD = dist; best = d; }
+    });
+    if (!best) return null;
+    // 区名带省·市前缀（"山东省·青岛市·市南"）；城市按簇中心最近城市匹配
+    var cities = getAdminRegionList('city');
+    var city = '';
+    if (cities && cities.length) {
+      var bd = Infinity;
+      cities.forEach(function (c) {
+        var dx = c.lng - cx, dy = c.lat - cy;
+        var d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; city = c.name; }
+      });
+    }
+    var base = city ? provinceCityLabel(city) : '';
+    return base ? base + '·' + best.name : best.name;
+  }
+
+  // 聚合点命名（分层，按缩放程度递进，不写死具体名字）：
+  //   zoom ≤ 9（1 级再往上，省面积完全暴露）→ "省·市"（山东省·青岛市）
+  //   zoom 10-11（1-2 级细化）→ "省·市·区"（山东省·青岛市·市南）
+  //   zoom ≥ 12（3-5 级细化）→ 知名地点/覆盖范围（五四广场周边、黄岛）
   function nameClusterByFamousPlace(members, zoom) {
     if (!members || !members.length) return null;
-    if (typeof zoom === 'number' && zoom <= 9) {
-      var city = nameClusterByCity(members);
-      if (city) return city;
+    if (typeof zoom === 'number') {
+      if (zoom <= 9) {
+        var cityN = nameClusterByCity(members);
+        if (cityN) return cityN;
+      } else if (zoom <= 11) {
+        var distN = nameClusterByDistrict(members);
+        if (distN) return distN;
+      }
     }
     var cx = 0, cy = 0;
     for (var i = 0; i < members.length; i++) { cx += members[i].lng; cy += members[i].lat; }
@@ -5464,7 +5537,7 @@
     return s.replace(/^街道/, '').slice(0, 14);
   }
 
-  // 最细化单点命名："城市名·详细名"（如"青岛·五四广场"）
+  // 最细化单点命名："省·市·详细名"（如"山东省·青岛市·五四广场"）
   // 城市优先按坐标匹配最近城市中心（准确），城市库不可用时从完整地址提取（最后一段"XX市"）
   function simplifyWithCity(addr, lng, lat) {
     if (!addr) return '';
@@ -5489,8 +5562,10 @@
       }
     }
     var detail = simplifyAddress(addr);
-    if (!detail) return city || '';
-    return city ? city + '·' + detail : detail;
+    if (!detail) return city ? provinceCityLabel(city) : '';
+    // "省·市·详细名"（省由城市映射补充，如"青岛"→"山东省·青岛市"）
+    var prefix = city ? provinceCityLabel(city) : '';
+    return prefix ? prefix + '·' + detail : detail;
   }
 
   function tdtReverseFront(lng, lat) {
