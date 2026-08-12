@@ -2528,7 +2528,7 @@
       container.innerHTML = html;
       container.querySelectorAll('.myhome-photo-card').forEach(card => {
         card.addEventListener('click', () => {
-          showToast('打开照片详情');
+          jumpToMyCoordsMap();
         });
       });
       return;
@@ -2562,12 +2562,50 @@
     });
     myHomeCoordsContainer.innerHTML = html;
 
-    // 添加点击事件（这里仅作UI演示，实际项目中应弹出照片详情）
+    // 点击坐标点 → 跳转地图，放缩地图将我的坐标全部包含在内
     myHomeCoordsContainer.querySelectorAll('.myhome-photo-card').forEach(card => {
       card.addEventListener('click', () => {
-        showToast('打开照片详情');
+        jumpToMyCoordsMap();
       });
     });
+  }
+
+  // 我的主页点击坐标点 → 跳转地图，放缩地图将我的坐标全部包含在内
+  // 边界随 URL 传入 memo-home.html（fit=mine + 四边界参数），地图就绪后自动放缩
+  function jumpToMyCoordsMap() {
+    var pts = [];
+    if (serverCoordPhotos && serverCoordPhotos.length) {
+      pts = serverCoordPhotos.filter(function (g) {
+        return typeof g.lng === 'number' && typeof g.lat === 'number';
+      });
+    }
+    if (!pts.length) {
+      pts = myHomeCoords.filter(function (c) {
+        return typeof c.lng === 'number' && typeof c.lat === 'number';
+      });
+    }
+    if (!pts.length) { showToast('⚠️ 暂无坐标点可在地图上展示'); return; }
+
+    var minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    pts.forEach(function (p) {
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+    });
+    // 单点/极小跨度 → 向外扩展，避免 fitBounds 缩到最大级
+    if ((maxLng - minLng) < 0.005 || (maxLat - minLat) < 0.005) {
+      var exLng = Math.max(0.005, maxLng - minLng) / 2;
+      var exLat = Math.max(0.005, maxLat - minLat) / 2;
+      minLng -= exLng; maxLng += exLng; minLat -= exLat; maxLat += exLat;
+    }
+
+    var qs = 'fit=mine'
+      + '&minLng=' + minLng.toFixed(6)
+      + '&maxLng=' + maxLng.toFixed(6)
+      + '&minLat=' + minLat.toFixed(6)
+      + '&maxLat=' + maxLat.toFixed(6);
+    window.location.href = 'memo-home.html?' + qs;
   }
 
   // ========== 邀请码系统 ==========

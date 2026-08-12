@@ -6140,6 +6140,23 @@
     enterLocalUploadMode();
   }
 
+  // 我的主页 → 跳转地图：放缩地图将我的坐标全部包含在内（fit=mine + 四边界参数）
+  // 边界由"我的主页"页计算好随 URL 传入，地图就绪后直接 fitBounds（无需再拉数据）
+  let fitMyCoordsBounds = null;
+  if (urlParams.get('fit') === 'mine') {
+    const _minLng = parseFloat(urlParams.get('minLng'));
+    const _maxLng = parseFloat(urlParams.get('maxLng'));
+    const _minLat = parseFloat(urlParams.get('minLat'));
+    const _maxLat = parseFloat(urlParams.get('maxLat'));
+    if (isFinite(_minLng) && isFinite(_maxLng) && isFinite(_minLat) && isFinite(_maxLat)) {
+      fitMyCoordsBounds = [[_minLat, _minLng], [_maxLat, _maxLng]];
+    }
+  }
+  function applyFitMyCoordsBounds() {
+    if (!map || !fitMyCoordsBounds) return;
+    map.fitBounds(fitMyCoordsBounds, { padding: [60, 60], animate: false });
+  }
+
   function enterUploadMode() {
     uploadMode = true;
     phoneScreen.classList.add('upload-mode');
@@ -8248,8 +8265,19 @@
       // 延迟启用缩放同步，避免初始化期间的缩放变化影响细化程度
       setTimeout(function() {
         mapReady = true;
-        // 打开地图自动定位：屏幕中心跳转到当前 GPS 位置（静默，失败不打扰）
-        setTimeout(function () { locateToCurrent(false); }, 800);
+        if (fitMyCoordsBounds) {
+          // 我的主页跳转：放缩地图将我的坐标全部包含在内（取代自动 GPS 平移，边界已含全部坐标）
+          applyFitMyCoordsBounds();
+          // 仍静默解析当前位置显示蓝点（不改变地图视野）
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function (pos) {
+              updateUserLocationMarker(pos.coords.latitude, pos.coords.longitude);
+            }, function () {}, { timeout: 8000, enableHighAccuracy: true, maximumAge: 30000 });
+          }
+        } else {
+          // 打开地图自动定位：屏幕中心跳转到当前 GPS 位置（静默，失败不打扰）
+          setTimeout(function () { locateToCurrent(false); }, 800);
+        }
         // 防御性刷新地图尺寸：布局/容器尺寸变动后保证瓦片铺满容器
         if (map) map.invalidateSize(false);
       }, 500);
