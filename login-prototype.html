@@ -12,7 +12,7 @@
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    background: #0a0a0a;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -40,7 +40,7 @@
   .phone-frame {
     width: 320px;
     height: 680px;
-    background: #F0E4CE;
+    background: #1C0F08;
     border-radius: 42px;
     padding: 8px;
     box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(212, 165, 116, 0.35);
@@ -141,13 +141,13 @@
 
   /* 毛玻璃卡片 */
   .login-card {
-    background: rgba(250, 243, 231, 0.55);
+    background: rgba(28, 15, 8, 0.5);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-radius: 20px;
     padding: 28px 22px;
-    border: 1px solid rgba(255, 248, 235, 0.65);
-    box-shadow: 0 12px 40px rgba(28, 15, 8, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(212, 165, 116, 0.25);
+    box-shadow: 0 12px 40px rgba(28, 15, 8, 0.18), inset 0 1px 0 rgba(212, 165, 116, 0.12);
   }
 
   .input-group {
@@ -156,7 +156,7 @@
 
   .input-label {
     font-size: 12px;
-    color: #4A2C17;
+    color: #F5DFC0;
     margin-bottom: 6px;
     display: block;
     font-weight: 500;
@@ -173,7 +173,7 @@
     left: 14px;
     width: 18px;
     height: 18px;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.5);
     transition: color 0.3s;
   }
 
@@ -181,19 +181,19 @@
     width: 100%;
     height: 46px;
     padding: 0 14px 0 42px;
-    background: rgba(255, 250, 242, 0.78);
+    background: rgba(28, 15, 8, 0.55);
     border: 1.5px solid rgba(212, 165, 116, 0.35);
     border-radius: 12px;
     font-size: 14px;
-    color: #1C0F08;
+    color: #F5DFC0;
     outline: none;
     transition: all 0.3s ease;
   }
 
-  .input-field::placeholder { color: #9B7B5A; }
+  .input-field::placeholder { color: rgba(245, 223, 192, 0.5); }
 
   .input-field:focus {
-    background: rgba(255, 250, 242, 0.95);
+    background: rgba(28, 15, 8, 0.7);
     border-color: #E89020;
     box-shadow: 0 0 0 4px rgba(232, 144, 32, 0.15);
   }
@@ -214,7 +214,7 @@
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    color: #4A2C17;
+    color: #F5DFC0;
     user-select: none;
   }
 
@@ -229,7 +229,7 @@
     align-items: center;
     justify-content: center;
     transition: all 0.25s ease;
-    background: rgba(255, 250, 242, 0.6);
+    background: rgba(28, 15, 8, 0.5);
   }
 
   .remember-me input:checked + .checkbox {
@@ -239,7 +239,7 @@
 
   .checkbox svg {
     width: 10px; height: 10px;
-    color: white;
+    color: #4A2A0E;
     opacity: 0;
     transform: scale(0.5);
     transition: all 0.25s ease;
@@ -264,7 +264,7 @@
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     border: none;
     border-radius: 12px;
-    color: white;
+    color: #4A2A0E;
     font-size: 15px;
     font-weight: 600;
     letter-spacing: 2px;
@@ -274,7 +274,7 @@
                 filter 0.2s ease,
                 background 0.3s ease;
     box-shadow: 0 6px 24px rgba(232, 144, 32, 0.5),
-                inset 0 1px 0 rgba(255, 233, 184, 0.4),
+                inset 0 1px 0 rgba(212, 165, 116, 0.25),
                 inset 0 -2px 0 rgba(184, 90, 16, 0.2);
     position: relative;
     overflow: hidden;
@@ -285,7 +285,7 @@
     position: absolute;
     top: 0; left: -100%;
     width: 100%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 248, 235, 0.45), transparent);
+    background: linear-gradient(90deg, transparent, rgba(212, 165, 116, 0.3), transparent);
     transition: left 0.5s ease;
     z-index: 1;
   }
@@ -295,7 +295,7 @@
   .login-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 30px rgba(232, 144, 32, 0.6),
-                inset 0 1px 0 rgba(255, 233, 184, 0.5),
+                inset 0 1px 0 rgba(212, 165, 116, 0.3),
                 inset 0 -2px 0 rgba(184, 90, 16, 0.2);
     filter: brightness(1.08);
   }
@@ -304,7 +304,7 @@
     transform: translateY(1px) scale(0.98);
     box-shadow: 0 2px 8px rgba(232, 144, 32, 0.4),
                 inset 0 2px 4px rgba(184, 90, 16, 0.3),
-                inset 0 -1px 0 rgba(255, 233, 184, 0.15);
+                inset 0 -1px 0 rgba(212, 165, 116, 0.1);
     filter: brightness(0.95);
     transition: transform 0.1s ease,
                 box-shadow 0.1s ease,
@@ -315,7 +315,7 @@
   .ripple {
     position: absolute;
     border-radius: 50%;
-    background: rgba(255, 248, 235, 0.5);
+    background: rgba(212, 165, 116, 0.3);
     transform: scale(0);
     animation: rippleAnim 0.6s ease-out;
     pointer-events: none;
@@ -382,13 +382,13 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
-    background: rgba(250, 245, 236, 0.97);
+    background: rgba(28, 15, 8, 0.92);
     backdrop-filter: blur(10px);
     padding: 16px 28px;
     border-radius: 14px;
     box-shadow: 0 10px 40px rgba(28, 15, 8, 0.22);
     font-size: 14px;
-    color: #1C0F08;
+    color: #F5DFC0;
     font-weight: 500;
     opacity: 0;
     pointer-events: none;
@@ -406,13 +406,13 @@
     background: linear-gradient(135deg, #F0A040, #D4691C);
     display: flex; align-items: center; justify-content: center;
     margin: 0 auto 10px;
-    color: white;
+    color: #4A2A0E;
   }
 
   /* 登录方式 Tab */
   .login-tabs {
     display: flex;
-    background: rgba(255, 250, 242, 0.3);
+    background: rgba(28, 15, 8, 0.4);
     border-radius: 12px;
     padding: 3px;
     margin-bottom: 20px;
@@ -435,8 +435,8 @@
   }
   .login-tab svg { width: 14px; height: 14px; }
   .login-tab.active {
-    background: white;
-    color: #1C0F08;
+    background: #1C0F08;
+    color: #F5DFC0;
     box-shadow: 0 2px 8px rgba(28, 15, 8, 0.12);
   }
 
@@ -449,7 +449,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.5);
     border-radius: 50%;
     transition: color 0.2s;
     z-index: 2;
@@ -464,7 +464,7 @@
   .send-code-btn {
     height: 46px;
     padding: 0 16px;
-    background: rgba(255, 250, 242, 0.78);
+    background: rgba(28, 15, 8, 0.55);
     border: 1.5px solid #E89020;
     border-radius: 12px;
     color: #E89020;
@@ -477,12 +477,12 @@
   }
   .send-code-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #F0A040, #D4691C);
-    color: white;
+    color: #4A2A0E;
   }
   .send-code-btn:disabled {
     background: rgba(212, 165, 116, 0.25);
     border-color: rgba(155, 123, 90, 0.4);
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.5);
     cursor: not-allowed;
   }
 
@@ -510,7 +510,7 @@
     width: 44px; height: 44px;
     border-radius: 50%;
     border: 1.5px solid rgba(212, 165, 116, 0.3);
-    background: rgba(255, 250, 242, 0.6);
+    background: rgba(28, 15, 8, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -701,7 +701,7 @@
                 <label class="remember-me">
                   <input type="checkbox" id="remember" checked>
                   <div class="checkbox">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#4A2A0E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
                   </div>
@@ -727,7 +727,7 @@
 
         <div class="toast" id="toast">
           <div class="toast-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A2A0E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </div>
@@ -754,8 +754,8 @@
   function showToast(msg, type, duration) {
     duration = duration || 2000; toastMsg.textContent = msg;
     toast.querySelector('.toast-icon').innerHTML = type === 'warning'
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A2A0E" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A2A0E" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
     toast.classList.add('show');
     clearTimeout(showToast._t);
     showToast._t = setTimeout(function() { toast.classList.remove('show'); }, duration);
