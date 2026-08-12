@@ -60,6 +60,10 @@ export default {
       uni.chooseImage({
         count: 1,
         sourceType: ['camera'],
+        fail: (err) => {
+          // 权限被拒/相机不可用：给用户明确反馈（此前静默无反应）
+          uni.showToast({ title: '相机未授权或不可用，请在系统设置中开启', icon: 'none', duration: 2500 })
+        },
         success: (res) => {
           if (!res.tempFilePaths || !res.tempFilePaths.length) return
           const file = res.tempFilePaths[0]

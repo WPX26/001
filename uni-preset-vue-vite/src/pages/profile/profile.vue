@@ -1,5 +1,5 @@
 <template>
-  <web-view :src="webSrc" @message="handleMessage"></web-view>
+  <web-view :src="webSrc" @message="handleMessage" style="width:100%;height:calc(100vh - 160rpx);"></web-view>
 </template>
 
 <script>
