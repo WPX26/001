@@ -6072,16 +6072,37 @@
   // ========== 地名搜索（本地代理 → 天地图 API） ==========
   var searchDebounceTimer = null;
 
+  // 前端直调天地图 geocoder（浏览器端 Key + 域名白名单内可用）：
+  // 后端结果为空/后端不可达时兜底，确保未登录也能直接搜到地名
+  function tdtGeocodeFront(keyword) {
+    var ds = encodeURIComponent(JSON.stringify({ keyWord: keyword }));
+    return fetch('https://api.tianditu.gov.cn/geocoder?ds=' + ds + '&tk=ee36c38eb7777006970a6e5597f7bae9') // 浏览器端 Key（与 initLeafletMap 同值）
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var loc = d && d.location;
+        if (!loc || !loc.lon) return [];
+        return [{
+          title: loc.keyWord || keyword,
+          lng: Number(loc.lon),
+          lat: Number(loc.lat),
+          address: loc.keyWord || '',
+          isExternal: true
+        }];
+      })
+      .catch(function () { return []; });
+  }
+
   function searchTiandituPlaces(keyword) {
-    // 天地图 geocoding API 需要服务端 Key + SK 签名（前端 Key 权限不足），
-    // 已改由后端 GET /api/v1/map/search 代理（后端为可选认证：登录态 request 自动携带 token 校验，
-    // 未登录无 token 直接放行）。401/失败降级 → 空结果 + 天地图外部搜索入口（见下方 catch）
+    // 首选后端代理（混合地标+本地坐标，可选认证），失败/空结果时前端直调天地图
     // 返回 { results:  [{title,lng,lat,address,isExternal}], fallback: 天地图外部搜索入口 }
-    // 结果渲染沿用现有外部地点 UI（renderSearchResults 的 isExternal 分支），点击定位复用 flyToExternalPlace
     var fallback = 'https://map.tianditu.gov.cn/#/search?key=' + encodeURIComponent(keyword);
-    if (typeof MemoAPI === 'undefined') {
-      return Promise.resolve({ results: [], fallback: fallback });
+    // 未登录：直接前端直调天地图（秒出结果，不等后端）
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
+      return tdtGeocodeFront(keyword).then(function (extra) {
+        return { results: extra, fallback: fallback };
+      });
     }
+    // 登录态：后端（地标 + 本地坐标匹配），失败/空结果前端直调兜底
     return MemoAPI.get('/map/search?keyword=' + encodeURIComponent(keyword))
       .then(function(data) {
         var raw = (data && Array.isArray(data.results)) ? data.results : [];
@@ -6094,12 +6115,18 @@
             isExternal: true
           };
         }).filter(function(r) { return r.title && !isNaN(r.lng) && !isNaN(r.lat); });
-        return { results: results, fallback: fallback };
+        if (results.length > 0) return { results: results, fallback: fallback };
+        // 后端无结果（如天地图服务端 Key 受限）→ 前端直调兜底
+        return tdtGeocodeFront(keyword).then(function (extra) {
+          return { results: extra, fallback: fallback };
+        });
       })
       .catch(function(e) {
         console.warn('[search places]', e && e.message);
-        // 服务不可达/无结果 → 保持原有空状态 + "在天地图中搜索"入口，不报错
-        return { results: [], fallback: fallback };
+        // 后端不可达 → 前端直调天地图
+        return tdtGeocodeFront(keyword).then(function (extra) {
+          return { results: extra, fallback: fallback };
+        });
       });
   }
 
