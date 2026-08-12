@@ -1443,6 +1443,9 @@
     color: rgba(255, 255, 255, 0.6);
     border-radius: 50%;
     transition: all 0.2s;
+    position: relative;
+    z-index: 5;
+    pointer-events: auto;
   }
   .popup-close:hover { background: rgba(255, 255, 255, 0.1); color: white; }
   .popup-close svg { width: 14px; height: 14px; stroke-width: 2.5; }
@@ -2052,6 +2055,9 @@
     color: rgba(255, 255, 255, 0.6);
     border-radius: 50%;
     transition: all 0.2s;
+    position: relative;
+    z-index: 5;
+    pointer-events: auto;
   }
   .explore-popup-close:hover { background: rgba(255, 255, 255, 0.1); color: white; }
   .explore-popup-close svg { width: 14px; height: 14px; stroke-width: 2.5; }
@@ -2150,7 +2156,7 @@
     overflow: hidden;
     transition: max-height 0.3s ease;
   }
-  .author-group.expanded .author-group-photos { max-height: 500px; }
+  .author-group.expanded .author-group-photos { max-height: none; padding-bottom: 20px; }
   .explore-popup .tg-photo {
     aspect-ratio: 1;
     border-radius: 6px;
@@ -2284,6 +2290,9 @@
     color: rgba(255, 255, 255, 0.6);
     border-radius: 50%;
     transition: all 0.2s;
+    position: relative;
+    z-index: 5;
+    pointer-events: auto;
   }
   .inspire-popup-close:hover { background: rgba(255, 255, 255, 0.1); color: white; }
   .inspire-popup-close svg { width: 14px; height: 14px; stroke-width: 2.5; }
@@ -3458,6 +3467,9 @@
           </div>
         </div>
 
+        <!-- 灵感弹窗遮罩（点击弹窗外任何地方收起弹窗，拦截穿透） -->
+        <div class="popup-backdrop" id="inspireBackdrop"></div>
+
         <!-- 灵感坐标弹窗（他人红色坐标） -->
         <div class="inspire-popup" id="inspirePopup">
           <div class="inspire-popup-handle"></div>
@@ -3506,6 +3518,9 @@
             </div>
           </div>
         </div>
+
+        <!-- 探索弹窗遮罩（点击弹窗外任何地方收起弹窗，拦截穿透） -->
+        <div class="popup-backdrop" id="exploreBackdrop"></div>
 
         <!-- 探索坐标弹窗（紫蓝色，按作者分组） -->
         <div class="explore-popup" id="explorePopup">
@@ -3755,8 +3770,10 @@
     if (deleteOverlay) deleteOverlay.classList.remove('show');
     // Banner
     if (uploadBanner) uploadBanner.classList.remove('show');
-    // 背景遮罩（标记弹窗专用）
+    // 背景遮罩（坐标/灵感/探索弹窗）
     if (backdrop) backdrop.classList.remove('show');
+    if (inspireBackdrop) inspireBackdrop.classList.remove('show');
+    if (exploreBackdrop) exploreBackdrop.classList.remove('show');
   }
 
   // 地图标记点点击 → 弹出底部弹窗
@@ -4750,7 +4767,7 @@
         : '';
 
       html += `
-        <div class="time-group">
+        <div class="time-group expanded">
           <div class="time-group-header">
             <div class="time-group-info">
               <div>
@@ -6715,6 +6732,8 @@
       window._inspireBannerTimer = setTimeout(function () { inspireBanner.classList.remove('show'); }, 5000);
       renderInspireMarkers(currentDetailLevel);
       renderSavedMarkers(currentDetailLevel);
+      // 坐标点自动命名（进模式时重试：加载时失败的请求在此补跑，已命名点自动跳过）
+      autoNameInspireExploreCoords();
       showToast('💡 灵感模式：查看他人坐标', 'success', 2000);
     } else {
       phoneScreen.classList.remove('inspire-mode');
@@ -6838,6 +6857,7 @@
   const exploreBanner = document.getElementById('exploreBanner');
   const exploreBannerClose = document.getElementById('exploreBannerClose');
   const explorePopup = document.getElementById('explorePopup');
+  const exploreBackdrop = document.getElementById('exploreBackdrop');
   const explorePopupClose = document.getElementById('explorePopupClose');
   const explorePopupTitle = document.getElementById('explorePopupTitle');
   const explorePopupLng = document.getElementById('explorePopupLng');
@@ -6975,6 +6995,8 @@
       clearTimeout(window._exploreBannerTimer);
       window._exploreBannerTimer = setTimeout(function () { exploreBanner.classList.remove('show'); }, 5000);
       renderExploreMarkers(currentDetailLevel);
+      // 坐标点自动命名（进模式时重试：加载时失败的请求在此补跑，已命名点自动跳过）
+      autoNameInspireExploreCoords();
       // 探索模式下只保留紫色坐标点，隐藏其他所有坐标点
       leafletMarkers.forEach(function(lm) {
         if (lm._type !== 'explore_marker' && lm.getElement) {
@@ -7087,7 +7109,7 @@
       `).join('');
 
       html += `
-        <div class="author-group ${idx === 0 ? 'expanded' : ''}">
+        <div class="author-group expanded">
           <div class="author-group-header">
             <div class="author-avatar" style="background: ${group.avatar};">${initial}</div>
             <div class="author-group-info">
@@ -7159,14 +7181,18 @@
       });
     });
 
+    // 弹窗打开：启用遮罩（点击弹窗外任何地方收起，弹窗界面优先防穿透）
+    exploreBackdrop.classList.add('show');
     explorePopup.classList.add('show');
   }
 
   function hideExplorePopup() {
     explorePopup.classList.remove('show');
+    exploreBackdrop.classList.remove('show');
   }
 
   explorePopupClose.addEventListener('click', hideExplorePopup);
+  exploreBackdrop.addEventListener('click', hideExplorePopup);
 
   // 探索弹窗导航按钮
   explorePopupNav.addEventListener('click', () => {
@@ -7196,6 +7222,7 @@
 
   // 灵感弹窗
   const inspirePopup = document.getElementById('inspirePopup');
+  const inspireBackdrop = document.getElementById('inspireBackdrop');
   const inspirePopupClose = document.getElementById('inspirePopupClose');
   const inspirePopupTitle = document.getElementById('inspirePopupTitle');
   const inspirePopupLng = document.getElementById('inspirePopupLng');
@@ -7261,7 +7288,7 @@
       const photos = groups[hourKey];
       const label = hourKey + ' - ' + (parseInt(hourKey) + 1).toString().padStart(2, '0') + ':00';
       html += `
-        <div class="time-group">
+        <div class="time-group expanded">
           <div class="time-group-header">
             <div class="time-group-info">
               <span class="time-group-label">${label}</span>
@@ -7335,21 +7362,21 @@
       });
     });
 
-    // 默认展开第一组
-    const firstGroup = inspirePopupGroups.querySelector('.time-group');
-    if (firstGroup) firstGroup.classList.add('expanded');
-
     // 更新收藏按钮状态
     updateCollectButtonState(coord);
 
+    // 弹窗打开：启用遮罩（点击弹窗外任何地方收起，弹窗界面优先防穿透）
+    inspireBackdrop.classList.add('show');
     inspirePopup.classList.add('show');
   }
 
   function hideInspirePopup() {
     inspirePopup.classList.remove('show');
+    inspireBackdrop.classList.remove('show');
   }
 
   inspirePopupClose.addEventListener('click', hideInspirePopup);
+  inspireBackdrop.addEventListener('click', hideInspirePopup);
 
   // 切换点赞
   function togglePhotoLike(photoId, coord) {
@@ -7624,7 +7651,7 @@
       const photos = groups[hourKey];
       const label = hourKey + ' - ' + (parseInt(hourKey) + 1).toString().padStart(2, '0') + ':00';
       html += `
-        <div class="time-group">
+        <div class="time-group expanded">
           <div class="time-group-header">
             <div class="time-group-info">
               <span class="time-group-label">${label}</span>
@@ -7701,9 +7728,6 @@
         togglePhotoTipInCluster(photoId, cluster.mergedCoord);
       });
     });
-
-    const firstGroup = inspirePopupGroups.querySelector('.time-group');
-    if (firstGroup) firstGroup.classList.add('expanded');
 
     // 显示已收藏状态
     inspirePopupCollect.classList.add('collected');
@@ -8883,6 +8907,13 @@
             // 当前模式重渲染，让弹窗/标记显示新地点名
             if (phoneScreen.classList.contains('inspire-mode')) renderInspireMarkers(currentDetailLevel);
             else if (phoneScreen.classList.contains('explore-mode')) renderExploreMarkers(currentDetailLevel);
+            // 若该坐标的弹窗正打开，同步刷新标题
+            if (typeof currentInspireCoord !== 'undefined' && currentInspireCoord && currentInspireCoord.id === t.id && inspirePopup.classList.contains('show')) {
+              inspirePopupTitle.textContent = item.title;
+            }
+            if (typeof currentExploreCoord !== 'undefined' && currentExploreCoord && currentExploreCoord.id === t.id && explorePopup.classList.contains('show')) {
+              explorePopupTitle.textContent = item.title;
+            }
           }
         });
       }, i * 500);
