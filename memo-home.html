@@ -1366,6 +1366,11 @@
   .marker-popup.dragging {
     transition: none;
   }
+  /* 全屏顶部安全区：避让手机状态栏/刘海（y<47 区域触摸被系统拦截），
+     把手与关闭键下移到可触摸区域（36px 空隙即状态栏空间） */
+  .marker-popup.fullscreen {
+    padding-top: 36px;
+  }
 
   .popup-handle {
     width: 48px;
@@ -2034,7 +2039,9 @@
     border-radius: 0;
     bottom: 0;
     transform: translateY(0);
+    padding-top: 36px; /* 全屏顶部安全区：避让手机状态栏/刘海（触摸被系统拦截区域） */
   }
+  .explore-popup.dragging { transition: none; }
   /* 全屏时头部区域确保可点击（关闭键/导航键不失效） */
   .explore-popup.fullscreen .explore-popup-header { pointer-events: auto; }
   .explore-popup.show { transform: translateY(0); pointer-events: auto; }
@@ -2278,7 +2285,9 @@
     border-radius: 0;
     bottom: 0;
     transform: translateY(0);
+    padding-top: 36px; /* 全屏顶部安全区：避让手机状态栏/刘海（触摸被系统拦截区域） */
   }
+  .inspire-popup.dragging { transition: none; }
   /* 全屏时头部区域确保可点击（关闭键/导航键不失效） */
   .inspire-popup.fullscreen .inspire-popup-header { pointer-events: auto; }
   .inspire-popup.show { transform: translateY(0); pointer-events: auto; }
