@@ -4282,9 +4282,33 @@
     { name: '山东科技大学', lng: 120.115, lat: 35.963, type: 'poi', fame: 60, radius: 0.02 }
   ];
 
-  // 聚合点命名：簇中心半径内取知名度最高的地点 → region 用区域名，poi 用"XX周边"；无匹配返回 null
-  function nameClusterByFamousPlace(members) {
+  // 聚合点 → 城市名（省/国家视野 zoom≤9 时使用）：取簇中心最近的城市中心
+  // 数据来自后端 /map/regions?level=city（330 城市），不可用时返回 null（降级到知名地点逻辑）
+  function nameClusterByCity(members) {
     if (!members || !members.length) return null;
+    var cities = getAdminRegionList('city');
+    if (!cities || !cities.length) return null;
+    var cx = 0, cy = 0;
+    for (var i = 0; i < members.length; i++) { cx += members[i].lng; cy += members[i].lat; }
+    cx /= members.length; cy /= members.length;
+    var best = null, bestD = Infinity;
+    cities.forEach(function (c) {
+      var dx = c.lng - cx, dy = c.lat - cy;
+      var d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = c.name; }
+    });
+    return best;
+  }
+
+  // 聚合点命名（分层）：
+  //   zoom ≤ 9（该省面积完全暴露在屏幕中）→ 统一用坐标点所在的城市名（"青岛"，不是"XX周边"）
+  //   否则 → 簇中心半径内取知名度最高的地点：region 用区域名（黄岛），poi 用"XX周边"（五四广场周边）
+  function nameClusterByFamousPlace(members, zoom) {
+    if (!members || !members.length) return null;
+    if (typeof zoom === 'number' && zoom <= 9) {
+      var city = nameClusterByCity(members);
+      if (city) return city;
+    }
     var cx = 0, cy = 0;
     for (var i = 0; i < members.length; i++) { cx += members[i].lng; cy += members[i].lat; }
     cx /= members.length; cy /= members.length;
@@ -4310,7 +4334,7 @@
     return {
       id: cluster.members.map(function(m) { return m.id || m.title; }).sort().join('_'), // 稳定ID，DOM 复用平滑动画
       // 聚合点命名优先用知名地点/覆盖范围（五四广场周边/黄岛），无匹配时兜底"主点及周边"
-      title: nameClusterByFamousPlace(cluster.members) || (mainItem.title + (cluster.members.length > 1 ? '及周边' : '')),
+      title: nameClusterByFamousPlace(cluster.members, map ? map.getZoom() : null) || (mainItem.title + (cluster.members.length > 1 ? '及周边' : '')),
       lng: pos.lng,
       lat: pos.lat,
       date: mainItem.date,
@@ -4408,7 +4432,7 @@
           return {
             id: stableId,
             // 聚合点命名优先用知名地点/覆盖范围（五四广场周边/黄岛），无匹配时兜底"主点及周边"
-            title: nameClusterByFamousPlace(cluster) || (mainItem.title + (cluster.length > 1 ? '及周边' : '')),
+            title: nameClusterByFamousPlace(cluster, map ? map.getZoom() : null) || (mainItem.title + (cluster.length > 1 ? '及周边' : '')),
             lng: cx,
             lat: cy,
             date: mainItem.date,
@@ -5421,6 +5445,12 @@
     var m = s.match(/[一-龥]{2,12}(?:馆|店|大厦|广场|酒店|中心|学校|医院|公园|景区|码头|沙滩|山|湖|桥|寺|村|小区|园|街道|路|市场|站|所|铺|楼|公司|剧院|博物馆)/g);
     if (m && m.length) {
       var best = m[m.length - 1];
+      // 贪婪匹配会把"山东省青岛市市南区"吞进词内 → 剥离前导省/市/县/区（非贪婪逐级）
+      best = best
+        .replace(/^[一-龥]{2,6}?省/, '')
+        .replace(/^[一-龥]{2,6}?市/, '')
+        .replace(/^[一-龥]{2,6}?区/, '')
+        .replace(/^[一-龥]{2,6}?县/, '');
       // 若地点词含"XX路/XX街道"，取其后的具体地点（门牌+名称），如"徐州路24号5号楼金红嘉宾馆" → "金红嘉宾馆"
       var rm = best.match(/[一-龥]{1,8}(?:路|街道)([一-龥0-9A-Za-z]+)$/);
       if (rm && rm[1]) {
@@ -5434,6 +5464,35 @@
     return s.replace(/^街道/, '').slice(0, 14);
   }
 
+  // 最细化单点命名："城市名·详细名"（如"青岛·五四广场"）
+  // 城市优先按坐标匹配最近城市中心（准确），城市库不可用时从完整地址提取（最后一段"XX市"）
+  function simplifyWithCity(addr, lng, lat) {
+    if (!addr) return '';
+    var city = '';
+    if (typeof lng === 'number' && typeof lat === 'number') {
+      var cities = getAdminRegionList('city');
+      if (cities && cities.length) {
+        var bestC = '', bestD = Infinity;
+        cities.forEach(function (c) {
+          var dx = c.lng - lng, dy = c.lat - lat;
+          var d = dx * dx + dy * dy;
+          if (d < bestD) { bestD = d; bestC = c.name; }
+        });
+        city = bestC;
+      }
+    }
+    if (!city) {
+      // 兜底（无城市库时）：地址中最后一段"XX市"，并去掉省名残留（"东省青岛"→"青岛"）
+      var cms = String(addr).match(/([一-龥]{2,4})市/g);
+      if (cms && cms.length) {
+        city = cms[cms.length - 1].replace(/市$/, '').replace(/^(.*?省)?/, '');
+      }
+    }
+    var detail = simplifyAddress(addr);
+    if (!detail) return city || '';
+    return city ? city + '·' + detail : detail;
+  }
+
   function tdtReverseFront(lng, lat) {
     var postStr = encodeURIComponent(JSON.stringify({ lon: lng, lat: lat, ver: 1 }));
     return fetch('https://api.tianditu.gov.cn/geocoder?postStr=' + postStr + '&type=geocode&tk=ee36c38eb7777006970a6e5597f7bae9')
@@ -5441,7 +5500,7 @@
       .then(function (d) {
         var rs = d && d.result;
         if (!rs) return null;
-        var name = simplifyAddress(rs.formatted_address || rs.poi || '');
+        var name = simplifyWithCity(rs.formatted_address || rs.poi || '', lng, lat);
         return name || null;
       })
       .catch(function () { return null; });
@@ -5452,7 +5511,8 @@
     return MemoAPI.get('/map/reverse?lng=' + encodeURIComponent(lng) + '&lat=' + encodeURIComponent(lat))
       .then(function(data) {
         var name = (data && typeof data.name === 'string') ? data.name.trim() : '';
-        if (name) return name;
+        // 后端返回的可能是完整地址（"山东省青岛市市南区香港中路"）→ 统一精简为"城市·详细名"
+        if (name) return simplifyWithCity(name, lng, lat);
         // 后端返回空名（服务端 Key 调天地图被拒时降级返回 {name:''}，请求本身是 200）
         // → 必须在此 fallback 前端直调（浏览器 Key 可用），否则命名静默失败
         return tdtReverseFront(lng, lat);
@@ -6814,7 +6874,7 @@
       return {
         id: stableId,
         // 聚合点命名优先用知名地点/覆盖范围（五四广场周边/黄岛），无匹配时兜底"附近灵感"
-        title: nameClusterByFamousPlace(cluster) || ('附近灵感 (' + cluster.length + '处)'),
+        title: nameClusterByFamousPlace(cluster, map ? map.getZoom() : null) || ('附近灵感 (' + cluster.length + '处)'),
         date: cluster[0].date,
         time: cluster[0].time,
         x: snapped.x,
@@ -7077,7 +7137,7 @@
       return {
         id: stableId,
         // 聚合点命名优先用知名地点/覆盖范围（五四广场周边/黄岛），无匹配时兜底"附近探索"
-        title: nameClusterByFamousPlace(cluster) || ('附近探索 (' + cluster.length + '处)'),
+        title: nameClusterByFamousPlace(cluster, map ? map.getZoom() : null) || ('附近探索 (' + cluster.length + '处)'),
         date: cluster[0].date,
         time: cluster[0].time,
         x: snapped.x,
