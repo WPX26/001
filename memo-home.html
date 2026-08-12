@@ -5129,6 +5129,7 @@
       var lng = pos.coords.longitude;
       lastKnownLocation = { lng: lng, lat: lat, time: Date.now() };
       if (map && map.setView) map.setView([lat, lng], 16);
+      updateUserLocationMarker(lat, lng);
       if (manual) showToast('📍 已定位到当前位置');
     }, function () {
       // 定位失败：回退最近成功定位（60 秒内）或保持地图中心
@@ -5141,6 +5142,22 @@
     }, { timeout: 8000, enableHighAccuracy: true, maximumAge: 30000 });
   }
   document.getElementById('locateBtn').addEventListener('click', () => { locateToCurrent(true); });
+
+  // 蓝色"我的位置"标记（高德风格蓝点+呼吸光晕），定位成功后显示并随定位更新
+  function updateUserLocationMarker(lat, lng) {
+    if (!map || !map.addLayer) return;
+    if (window._userLocMarker) { map.removeLayer(window._userLocMarker); }
+    var icon = L.divIcon({
+      html: '<div style="position:relative;width:34px;height:34px;">' +
+              '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:rgba(33,150,243,0.25);animation:ripple 2s infinite;"></div>' +
+              '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#2196F3;border:3px solid #fff;box-shadow:0 0 12px rgba(33,150,243,0.9),0 2px 8px rgba(0,0,0,0.4);"></div>' +
+            '</div>',
+      className: '',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+    window._userLocMarker = L.marker([lat, lng], { icon: icon, zIndexOffset: 100 }).addTo(map);
+  }
 
   // 标点按钮 → 弹出菜单
   const markBtn = document.getElementById('markBtn');
@@ -8598,11 +8615,16 @@
     var el = document.createElement('div');
     el.id = 'loginGuide';
     el.style.cssText = 'position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:50;background:rgba(28,15,8,0.95);border:1px solid rgba(245,223,192,0.2);border-radius:16px;padding:20px 28px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.4);font-size:14px;color:rgba(245,223,192,0.75);';
-    el.innerHTML = '<div style="font-size:32px;margin-bottom:8px">🗺️</div><div style="font-weight:700;color:#F5DFC0;margin-bottom:6px">登录后查看坐标点</div><div style="margin-bottom:14px;font-size:12px;color:rgba(245,223,192,0.7)">地图上的坐标与照片来自您的真实数据</div><button id="loginGuideBtn" style="background:linear-gradient(135deg,#F0A040,#D4691C);border:none;border-radius:10px;color:#fff;padding:9px 32px;font-size:14px;font-weight:600;cursor:pointer;">去登录</button>';
+    el.innerHTML = '<div id="loginGuideClose" style="position:absolute;top:8px;right:10px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(245,223,192,0.12);color:rgba(245,223,192,0.8);font-size:16px;line-height:1;cursor:pointer;font-weight:600;">✕</div><div style="font-size:32px;margin-bottom:8px">🗺️</div><div style="font-weight:700;color:#F5DFC0;margin-bottom:6px">登录后查看坐标点</div><div style="margin-bottom:14px;font-size:12px;color:rgba(245,223,192,0.7)">地图上的坐标与照片来自您的真实数据</div><button id="loginGuideBtn" style="background:linear-gradient(135deg,#F0A040,#D4691C);border:none;border-radius:10px;color:#fff;padding:9px 32px;font-size:14px;font-weight:600;cursor:pointer;">去登录</button>';
     var container = document.querySelector('.phone-screen') || document.body;
     container.appendChild(el);
     document.getElementById('loginGuideBtn').addEventListener('click', function () {
       window.location.href = 'login-prototype.html';
+    });
+    var closeBtn = document.getElementById('loginGuideClose');
+    if (closeBtn) closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (el && el.parentNode) el.parentNode.removeChild(el);
     });
   } catch (e) {}
 })();
