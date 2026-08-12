@@ -125,7 +125,7 @@
   .content {
     flex: 1;
     overflow-y: auto;
-    padding: 0 16px;
+    padding: 0 16px 72px;
     -webkit-overflow-scrolling: touch;
   }
   .content::-webkit-scrollbar { width: 3px; }
@@ -325,6 +325,9 @@
 
   /* 底部导航栏 */
   .bottom-nav {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    z-index: 20;
     height: 64px;
     background: rgba(28, 15, 8, 0.95);
     backdrop-filter: blur(20px);
@@ -588,12 +591,17 @@
 
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
-  body.full-embed { padding: 0; }
+  body.full-embed {
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+  }
   body.full-embed .container { max-width: none; gap: 0; }
   body.full-embed .phone-wrapper { width: 100%; }
   body.full-embed .phone-frame {
     width: 100vw;
-    height: 100vh;
+    /* --app-h 由 JS 按实际可视高度注入（100vh 在手机浏览器含地址栏动态高度，会留上下空隙） */
+    height: var(--app-h, 100vh);
     border-radius: 0;
     padding: 0;
     box-shadow: none;
@@ -607,7 +615,8 @@
   /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
   body.full-embed.mobile-browser .bottom-nav,
   body.full-embed.mobile-browser .home-indicator { display: flex; }
-  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56px); }
+  /* 底部导航在 phone-screen 内 absolute 贴底，页面高度直接 = 实际可视高度 */
+  body.full-embed.mobile-browser .phone-frame { height: var(--app-h, 100vh); }
 </style>
 <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
 
@@ -627,6 +636,15 @@
       var url = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
       window.history.replaceState({}, '', url);
     }
+        // 动态可视高度：手机浏览器地址栏展开/收起会改变可视区，100vh 含地址栏高度导致上下留空隙
+    // 用 window.innerHeight 注入 --app-h（dvh 语义），resize/orientationchange 时刷新
+    function setVH() {
+      var v = window.innerHeight || document.documentElement.clientHeight;
+      document.documentElement.style.setProperty('--app-h', v + 'px');
+    }
+    setVH();
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', function () { setTimeout(setVH, 250); });
     function enterFull(extra) {
       var add = function () {
         document.body.classList.add('full-embed');
@@ -647,6 +665,16 @@
 })();
 </script>
 
+<script>
+// 导航 active 兜底：页面加载时强制单一 active（防止任何路径导致多个键亮起）
+(function () {
+  var tabs = { 'memo-home.html': 'home', 'connect-prototype.html': 'market', 'message-prototype.html': 'message', 'profile-prototype.html': 'profile' };
+  var cur = tabs[(location.pathname.split('/').pop() || '')];
+  document.querySelectorAll('.nav-item').forEach(function (i) {
+    i.classList.toggle('active', !!cur && i.dataset.tab === cur);
+  });
+})();
+</script>
 </head>
 <body>
 
