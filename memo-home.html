@@ -1356,24 +1356,30 @@
   }
   .marker-popup.fullscreen {
     max-height: 100%;
+    height: 100%; /* 全屏占满屏幕（内容区 flex:1 填充，避免收起后内容变矮导致弹窗不满屏） */
     border-radius: 0;
     bottom: 0;
     transform: translateY(0);
   }
+  /* 全屏时头部区域确保可点击（关闭键/导航键不失效） */
+  .marker-popup.fullscreen .popup-header { pointer-events: auto; }
   .marker-popup.dragging {
     transition: none;
   }
 
   .popup-handle {
-    width: 36px;
-    height: 4px;
-    background: rgba(212, 165, 116, 0.3);
-    border-radius: 2px;
-    margin: 8px auto 0;
+    width: 48px;
+    height: 6px;
+    background: rgba(212, 165, 116, 0.45);
+    border-radius: 3px;
+    margin: 10px auto 2px;
     flex-shrink: 0;
     cursor: grab;
     touch-action: none;
+    position: relative;
   }
+  /* 拖拽热区放大：视觉 48×6，可点区域 68×26（更容易被点中） */
+  .popup-handle::after { content: ''; position: absolute; inset: -10px; }
   .popup-handle:active { cursor: grabbing; }
 
   .popup-header {
@@ -2024,17 +2030,25 @@
   }
   .explore-popup.fullscreen {
     max-height: 100%;
+    height: 100%; /* 全屏占满屏幕（内容区 flex:1 填充，避免收起后内容变矮导致弹窗不满屏） */
     border-radius: 0;
     bottom: 0;
     transform: translateY(0);
   }
+  /* 全屏时头部区域确保可点击（关闭键/导航键不失效） */
+  .explore-popup.fullscreen .explore-popup-header { pointer-events: auto; }
   .explore-popup.show { transform: translateY(0); pointer-events: auto; }
   .explore-popup-handle {
-    width: 36px; height: 4px;
-    background: rgba(94, 53, 177, 0.4);
-    border-radius: 2px;
-    margin: 8px auto 0;
+    width: 48px; height: 6px;
+    background: rgba(94, 53, 177, 0.55);
+    border-radius: 3px;
+    margin: 10px auto 2px;
+    position: relative;
+    cursor: grab;
+    touch-action: none;
   }
+  /* 拖拽热区放大：视觉 48×6，可点区域 68×26（更容易被点中） */
+  .explore-popup-handle::after { content: ''; position: absolute; inset: -10px; }
   .explore-popup-header {
     padding: 10px 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -2260,18 +2274,26 @@
   }
   .inspire-popup.fullscreen {
     max-height: 100%;
+    height: 100%; /* 全屏占满屏幕（内容区 flex:1 填充，避免收起后内容变矮导致弹窗不满屏） */
     border-radius: 0;
     bottom: 0;
     transform: translateY(0);
   }
+  /* 全屏时头部区域确保可点击（关闭键/导航键不失效） */
+  .inspire-popup.fullscreen .inspire-popup-header { pointer-events: auto; }
   .inspire-popup.show { transform: translateY(0); pointer-events: auto; }
   .inspire-popup-handle {
-    width: 36px; height: 4px;
-    background: rgba(220, 50, 50, 0.4);
-    border-radius: 2px;
-    margin: 8px auto 0;
+    width: 48px; height: 6px;
+    background: rgba(220, 50, 50, 0.55);
+    border-radius: 3px;
+    margin: 10px auto 2px;
     flex-shrink: 0;
+    position: relative;
+    cursor: grab;
+    touch-action: none;
   }
+  /* 拖拽热区放大：视觉 48×6，可点区域 68×26（更容易被点中） */
+  .inspire-popup-handle::after { content: ''; position: absolute; inset: -10px; }
   .inspire-popup-header {
     padding: 10px 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -4980,6 +5002,8 @@
 
       if (deltaY > thresholdUp) {
         // 上滑 → 全屏（无论有无照片都可上滑到顶端）
+        // 清除拖拽残留的 inline maxHeight，让 CSS .fullscreen 100% 真正生效（弹窗到顶，关闭键位置正确）
+        popupEl.style.maxHeight = '';
         popupEl.classList.add('fullscreen');
         popupEl.classList.remove('show');
         requestAnimationFrame(() => { popupEl.classList.add('show'); });
@@ -5089,7 +5113,9 @@
   // 初始渲染标记点
   renderMarkers(currentDetailLevel);
 
+  // 关闭键：click 之外加 pointerdown 立即响应（手机触摸微动时浏览器不合成 click，导致"失灵"）
   popupClose.addEventListener('click', hidePopup);
+  popupClose.addEventListener('pointerdown', hidePopup);
   backdrop.addEventListener('click', hidePopup);
 
   // ========== 导航核心函数 ==========
@@ -7211,7 +7237,9 @@
     exploreBackdrop.classList.remove('show');
   }
 
+  // 关闭键：click 之外加 pointerdown 立即响应（手机触摸微动时浏览器不合成 click，导致"失灵"）
   explorePopupClose.addEventListener('click', hideExplorePopup);
+  explorePopupClose.addEventListener('pointerdown', hideExplorePopup);
   exploreBackdrop.addEventListener('click', hideExplorePopup);
 
   // 探索弹窗导航按钮
@@ -7391,7 +7419,9 @@
     inspireBackdrop.classList.remove('show');
   }
 
+  // 关闭键：click 之外加 pointerdown 立即响应（手机触摸微动时浏览器不合成 click，导致"失灵"）
   inspirePopupClose.addEventListener('click', hideInspirePopup);
+  inspirePopupClose.addEventListener('pointerdown', hideInspirePopup);
   inspireBackdrop.addEventListener('click', hideInspirePopup);
 
   // 切换点赞
