@@ -1105,7 +1105,7 @@
     line-height: 1.4;
   }
 
-  /* 统计栏 */
+  /* 统计栏（三 tab 交互键） */
   .myhome-stats {
     display: flex;
     justify-content: space-around;
@@ -1118,33 +1118,121 @@
     font-size: 20px;
     font-weight: 800;
     color: #F5DFC0;
+    transition: text-shadow 0.2s ease, color 0.2s ease;
   }
   .myhome-stat-label {
     font-size: 11px;
     color: rgba(245, 223, 192, 0.85);
     margin-top: 2px;
+    transition: text-shadow 0.2s ease, color 0.2s ease;
   }
 
-  /* 坐标卡片列表 (改为与他人主页一致的大图网格) */
-  .myhome-section-title {
-    font-size: 12px;
-    font-weight: 700;
+  /* 统计栏三视图容器（随 myhome-scroll 统一滚动；底部留白避开凸起相机按钮） */
+  .myhome-tabview {
+    padding: 10px 16px 96px;
+    background: #0a0a0a;
+  }
+
+  /* 照片/获赞视图：三栏网格 */
+  .myhome-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  /* 坐标点卡片：标题栏（序号+名称+最新拍摄时间+定位键+箭头）+ 三栏照片网格 */
+  .myhome-coord-card {
+    background: rgba(28, 15, 8, 0.5);
+    border: 1px solid rgba(212, 165, 116, 0.12);
+    border-radius: 14px;
+    padding: 10px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s ease;
+  }
+  .myhome-coord-card:hover { border-color: rgba(212, 165, 116, 0.3); }
+  .myhome-coord-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 2px 10px;
+  }
+  .myhome-coord-idx {
+    min-width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(240, 160, 64, 0.15);
+    border: 1px solid rgba(212, 165, 116, 0.35);
+    color: #E89020;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .myhome-coord-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: #F5DFC0;
+    flex-shrink: 0;
+    max-width: 38%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .myhome-coord-time {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
     color: rgba(245, 223, 192, 0.5);
-    padding: 14px 20px 8px;
-    letter-spacing: 0.5px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
-  #myHomeCoords {
-    padding: 0 16px 20px;
+  /* 定位键（透明，点击定位到该坐标点所在位置） */
+  .myhome-coord-locate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    color: #E89020;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  }
+  .myhome-coord-locate svg { width: 16px; height: 16px; }
+  .myhome-coord-locate:hover { background: rgba(240, 160, 64, 0.08); }
+  .myhome-coord-locate:active {
+    background: rgba(240, 160, 64, 0.15);
+    filter: drop-shadow(0 0 8px rgba(232, 144, 32, 0.8));
+    transform: scale(0.94);
+  }
+  .myhome-coord-arrow {
+    color: rgba(245, 223, 192, 0.4);
+    display: flex;
+    flex-shrink: 0;
+  }
+  .myhome-coord-arrow svg { width: 15px; height: 15px; }
+  .myhome-coord-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
   }
+  .myhome-coord-thumb {
+    aspect-ratio: 1/1;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    background-position: center;
+    background-size: cover;
+    transition: transform 0.2s ease;
+  }
+  .myhome-coord-thumb:hover { transform: translateY(-2px); }
 
-  .myhome-coord-photos {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
   .myhome-photo-card {
     position: relative;
     border-radius: 12px;
@@ -1173,7 +1261,7 @@
     font-weight: 600;
   }
 
-  /* 统计栏"坐标点"交互键：点击跳转地图并放缩包含全部坐标（负 margin 保持三项居中布局不变） */
+  /* 统计栏交互键（三 tab）：点击文字+数字泛起光晕（弹窗风格），激活项持续光晕 */
   .myhome-stat.clickable {
     cursor: pointer;
     border-radius: 12px;
@@ -1186,8 +1274,16 @@
     background: rgba(240, 160, 64, 0.15);
     transform: scale(0.96);
   }
-  .myhome-stat.clickable:active .myhome-stat-num {
-    text-shadow: 0 0 12px rgba(240, 160, 64, 0.9);
+  .myhome-stat.clickable.active {
+    background: rgba(240, 160, 64, 0.15);
+  }
+  .myhome-stat.clickable.active .myhome-stat-num {
+    color: #F0A848;
+    text-shadow: 0 0 14px rgba(240, 160, 64, 0.95), 0 0 32px rgba(240, 160, 64, 0.5);
+  }
+  .myhome-stat.clickable.active .myhome-stat-label {
+    color: #F5DFC0;
+    text-shadow: 0 0 10px rgba(240, 160, 64, 0.8);
   }
 
   /* 照片展开查看器（我的主页点击照片展开：大图 + 坐标信息 + 透明定位键） */
@@ -1617,26 +1713,41 @@
             </div>
 </div>
 
-            <!-- 统计栏 -->
+            <!-- 统计栏（三 tab 交互键：点击该项文字+数字泛起光晕，下方切换视图） -->
             <div class="myhome-stats">
-              <div class="myhome-stat clickable" id="myHomeCoordStat" title="在地图上查看我的全部坐标">
+              <div class="myhome-stat clickable active" data-tab="coord">
                 <div class="myhome-stat-num" id="myHomeCoordCount">8</div>
                 <div class="myhome-stat-label">坐标点</div>
               </div>
-              <div class="myhome-stat">
+              <div class="myhome-stat clickable" data-tab="photo">
                 <div class="myhome-stat-num" id="myHomePhotoCount">86</div>
                 <div class="myhome-stat-label">照片</div>
               </div>
-              <div class="myhome-stat">
+              <div class="myhome-stat clickable" data-tab="like">
                 <div class="myhome-stat-num" id="myHomeLikeCount">342</div>
                 <div class="myhome-stat-label">获赞</div>
               </div>
             </div>
 
-            <!-- 坐标卡片列表 -->
-            <div class="myhome-section-title">我上传的坐标</div>
-            <div id="myHomeCoords">
-              <!-- 由JS动态生成 -->
+            <!-- 视图一：坐标点列表（卡片 = 序号+名称+最新拍摄时间+定位键，下方三栏照片网格） -->
+            <div class="myhome-tabview" id="myHomeTabCoord">
+              <div id="myHomeCoordsList">
+                <!-- 由JS动态生成 -->
+              </div>
+            </div>
+
+            <!-- 视图二：照片（按时间顺序，越早越靠前） -->
+            <div class="myhome-tabview" id="myHomeTabPhoto" style="display:none;">
+              <div class="myhome-photo-grid" id="myHomePhotoGrid">
+                <!-- 由JS动态生成 -->
+              </div>
+            </div>
+
+            <!-- 视图三：获赞（按获赞数从多到少） -->
+            <div class="myhome-tabview" id="myHomeTabLike" style="display:none;">
+              <div class="myhome-photo-grid" id="myHomeLikeGrid">
+                <!-- 由JS动态生成 -->
+              </div>
             </div>
           </div>
         </div>
@@ -2167,7 +2278,7 @@
    */
   function renderMyHomeCoords() {
     // 使用统一的照片网格渲染（与探索模式他人主页布局一致）
-    renderMyPhotos();
+    renderMyHomeCoordsList();
 
     // 联动摄影师徽章（与我的界面保持一致）
     const badge = document.getElementById('myHomePhotographerBadge');
@@ -2439,7 +2550,7 @@
     MemoAPI.get('/photos/mine?sortBy=coord&pageSize=100').then(function (data) {
       if (!data || !data.list || !data.list.length) return;
       serverCoordPhotos = data.list;
-      renderMyPhotos();
+      renderMyHomeCoordsList();
     }).catch(function (e) {
       console.warn('[my photos] 拉取失败，使用本地模拟：', e && e.message);
     });
@@ -2576,89 +2687,156 @@
     }
   });
 
-  // ========== 渲染我的主页大图网格 ==========
-  const myHomeCoordsContainer = document.getElementById('myHomeCoords');
+  // ========== 我的主页三视图（坐标点 / 照片 / 获赞） ==========
+  // 统一数据源：真实模式 serverCoordPhotos（后端按坐标分组）；演示模式 myHomeCoords + 生成照片
+  // 每坐标组：{ title, lng, lat, latestTs, latestLabel, photos: [{ url, likes, ts, timeLabel, color1, color2 }] }
 
-  // 生成假数据模拟“我的照片”列表
-  function renderMyPhotos() {
-    const container = myHomeCoordsContainer;
+  // '2026年8月4日' → 当天 0 点时间戳（演示数据排序用）
+  function parseZhDate(s) {
+    const m = String(s).match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+    if (!m) return 0;
+    return new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+  }
 
-    // 真实模式：按坐标分组的我的照片（每坐标取前 3 张，共最多 12 张；缩略图作封面，无图保留渐变）
+  // 时间戳 → '8月4日 10:32'（跨年补年份）
+  function formatLatestTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    let label = (d.getMonth() + 1) + '月' + d.getDate() + '日 '
+      + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    if (d.getFullYear() !== new Date().getFullYear()) label = d.getFullYear() + '年' + label;
+    return label;
+  }
+
+  // 演示照片配色：坐标色 → 深浅两色渐变
+  function shadeColor(hex, percent) {
+    const n = parseInt(String(hex).replace('#', ''), 16);
+    if (isNaN(n)) return hex;
+    const ch = function (v) { return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0'); };
+    return '#' + ch(((n >> 16) & 255) * (1 + percent)) + ch(((n >> 8) & 255) * (1 + percent)) + ch((n & 255) * (1 + percent));
+  }
+
+  function getMyHomeData() {
     if (serverCoordPhotos && serverCoordPhotos.length) {
-      let html = '';
-      let shown = 0;
-      serverCoordPhotos.forEach(cg => {
-        const photos = cg.photos || [];
-        for (let i = 0; i < photos.length && shown < 12; i++, shown++) {
-          const p = photos[i];
-          const bg = p.thumbnailUrl
-            ? `background-image:url('${escapeHtml(p.thumbnailUrl)}');background-size:cover;background-position:center;`
-            : 'background:linear-gradient(135deg,#F0A040,#D4691C);';
-          html += `
-            <div class="myhome-photo-card" data-id="${escapeHtml(p.id)}"
-                 data-lng="${cg.lng != null ? cg.lng : ''}" data-lat="${cg.lat != null ? cg.lat : ''}"
-                 data-title="${escapeHtml(cg.coordTitle || '坐标点')}"
-                 data-time="${escapeHtml(formatViewerDate(cg.date))}"
-                 data-url="${escapeHtml(p.thumbnailUrl || '')}">
-              <div class="bg" style="${bg}"></div>
-              <div class="myhome-photo-overlay">
-                <div class="myhome-photo-stat">❤️ ${p.likes || 0}</div>
-                <div class="myhome-photo-stat">🎁 ${p.tips || 0}</div>
-              </div>
-            </div>
-          `;
-        }
+      return serverCoordPhotos.map(cg => {
+        const photos = (cg.photos || []).map(p => ({
+          url: p.thumbnailUrl || '',
+          likes: p.likes || 0,
+          ts: Date.parse(p.takenAt) || 0,
+          timeLabel: formatViewerDate(p.takenAt)
+        }));
+        return {
+          title: cg.coordTitle || '坐标点',
+          lng: cg.lng, lat: cg.lat,
+          photos: photos,
+          latestTs: photos.reduce((mx, p) => Math.max(mx, p.ts || 0), 0) || Date.parse(cg.date) || 0
+        };
       });
-      container.innerHTML = html;
-      container.querySelectorAll('.myhome-photo-card').forEach(card => {
-        card.addEventListener('click', () => {
-          showMyHomeViewer({
-            imageUrl: card.dataset.url,
-            title: card.dataset.title,
-            time: card.dataset.time,
-            lng: parseFloat(card.dataset.lng),
-            lat: parseFloat(card.dataset.lat)
-          });
-        });
-      });
+    }
+    // 演示模式：每坐标 3 张照片（当天 09:00 / 13:00 / 17:00，越早越靠前）
+    return myHomeCoords.map(c => {
+      const baseTs = parseZhDate(c.date);
+      const photos = [0, 1, 2].map(i => ({
+        url: '',
+        likes: Math.floor(Math.random() * 500) + 10,
+        ts: baseTs + (9 + 4 * i) * 3600 * 1000,
+        timeLabel: c.date + (i === 0 ? ' 09:00' : i === 1 ? ' 13:00' : ' 17:00'),
+        color1: c.color,
+        color2: shadeColor(c.color, 0.35)
+      }));
+      return { title: c.title, lng: c.lng, lat: c.lat, photos: photos, latestTs: baseTs + 17 * 3600 * 1000 };
+    });
+  }
+
+  // 视图一：坐标点列表（卡片 = 序号+名称+最新拍摄时间+定位键，下方三栏照片网格）
+  // 排序：按最后拍摄时间，越新越靠上
+  function renderMyHomeCoordsList() {
+    const container = document.getElementById('myHomeCoordsList');
+    const list = getMyHomeData();
+    list.sort((a, b) => (b.latestTs || 0) - (a.latestTs || 0));
+    if (!list.length) {
+      container.innerHTML = '<div style="text-align:center;color:rgba(245,223,192,0.5);padding:40px 0;font-size:13px;">暂无坐标点</div>';
       return;
     }
-
-    // 假设这些是“我”上传的 12 张照片
-    const myPhotos = Array.from({ length: 12 }).map((_, i) => {
-      // 随机生成一些渐变色来模拟照片封面
-      const hue1 = Math.floor(Math.random() * 360);
-      const hue2 = (hue1 + 40) % 360;
-      return {
-        id: `my_photo_${i}`,
-        likes: Math.floor(Math.random() * 500) + 10,
-        tips: Math.floor(Math.random() * 50),
-        color1: `hsl(${hue1}, 70%, 60%)`,
-        color2: `hsl(${hue2}, 70%, 40%)`
-      };
-    });
-
-    let html = '';
-    myPhotos.forEach((p, i) => {
-      // 演示模式：照片卡片按序关联示例坐标（用于展开视图的坐标名与定位键）
-      const c = myHomeCoords[i % myHomeCoords.length];
-      html += `
-        <div class="myhome-photo-card" data-id="${p.id}"
-             data-lng="${c.lng}" data-lat="${c.lat}"
-             data-title="${escapeHtml(c.title)}" data-time="${escapeHtml(c.date)}"
-             data-color1="${p.color1}" data-color2="${p.color2}">
-          <div class="bg" style="background: linear-gradient(135deg, ${p.color1}, ${p.color2});"></div>
-          <div class="myhome-photo-overlay">
-            <div class="myhome-photo-stat">❤️ ${p.likes}</div>
-            <div class="myhome-photo-stat">🎁 ${p.tips}</div>
+    container.innerHTML = list.map((cg, i) => {
+      const thumbs = cg.photos.slice(0, 6).map(p => {
+        const bg = p.url
+          ? `background-image:url('${escapeHtml(p.url)}');background-size:cover;background-position:center;`
+          : 'background:linear-gradient(135deg,' + (p.color1 || '#F0A040') + ',' + (p.color2 || '#D4691C') + ');';
+        return `<div class="myhome-coord-thumb" style="${bg}"
+          data-lng="${cg.lng != null ? cg.lng : ''}" data-lat="${cg.lat != null ? cg.lat : ''}"
+          data-title="${escapeHtml(cg.title)}" data-time="${escapeHtml(p.timeLabel || '')}"
+          data-url="${escapeHtml(p.url)}" data-color1="${p.color1 || ''}" data-color2="${p.color2 || ''}"></div>`;
+      }).join('');
+      return `
+        <div class="myhome-coord-card">
+          <div class="myhome-coord-card-header">
+            <div class="myhome-coord-idx">${i + 1}</div>
+            <div class="myhome-coord-name">${escapeHtml(cg.title)}</div>
+            <div class="myhome-coord-time">最新 ${formatLatestTime(cg.latestTs)}</div>
+            <button class="myhome-coord-locate" title="定位到此坐标">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+            </button>
+            <div class="myhome-coord-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
           </div>
-        </div>
-      `;
-    });
-    myHomeCoordsContainer.innerHTML = html;
+          <div class="myhome-coord-grid">${thumbs || '<div class="myhome-coord-empty" style="color:rgba(245,223,192,0.5);font-size:11px;padding:10px 0;text-align:center;">暂无照片</div>'}</div>
+        </div>`;
+    }).join('');
 
-    // 点击照片 → 展开详情（大图 + 坐标名 + 透明定位键）
-    myHomeCoordsContainer.querySelectorAll('.myhome-photo-card').forEach(card => {
+    // 定位键：跳转地图定位到该坐标点（三级细化）
+    container.querySelectorAll('.myhome-coord-card').forEach((card, i) => {
+      const cg = list[i];
+      card.querySelector('.myhome-coord-locate').addEventListener('click', () => {
+        if (isFinite(cg.lng) && isFinite(cg.lat)) {
+          window.location.href = 'memo-home.html?locate=' + cg.lng + ',' + cg.lat + '&level=3';
+        }
+      });
+    });
+    // 缩略图：点击展开照片详情（大图 + 定位键）
+    container.querySelectorAll('.myhome-coord-thumb').forEach(thumb => {
+      thumb.addEventListener('click', () => {
+        showMyHomeViewer({
+          imageUrl: thumb.dataset.url,
+          color1: thumb.dataset.color1,
+          color2: thumb.dataset.color2,
+          title: thumb.dataset.title,
+          time: thumb.dataset.time,
+          lng: parseFloat(thumb.dataset.lng),
+          lat: parseFloat(thumb.dataset.lat)
+        });
+      });
+    });
+  }
+
+  // 通用：三栏照片网格（照片/获赞视图共用），点击展开照片详情
+  function renderPhotoGrid(containerId, all) {
+    const container = document.getElementById(containerId);
+    if (!all.length) {
+      container.innerHTML = '<div style="text-align:center;color:rgba(245,223,192,0.5);padding:40px 0;font-size:13px;">暂无照片</div>';
+      return;
+    }
+    container.innerHTML = all.map(p => {
+      const bg = p.url
+        ? `background-image:url('${escapeHtml(p.url)}');background-size:cover;background-position:center;`
+        : 'background:linear-gradient(135deg,' + (p.color1 || '#F0A040') + ',' + (p.color2 || '#D4691C') + ');';
+      return `
+        <div class="myhome-photo-card" data-lng="${p.lng != null ? p.lng : ''}" data-lat="${p.lat != null ? p.lat : ''}"
+             data-title="${escapeHtml(p.coordTitle || '坐标点')}" data-time="${escapeHtml(p.timeLabel || '')}"
+             data-url="${escapeHtml(p.url)}" data-color1="${p.color1 || ''}" data-color2="${p.color2 || ''}">
+          <div class="bg" style="${bg}"></div>
+          <div class="myhome-photo-overlay">
+            <div class="myhome-photo-stat">❤️ ${p.likes || 0}</div>
+          </div>
+        </div>`;
+    }).join('');
+    container.querySelectorAll('.myhome-photo-card').forEach(card => {
       card.addEventListener('click', () => {
         showMyHomeViewer({
           imageUrl: card.dataset.url,
@@ -2671,6 +2849,26 @@
         });
       });
     });
+  }
+
+  // 视图二：照片（按时间顺序排列，越早越靠前）
+  function renderMyHomePhotosTime() {
+    const all = [];
+    getMyHomeData().forEach(cg => {
+      cg.photos.forEach(p => all.push({ ...p, coordTitle: cg.title, lng: cg.lng, lat: cg.lat }));
+    });
+    all.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    renderPhotoGrid('myHomePhotoGrid', all);
+  }
+
+  // 视图三：获赞（按获赞数从多到少）
+  function renderMyHomePhotosLikes() {
+    const all = [];
+    getMyHomeData().forEach(cg => {
+      cg.photos.forEach(p => all.push({ ...p, coordTitle: cg.title, lng: cg.lng, lat: cg.lat }));
+    });
+    all.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    renderPhotoGrid('myHomeLikeGrid', all);
   }
 
   // ========== 照片展开查看器（点击照片 → 展开，下方透明定位键跳转该坐标点） ==========
@@ -2709,47 +2907,22 @@
     window.location.href = 'memo-home.html?locate=' + myHomeViewerLocateData.lng + ',' + myHomeViewerLocateData.lat + '&level=3';
   });
 
-  // 统计栏"坐标点"交互键：跳转地图并放缩包含我的全部坐标
-  const myHomeCoordStat = document.getElementById('myHomeCoordStat');
-  if (myHomeCoordStat) myHomeCoordStat.addEventListener('click', jumpToMyCoordsMap);
-
-  // 我的主页点击坐标点 → 跳转地图，放缩地图将我的坐标全部包含在内
-  // 边界随 URL 传入 memo-home.html（fit=mine + 四边界参数），地图就绪后自动放缩
-  function jumpToMyCoordsMap() {
-    var pts = [];
-    if (serverCoordPhotos && serverCoordPhotos.length) {
-      pts = serverCoordPhotos.filter(function (g) {
-        return typeof g.lng === 'number' && typeof g.lat === 'number';
+  // 统计栏三 tab 切换：点击项文字+数字泛起光晕（持续光晕=激活项），下方切换三视图
+  const myHomeTabViews = { coord: 'myHomeTabCoord', photo: 'myHomeTabPhoto', like: 'myHomeTabLike' };
+  document.querySelectorAll('.myhome-stat.clickable[data-tab]').forEach(stat => {
+    stat.addEventListener('click', () => {
+      const tab = stat.dataset.tab;
+      document.querySelectorAll('.myhome-stat.clickable[data-tab]').forEach(s => {
+        s.classList.toggle('active', s === stat);
       });
-    }
-    if (!pts.length) {
-      pts = myHomeCoords.filter(function (c) {
-        return typeof c.lng === 'number' && typeof c.lat === 'number';
+      Object.keys(myHomeTabViews).forEach(k => {
+        document.getElementById(myHomeTabViews[k]).style.display = k === tab ? '' : 'none';
       });
-    }
-    if (!pts.length) { showToast('⚠️ 暂无坐标点可在地图上展示'); return; }
-
-    var minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-    pts.forEach(function (p) {
-      if (p.lng < minLng) minLng = p.lng;
-      if (p.lng > maxLng) maxLng = p.lng;
-      if (p.lat < minLat) minLat = p.lat;
-      if (p.lat > maxLat) maxLat = p.lat;
+      if (tab === 'coord') renderMyHomeCoordsList();
+      else if (tab === 'photo') renderMyHomePhotosTime();
+      else if (tab === 'like') renderMyHomePhotosLikes();
     });
-    // 单点/极小跨度 → 向外扩展，避免 fitBounds 缩到最大级
-    if ((maxLng - minLng) < 0.005 || (maxLat - minLat) < 0.005) {
-      var exLng = Math.max(0.005, maxLng - minLng) / 2;
-      var exLat = Math.max(0.005, maxLat - minLat) / 2;
-      minLng -= exLng; maxLng += exLng; minLat -= exLat; maxLat += exLat;
-    }
-
-    var qs = 'fit=mine'
-      + '&minLng=' + minLng.toFixed(6)
-      + '&maxLng=' + maxLng.toFixed(6)
-      + '&minLat=' + minLat.toFixed(6)
-      + '&maxLat=' + maxLat.toFixed(6);
-    window.location.href = 'memo-home.html?' + qs;
-  }
+  });
 
   // ========== 邀请码系统 ==========
   // 普通邀请码：每个用户唯一，一次性，双方各得 1 个月
@@ -3045,7 +3218,7 @@
 
   // 初始化：进入页面时根据持久化状态刷新 UI
   refreshMemberUI();
-  renderMyPhotos();
+  renderMyHomeCoordsList();
 
   // 从订阅支付页（photographer-payment.html）支付成功返回：提示已升级
   // 支付页已写入 localStorage 兜底，另拉取后端真实状态覆盖（后端确认后会员/摄影师已激活）
