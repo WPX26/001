@@ -1595,7 +1595,8 @@
     transition: max-height 0.35s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .time-group.expanded .time-group-photos {
-    max-height: 600px;
+    max-height: none;
+    padding-bottom: 20px;
   }
 
   .tg-photo {
@@ -2016,6 +2017,12 @@
     flex-direction: column;
     pointer-events: none;
   }
+  .explore-popup.fullscreen {
+    max-height: 100%;
+    border-radius: 0;
+    bottom: 0;
+    transform: translateY(0);
+  }
   .explore-popup.show { transform: translateY(0); pointer-events: auto; }
   .explore-popup-handle {
     width: 36px; height: 4px;
@@ -2241,6 +2248,12 @@
     flex-direction: column;
     pointer-events: none;
   }
+  .inspire-popup.fullscreen {
+    max-height: 100%;
+    border-radius: 0;
+    bottom: 0;
+    transform: translateY(0);
+  }
   .inspire-popup.show { transform: translateY(0); pointer-events: auto; }
   .inspire-popup-handle {
     width: 36px; height: 4px;
@@ -2321,7 +2334,7 @@
     overflow: hidden;
     transition: max-height 0.3s ease;
   }
-  .inspire-popup .time-group.expanded .time-group-photos { max-height: 500px; }
+  .inspire-popup .time-group.expanded .time-group-photos { max-height: none; padding-bottom: 20px; }
   .inspire-popup .tg-photo {
     aspect-ratio: 1;
     border-radius: 6px;
@@ -4896,93 +4909,91 @@
     if (popupTitleEditBtn) popupTitleEditBtn.style.display = '';
   }
 
-  // 弹窗拖拽（上滑全屏、下滑关闭）
-  const popupHandle = document.querySelector('.popup-handle');
-  let isDragging = false;
-  let dragStartY = 0;
-  let dragCurrentY = 0;
-  let popupStartHeight = 0;
-  let phoneScreen = document.querySelector('.phone-screen');
+  // 弹窗拖拽（上滑全屏、下滑关闭）——通用：坐标/灵感/探索三个弹窗共用
+  function attachPopupDrag(popupEl, handleEl, onClose) {
+    let isDragging = false;
+    let dragStartY = 0;
+    let dragCurrentY = 0;
+    let popupStartHeight = 0;
+    const phoneScreenEl = document.querySelector('.phone-screen');
 
-  function onDragStart(e) {
-    isDragging = true;
-    const point = e.touches ? e.touches[0] : e;
-    dragStartY = point.clientY;
-    popupStartHeight = popup.offsetHeight;
-    popup.classList.add('dragging');
-    e.preventDefault();
-  }
-
-  function onDragMove(e) {
-    if (!isDragging) return;
-    const point = e.touches ? e.touches[0] : e;
-    dragCurrentY = point.clientY;
-    const deltaY = dragStartY - dragCurrentY; // 正值=上滑，负值=下滑
-
-    const screenHeight = phoneScreen.offsetHeight;
-    const minHeight = popupStartHeight;
-    const maxHeight = screenHeight;
-
-    // 上滑：最大全屏；下滑：最小50%
-    let newHeight;
-    if (deltaY >= 0) {
-      newHeight = Math.min(maxHeight, popupStartHeight + deltaY);
-    } else {
-      newHeight = Math.max(minHeight * 0.3, popupStartHeight + deltaY);
+    function onDragStart(e) {
+      isDragging = true;
+      const point = e.touches ? e.touches[0] : e;
+      dragStartY = point.clientY;
+      popupStartHeight = popupEl.offsetHeight;
+      popupEl.classList.add('dragging');
+      e.preventDefault();
     }
 
-    popup.style.maxHeight = newHeight + 'px';
-    e.preventDefault();
-  }
+    function onDragMove(e) {
+      if (!isDragging) return;
+      const point = e.touches ? e.touches[0] : e;
+      dragCurrentY = point.clientY;
+      const deltaY = dragStartY - dragCurrentY; // 正值=上滑，负值=下滑
 
-  function onDragEnd() {
-    if (!isDragging) return;
-    isDragging = false;
-    popup.classList.remove('dragging');
+      const screenHeight = phoneScreenEl.offsetHeight;
+      const minHeight = popupStartHeight;
+      const maxHeight = screenHeight;
 
-    const deltaY = dragStartY - dragCurrentY;
-    const thresholdUp = phoneScreen.offsetHeight * 0.15;  // 上滑15%触发全屏
-    const thresholdDown = -phoneScreen.offsetHeight * 0.2;  // 下滑20%关闭
-
-    popup.style.maxHeight = '';
-
-    if (deltaY > thresholdUp) {
-      // 上滑 → 全屏
-      popup.classList.add('fullscreen');
-      popup.classList.remove('show');
-      // 重新触发过渡
-      requestAnimationFrame(() => {
-        popup.classList.add('show');
-      });
-    } else if (deltaY < thresholdDown) {
-      // 下滑 → 关闭
-      hidePopup();
-    } else {
-      // 回弹到原状态
-      if (popup.classList.contains('fullscreen')) {
-        popup.style.maxHeight = '100%';
+      // 上滑：最大全屏；下滑：最小30%
+      let newHeight;
+      if (deltaY >= 0) {
+        newHeight = Math.min(maxHeight, popupStartHeight + deltaY);
       } else {
-        popup.style.maxHeight = '50%';
+        newHeight = Math.max(minHeight * 0.3, popupStartHeight + deltaY);
       }
-      setTimeout(() => { popup.style.maxHeight = ''; }, 350);
+
+      popupEl.style.maxHeight = newHeight + 'px';
+      e.preventDefault();
     }
+
+    function onDragEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      popupEl.classList.remove('dragging');
+
+      const deltaY = dragStartY - dragCurrentY;
+      const thresholdUp = phoneScreenEl.offsetHeight * 0.15;  // 上滑15%触发全屏
+      const thresholdDown = -phoneScreenEl.offsetHeight * 0.2;  // 下滑20%关闭
+
+      popupEl.style.maxHeight = '';
+
+      if (deltaY > thresholdUp) {
+        // 上滑 → 全屏（无论有无照片都可上滑到顶端）
+        popupEl.classList.add('fullscreen');
+        popupEl.classList.remove('show');
+        requestAnimationFrame(() => { popupEl.classList.add('show'); });
+      } else if (deltaY < thresholdDown) {
+        // 下滑 → 关闭
+        if (onClose) onClose();
+      } else {
+        // 回弹到原状态
+        if (popupEl.classList.contains('fullscreen')) {
+          popupEl.style.maxHeight = '100%';
+        } else {
+          popupEl.style.maxHeight = '55%';
+        }
+        setTimeout(() => { popupEl.style.maxHeight = ''; }, 350);
+      }
+    }
+
+    handleEl.addEventListener('mousedown', onDragStart);
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+    handleEl.addEventListener('touchstart', onDragStart, { passive: false });
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('touchend', onDragEnd);
+
+    // 双击handle切换全屏
+    handleEl.addEventListener('dblclick', () => {
+      if (popupEl.classList.contains('fullscreen')) {
+        popupEl.classList.remove('fullscreen');
+      } else {
+        popupEl.classList.add('fullscreen');
+      }
+    });
   }
-
-  popupHandle.addEventListener('mousedown', onDragStart);
-  document.addEventListener('mousemove', onDragMove);
-  document.addEventListener('mouseup', onDragEnd);
-  popupHandle.addEventListener('touchstart', onDragStart, { passive: false });
-  document.addEventListener('touchmove', onDragMove, { passive: false });
-  document.addEventListener('touchend', onDragEnd);
-
-  // 双击handle切换全屏
-  popupHandle.addEventListener('dblclick', () => {
-    if (popup.classList.contains('fullscreen')) {
-      popup.classList.remove('fullscreen');
-    } else {
-      popup.classList.add('fullscreen');
-    }
-  });
 
   // 颜色变暗辅助函数
   function adjustColor(hex, amount) {
@@ -8665,5 +8676,12 @@
 })();
 </script>
 
+
+<script>
+  // 三个弹窗挂载拖拽（坐标/灵感/探索——均支持上滑全屏、下滑关闭）
+  attachPopupDrag(popup, document.querySelector('.popup-handle'), hidePopup);
+  attachPopupDrag(inspirePopup, document.querySelector('.inspire-popup-handle'), hideInspirePopup);
+  attachPopupDrag(explorePopup, document.querySelector('.explore-popup-handle'), hideExplorePopup);
+</script>
 </body>
 </html>
