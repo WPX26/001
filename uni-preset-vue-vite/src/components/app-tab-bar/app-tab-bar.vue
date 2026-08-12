@@ -53,7 +53,7 @@ export default {
         this.takePhoto()
         return
       }
-      uni.switchTab({ url: item.path })
+      uni.reLaunch({ url: item.path })
     },
     // 相机：直调系统相机，拍完照片暂存 → 引导去首页地图挂载
     takePhoto() {
@@ -76,14 +76,14 @@ export default {
               uni.setStorageSync('memo_pending_photo', { file: file, thumb: thumb, time: Date.now() })
               uni.showToast({ title: '照片已拍摄，去地图挂载', icon: 'success' })
               setTimeout(() => {
-                uni.switchTab({ url: '/pages/home/home' })
+                uni.reLaunch({ url: '/pages/home/home' })
               }, 600)
             },
             fail: () => {
               uni.setStorageSync('memo_pending_photo', { file: file, thumb: file, time: Date.now() })
               uni.showToast({ title: '照片已拍摄，去地图挂载', icon: 'success' })
               setTimeout(() => {
-                uni.switchTab({ url: '/pages/home/home' })
+                uni.reLaunch({ url: '/pages/home/home' })
               }, 600)
             },
           })

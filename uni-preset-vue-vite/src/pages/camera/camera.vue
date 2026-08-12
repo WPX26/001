@@ -14,7 +14,7 @@ export default {
   onShow() {
     // 本页仅作 tab 路由占位；若被直接打开（深层链接），引导回首页
     setTimeout(() => {
-      uni.switchTab({ url: '/pages/home/home' })
+      uni.reLaunch({ url: '/pages/home/home' })
     }, 1200)
   },
 }

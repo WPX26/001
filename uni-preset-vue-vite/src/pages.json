@@ -20,14 +20,16 @@
 			"path": "pages/connect/connect",
 			"style": {
 				"navigationBarTitleText": "联机",
-				"disableScroll": true
+				"disableScroll": true,
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/camera/camera",
 			"style": {
 				"navigationBarTitleText": "相机",
-				"disableScroll": true
+				"disableScroll": true,
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -36,14 +38,16 @@
 				"navigationBarTitleText": "消息",
 				"enablePullDownRefresh": true,
 				"backgroundTextStyle": "dark",
-				"disableScroll": true
+				"disableScroll": true,
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/profile/profile",
 			"style": {
 				"navigationBarTitleText": "我的",
-				"disableScroll": true
+				"disableScroll": true,
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -67,45 +71,6 @@
 			}
 		}
 	],
-	"tabBar": {
-		"custom": true,
-		"color": "#9B7B5A",
-		"selectedColor": "#E89020",
-		"backgroundColor": "#FAF3E7",
-		"borderStyle": "white",
-		"list": [
-			{
-				"pagePath": "pages/home/home",
-				"text": "首页",
-				"iconPath": "static/tabbar/home.png",
-				"selectedIconPath": "static/tabbar/home-active.png"
-			},
-			{
-				"pagePath": "pages/connect/connect",
-				"text": "联机",
-				"iconPath": "static/tabbar/connect.png",
-				"selectedIconPath": "static/tabbar/connect-active.png"
-			},
-			{
-				"pagePath": "pages/camera/camera",
-				"text": "相机",
-				"iconPath": "static/tabbar/album.png",
-				"selectedIconPath": "static/tabbar/album-active.png"
-			},
-			{
-				"pagePath": "pages/message/message",
-				"text": "消息",
-				"iconPath": "static/tabbar/message.png",
-				"selectedIconPath": "static/tabbar/message-active.png"
-			},
-			{
-				"pagePath": "pages/profile/profile",
-				"text": "我的",
-				"iconPath": "static/tabbar/profile.png",
-				"selectedIconPath": "static/tabbar/profile-active.png"
-			}
-		]
-	},
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "地图相册",
