@@ -2045,6 +2045,8 @@
   /* 全屏时头部区域确保可点击（关闭键/导航键不失效） */
   .explore-popup.fullscreen .explore-popup-header { pointer-events: auto; }
   .explore-popup.show { transform: translateY(0); pointer-events: auto; }
+  /* 全屏保险：即使 show 意外丢失，全屏弹窗也可点（关闭键不失灵） */
+  .explore-popup.fullscreen { pointer-events: auto; }
   .explore-popup-handle {
     width: 48px; height: 6px;
     background: rgba(94, 53, 177, 0.55);
@@ -2291,6 +2293,8 @@
   /* 全屏时头部区域确保可点击（关闭键/导航键不失效） */
   .inspire-popup.fullscreen .inspire-popup-header { pointer-events: auto; }
   .inspire-popup.show { transform: translateY(0); pointer-events: auto; }
+  /* 全屏保险：即使 show 意外丢失，全屏弹窗也可点（关闭键不失灵） */
+  .inspire-popup.fullscreen { pointer-events: auto; }
   .inspire-popup-handle {
     width: 48px; height: 6px;
     background: rgba(220, 50, 50, 0.55);
@@ -4969,7 +4973,9 @@
 
     function onDragStart(e) {
       isDragging = true;
-      const point = e.touches ? e.touches[0] : e;
+      // 空数组是 truthy：e.touches 为空时必须回退 e，否则 e.touches[0] 为 undefined
+      // 取 clientY 抛错 → 拖拽中断卡死（真实手机上手势中断瞬间会出现空 touches）
+      const point = (e.touches && e.touches.length) ? e.touches[0] : e;
       dragStartY = point.clientY;
       popupStartHeight = popupEl.offsetHeight;
       popupEl.classList.add('dragging');
@@ -4978,7 +4984,7 @@
 
     function onDragMove(e) {
       if (!isDragging) return;
-      const point = e.touches ? e.touches[0] : e;
+      const point = (e.touches && e.touches.length) ? e.touches[0] : e;
       dragCurrentY = point.clientY;
       const deltaY = dragStartY - dragCurrentY; // 正值=上滑，负值=下滑
 
@@ -5009,26 +5015,33 @@
 
       popupEl.style.maxHeight = '';
 
+      // 全屏状态下退出全屏：回到半屏（55%，即"原来的位置"）
+      const exitFullscreen = function () {
+        popupEl.classList.remove('fullscreen');
+        popupEl.style.maxHeight = '55%';
+        setTimeout(function () { popupEl.style.maxHeight = ''; }, 350);
+      };
+
       if (deltaY > thresholdUp) {
         // 上滑 → 全屏（无论有无照片都可上滑到顶端）
-        // 清除拖拽残留的 inline maxHeight，让 CSS .fullscreen 100% 真正生效（弹窗到顶，关闭键位置正确）
+        // 清除拖拽残留 inline maxHeight 让 CSS .fullscreen 100% 生效（弹窗到顶）
+        // 注意：不 remove('show')（show 控制 pointer-events，移除会整窗不可点）
         popupEl.style.maxHeight = '';
         popupEl.classList.add('fullscreen');
-        popupEl.classList.remove('show');
-        requestAnimationFrame(() => { popupEl.classList.add('show'); });
       } else if (deltaY < thresholdDown) {
+        // 大幅下滑
         if (popupEl.classList.contains('fullscreen')) {
-          // 全屏状态下滑：回到半屏（不关闭，可继续查看弹窗）
-          popupEl.classList.remove('fullscreen');
-          popupEl.style.maxHeight = '55%';
-          setTimeout(() => { popupEl.style.maxHeight = ''; }, 350);
+          exitFullscreen();  // 全屏状态大幅下滑 → 回半屏（不关闭）
         } else {
-          // 半屏状态下滑 → 关闭
+          // 半屏状态大幅下滑 → 关闭
           if (onClose) onClose();
         }
       } else {
-        // 回弹到原状态
-        if (popupEl.classList.contains('fullscreen')) {
+        // 小距离回弹：全屏状态只要下滑（deltaY<0）就退出全屏回半屏——
+        // 否则会弹回全屏，表现为"拖不下来"（原缺陷 A）
+        if (deltaY < 0 && popupEl.classList.contains('fullscreen')) {
+          exitFullscreen();
+        } else if (popupEl.classList.contains('fullscreen')) {
           popupEl.style.maxHeight = '100%';
         } else {
           popupEl.style.maxHeight = '55%';
@@ -5037,12 +5050,22 @@
       }
     }
 
+    // 系统打断手势（下拉通知/来电等）触发 touchcancel：清理拖拽状态，
+    // 否则 isDragging/.dragging 残留会导致弹窗 transition 永久禁用、状态错乱（原缺陷 C）
+    function onDragCancel() {
+      if (!isDragging) return;
+      isDragging = false;
+      popupEl.classList.remove('dragging');
+      popupEl.style.maxHeight = '';
+    }
+
     handleEl.addEventListener('mousedown', onDragStart);
     document.addEventListener('mousemove', onDragMove);
     document.addEventListener('mouseup', onDragEnd);
     handleEl.addEventListener('touchstart', onDragStart, { passive: false });
     document.addEventListener('touchmove', onDragMove, { passive: false });
     document.addEventListener('touchend', onDragEnd);
+    document.addEventListener('touchcancel', onDragCancel);
 
     // 双击handle切换全屏
     handleEl.addEventListener('dblclick', () => {
@@ -7243,6 +7266,9 @@
 
   function hideExplorePopup() {
     explorePopup.classList.remove('show');
+    // 重置全屏/高度残留：否则下次打开继承全屏状态（"恢复原来的位置"失效）
+    explorePopup.classList.remove('fullscreen');
+    explorePopup.style.maxHeight = '';
     exploreBackdrop.classList.remove('show');
   }
 
@@ -7425,6 +7451,9 @@
 
   function hideInspirePopup() {
     inspirePopup.classList.remove('show');
+    // 重置全屏/高度残留：否则下次打开继承全屏状态（"恢复原来的位置"失效）
+    inspirePopup.classList.remove('fullscreen');
+    inspirePopup.style.maxHeight = '';
     inspireBackdrop.classList.remove('show');
   }
 
