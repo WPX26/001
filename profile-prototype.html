@@ -1197,6 +1197,114 @@
     font-weight: 600;
   }
 
+  /* 统计栏"坐标点"交互键：点击跳转地图并放缩包含全部坐标（负 margin 保持三项居中布局不变） */
+  .myhome-stat.clickable {
+    cursor: pointer;
+    border-radius: 12px;
+    padding: 6px 18px;
+    margin: -6px -18px;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .myhome-stat.clickable:hover { background: rgba(240, 160, 64, 0.08); }
+  .myhome-stat.clickable:active {
+    background: rgba(240, 160, 64, 0.15);
+    transform: scale(0.96);
+  }
+  .myhome-stat.clickable:active .myhome-stat-num {
+    text-shadow: 0 0 12px rgba(240, 160, 64, 0.9);
+  }
+
+  /* 照片展开查看器（我的主页点击照片展开：大图 + 坐标信息 + 透明定位键） */
+  .myhome-viewer {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .myhome-viewer.show { display: flex; }
+  .myhome-viewer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 10, 10, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .myhome-viewer-panel {
+    position: relative;
+    width: calc(100% - 44px);
+    max-width: 330px;
+    background: rgba(28, 15, 8, 0.5);
+    border: 1px solid rgba(212, 165, 116, 0.25);
+    border-radius: 16px;
+    overflow: hidden;
+    animation: viewerIn 0.25s ease;
+  }
+  @keyframes viewerIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .myhome-viewer-close {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    color: #F5DFC0;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .myhome-viewer-photo {
+    width: 100%;
+    aspect-ratio: 1/1;
+    background-position: center;
+    background-size: cover;
+  }
+  .myhome-viewer-info { padding: 14px 16px 18px; }
+  .myhome-viewer-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #F5DFC0;
+  }
+  .myhome-viewer-time {
+    font-size: 12px;
+    color: rgba(245, 223, 192, 0.6);
+    margin-top: 3px;
+  }
+  /* 透明定位键：透明背景细边框，点击跳转该坐标点（三级细化） */
+  .myhome-viewer-locate {
+    margin-top: 14px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 11px 0;
+    border-radius: 12px;
+    background: transparent;
+    border: 1px solid rgba(212, 165, 116, 0.3);
+    color: #E89020;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .myhome-viewer-locate svg { width: 17px; height: 17px; }
+  .myhome-viewer-locate:hover {
+    background: rgba(240, 160, 64, 0.08);
+    border-color: rgba(212, 165, 116, 0.5);
+  }
+  .myhome-viewer-locate:active {
+    background: rgba(240, 160, 64, 0.15);
+    filter: drop-shadow(0 0 8px rgba(232, 144, 32, 0.8));
+    transform: scale(0.97);
+  }
+
   @media (max-width: 900px) {
     .container { flex-direction: column; gap: 30px; }
   }
@@ -1551,7 +1659,7 @@
 
             <!-- 统计栏 -->
             <div class="myhome-stats">
-              <div class="myhome-stat">
+              <div class="myhome-stat clickable" id="myHomeCoordStat" title="在地图上查看我的全部坐标">
                 <div class="myhome-stat-num" id="myHomeCoordCount">8</div>
                 <div class="myhome-stat-label">坐标点</div>
               </div>
@@ -1569,6 +1677,25 @@
             <div class="myhome-section-title">我上传的坐标</div>
             <div id="myHomeCoords">
               <!-- 由JS动态生成 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 照片展开查看器（我的主页：点击照片展开，下方透明定位键跳转该坐标点） -->
+        <div class="myhome-viewer" id="myHomeViewer">
+          <div class="myhome-viewer-backdrop"></div>
+          <div class="myhome-viewer-panel">
+            <div class="myhome-viewer-close" id="myHomeViewerClose">✕</div>
+            <div class="myhome-viewer-photo" id="myHomeViewerPhoto"></div>
+            <div class="myhome-viewer-info">
+              <div class="myhome-viewer-title" id="myHomeViewerTitle">坐标点</div>
+              <div class="myhome-viewer-time" id="myHomeViewerTime"></div>
+              <button class="myhome-viewer-locate" id="myHomeViewerLocate">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                </svg>
+                定位到此坐标
+              </button>
             </div>
           </div>
         </div>
@@ -2515,7 +2642,11 @@
             ? `background-image:url('${escapeHtml(p.thumbnailUrl)}');background-size:cover;background-position:center;`
             : 'background:linear-gradient(135deg,#F0A040,#D4691C);';
           html += `
-            <div class="myhome-photo-card" data-id="${escapeHtml(p.id)}">
+            <div class="myhome-photo-card" data-id="${escapeHtml(p.id)}"
+                 data-lng="${cg.lng != null ? cg.lng : ''}" data-lat="${cg.lat != null ? cg.lat : ''}"
+                 data-title="${escapeHtml(cg.coordTitle || '坐标点')}"
+                 data-time="${escapeHtml(formatViewerDate(cg.date))}"
+                 data-url="${escapeHtml(p.thumbnailUrl || '')}">
               <div class="bg" style="${bg}"></div>
               <div class="myhome-photo-overlay">
                 <div class="myhome-photo-stat">❤️ ${p.likes || 0}</div>
@@ -2528,7 +2659,13 @@
       container.innerHTML = html;
       container.querySelectorAll('.myhome-photo-card').forEach(card => {
         card.addEventListener('click', () => {
-          jumpToMyCoordsMap();
+          showMyHomeViewer({
+            imageUrl: card.dataset.url,
+            title: card.dataset.title,
+            time: card.dataset.time,
+            lng: parseFloat(card.dataset.lng),
+            lat: parseFloat(card.dataset.lat)
+          });
         });
       });
       return;
@@ -2549,9 +2686,14 @@
     });
 
     let html = '';
-    myPhotos.forEach(p => {
+    myPhotos.forEach((p, i) => {
+      // 演示模式：照片卡片按序关联示例坐标（用于展开视图的坐标名与定位键）
+      const c = myHomeCoords[i % myHomeCoords.length];
       html += `
-        <div class="myhome-photo-card" data-id="${p.id}">
+        <div class="myhome-photo-card" data-id="${p.id}"
+             data-lng="${c.lng}" data-lat="${c.lat}"
+             data-title="${escapeHtml(c.title)}" data-time="${escapeHtml(c.date)}"
+             data-color1="${p.color1}" data-color2="${p.color2}">
           <div class="bg" style="background: linear-gradient(135deg, ${p.color1}, ${p.color2});"></div>
           <div class="myhome-photo-overlay">
             <div class="myhome-photo-stat">❤️ ${p.likes}</div>
@@ -2562,13 +2704,61 @@
     });
     myHomeCoordsContainer.innerHTML = html;
 
-    // 点击坐标点 → 跳转地图，放缩地图将我的坐标全部包含在内
+    // 点击照片 → 展开详情（大图 + 坐标名 + 透明定位键）
     myHomeCoordsContainer.querySelectorAll('.myhome-photo-card').forEach(card => {
       card.addEventListener('click', () => {
-        jumpToMyCoordsMap();
+        showMyHomeViewer({
+          imageUrl: card.dataset.url,
+          color1: card.dataset.color1,
+          color2: card.dataset.color2,
+          title: card.dataset.title,
+          time: card.dataset.time,
+          lng: parseFloat(card.dataset.lng),
+          lat: parseFloat(card.dataset.lat)
+        });
       });
     });
   }
+
+  // ========== 照片展开查看器（点击照片 → 展开，下方透明定位键跳转该坐标点） ==========
+  const myHomeViewer = document.getElementById('myHomeViewer');
+  const myHomeViewerPhoto = document.getElementById('myHomeViewerPhoto');
+  const myHomeViewerTitle = document.getElementById('myHomeViewerTitle');
+  const myHomeViewerTime = document.getElementById('myHomeViewerTime');
+  const myHomeViewerLocate = document.getElementById('myHomeViewerLocate');
+  let myHomeViewerLocateData = null;   // { lng, lat }
+
+  // 'YYYY-MM-DD' → 'YYYY年M月D日'（后端日期格式与演示日期格式统一）
+  function formatViewerDate(d) {
+    if (!d) return '';
+    const m = String(d).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return m[1] + '年' + parseInt(m[2], 10) + '月' + parseInt(m[3], 10) + '日';
+    return String(d);
+  }
+
+  function showMyHomeViewer(data) {
+    myHomeViewerTitle.textContent = data.title || '坐标点';
+    myHomeViewerTime.textContent = data.time || '';
+    myHomeViewerPhoto.style.cssText = data.imageUrl
+      ? "background-image:url('" + escapeHtml(data.imageUrl) + "');background-size:cover;background-position:center;"
+      : 'background:linear-gradient(135deg,' + (data.color1 || '#F0A040') + ',' + (data.color2 || '#D4691C') + ');';
+    const hasLoc = isFinite(data.lng) && isFinite(data.lat);
+    myHomeViewerLocateData = hasLoc ? { lng: data.lng, lat: data.lat } : null;
+    myHomeViewerLocate.style.display = hasLoc ? '' : 'none';
+    myHomeViewer.classList.add('show');
+  }
+  function hideMyHomeViewer() { myHomeViewer.classList.remove('show'); }
+  myHomeViewer.querySelector('.myhome-viewer-backdrop').addEventListener('click', hideMyHomeViewer);
+  document.getElementById('myHomeViewerClose').addEventListener('click', hideMyHomeViewer);
+  // 定位键：跳转地图定位到该坐标点，并自动缩放为三级细化（level=3）
+  myHomeViewerLocate.addEventListener('click', () => {
+    if (!myHomeViewerLocateData) return;
+    window.location.href = 'memo-home.html?locate=' + myHomeViewerLocateData.lng + ',' + myHomeViewerLocateData.lat + '&level=3';
+  });
+
+  // 统计栏"坐标点"交互键：跳转地图并放缩包含我的全部坐标
+  const myHomeCoordStat = document.getElementById('myHomeCoordStat');
+  if (myHomeCoordStat) myHomeCoordStat.addEventListener('click', jumpToMyCoordsMap);
 
   // 我的主页点击坐标点 → 跳转地图，放缩地图将我的坐标全部包含在内
   // 边界随 URL 传入 memo-home.html（fit=mine + 四边界参数），地图就绪后自动放缩

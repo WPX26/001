@@ -6157,6 +6157,25 @@
     map.fitBounds(fitMyCoordsBounds, { padding: [60, 60], animate: false });
   }
 
+  // 我的主页照片详情 → 定位键：定位到该坐标点并缩放为指定细化档位（locate=lng,lat&level=3）
+  // level 缺省/越界时不指定（回落默认 zoom 15）；setView 后 zoomend 自动同步细化控件档位
+  let locateTarget = null;
+  let locateLevel = 0;
+  if (urlParams.get('locate')) {
+    const parts = String(urlParams.get('locate')).split(',');
+    const _locLng = parseFloat(parts[0]);
+    const _locLat = parseFloat(parts[1]);
+    if (isFinite(_locLng) && isFinite(_locLat)) {
+      locateTarget = { lng: _locLng, lat: _locLat };
+      locateLevel = parseInt(urlParams.get('level') || '', 10);
+      if (!isFinite(locateLevel) || locateLevel < 1 || locateLevel > DETAIL_LEVEL_COUNT) locateLevel = 0;
+    }
+  }
+  function applyLocateTarget() {
+    if (!map || !locateTarget) return;
+    map.setView([locateTarget.lat, locateTarget.lng], locateLevel ? LEVEL_TO_ZOOM(locateLevel) : 15, { animate: false });
+  }
+
   function enterUploadMode() {
     uploadMode = true;
     phoneScreen.classList.add('upload-mode');
@@ -8265,18 +8284,21 @@
       // 延迟启用缩放同步，避免初始化期间的缩放变化影响细化程度
       setTimeout(function() {
         mapReady = true;
+        // 从我的主页跳转来的两种定位（均取代自动 GPS 平移）：
+        //   fit=mine  → 放缩包含全部坐标；locate=  → 定位单点并缩放为细化档位
         if (fitMyCoordsBounds) {
-          // 我的主页跳转：放缩地图将我的坐标全部包含在内（取代自动 GPS 平移，边界已含全部坐标）
           applyFitMyCoordsBounds();
-          // 仍静默解析当前位置显示蓝点（不改变地图视野）
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function (pos) {
-              updateUserLocationMarker(pos.coords.latitude, pos.coords.longitude);
-            }, function () {}, { timeout: 8000, enableHighAccuracy: true, maximumAge: 30000 });
-          }
+        } else if (locateTarget) {
+          applyLocateTarget();
         } else {
           // 打开地图自动定位：屏幕中心跳转到当前 GPS 位置（静默，失败不打扰）
           setTimeout(function () { locateToCurrent(false); }, 800);
+        }
+        // 我的主页跳转模式：仍静默解析当前位置显示蓝点（不改变地图视野）
+        if ((fitMyCoordsBounds || locateTarget) && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(function (pos) {
+            updateUserLocationMarker(pos.coords.latitude, pos.coords.longitude);
+          }, function () {}, { timeout: 8000, enableHighAccuracy: true, maximumAge: 30000 });
         }
         // 防御性刷新地图尺寸：布局/容器尺寸变动后保证瓦片铺满容器
         if (map) map.invalidateSize(false);
