@@ -2977,6 +2977,8 @@
   /* App 内由原生 tabBar 承担导航，隐藏 H5 底部导航避免双导航叠加 */
   body.full-embed .bottom-nav,
   body.full-embed .home-indicator { display: none; }
+  /* App 内隐藏地图新手提示条（深色浮层在 tabBar 上方像黑边） */
+  body.full-embed .interaction-hint { display: none; }
 
   /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
   body.full-embed.mobile-browser .bottom-nav,
