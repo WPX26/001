@@ -727,15 +727,18 @@
   const strengthBar = document.getElementById('strengthBar');
   const strengthBarFill = document.querySelector('.password-strength-bar');
 
-  // 返回登录
-  document.getElementById('backBtn').addEventListener('click', () => {
+  // 返回登录（App 内置浏览器内：postMessage 让 App 切到登录页；Web 端：直接跳转）
+  function goLogin() {
+    if (window.uni && uni.postMessage) {
+      uni.postMessage({ data: { type: 'memo_go_login' } });
+      return;
+    }
     window.location.href = 'login-prototype.html';
-  });
+  }
+  document.getElementById('backBtn').addEventListener('click', goLogin);
 
   // 登录链接
-  document.getElementById('loginLink').addEventListener('click', () => {
-    window.location.href = 'login-prototype.html';
-  });
+  document.getElementById('loginLink').addEventListener('click', goLogin);
 
   // 协议链接
   document.getElementById('termsLink').addEventListener('click', (e) => {

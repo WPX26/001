@@ -966,8 +966,14 @@
     window.location.href = url;
   });
 
-  // 立即注册
-  document.getElementById('registerBtn').addEventListener('click', function() { window.location.href = 'register-prototype.html'; });
+  // 立即注册（App 内置浏览器内：postMessage 让 App 切到注册页；Web 端：直接跳转）
+  document.getElementById('registerBtn').addEventListener('click', function() {
+    if (window.uni && uni.postMessage) {
+      uni.postMessage({ data: { type: 'memo_go_register' } });
+      return;
+    }
+    window.location.href = 'register-prototype.html';
+  });
 
   setTimeout(function() { showHint('试试验证码登录和密码登录两种方式', 3000); }, 500);
 </script>

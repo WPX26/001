@@ -29,6 +29,8 @@ export default {
       if (msg && msg.type === 'memo_login') {
         memoApi.setAuth(msg.token, msg.user ? JSON.parse(msg.user) : null)
         uni.reLaunch({ url: '/pages/home/home' })
+      } else if (msg && msg.type === 'memo_go_register') {
+        uni.reLaunch({ url: '/pages/register/register' })
       } else if (msg && msg.type === 'memo_go_login') {
         uni.reLaunch({ url: '/pages/login/login' })
       }
