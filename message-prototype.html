@@ -95,14 +95,14 @@
   }
   .page-title-sub {
     font-size: 11px;
-    color: rgba(245, 223, 192, 0.72);
+    color: rgba(245, 223, 192, 0.6);
     margin-top: 2px;
   }
   .header-actions { display: flex; gap: 8px; }
   .header-btn {
     width: 34px; height: 34px;
-    background: #1C1C1E;
-    border: 1px solid rgba(245, 223, 192, 0.2);
+    background: rgba(28, 15, 8, 0.5);
+    border: 1px solid rgba(212, 165, 116, 0.3);
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -112,7 +112,7 @@
     box-shadow: 0 2px 6px rgba(28, 15, 8, 0.08);
   }
   .header-btn:hover { transform: translateY(-1px); }
-  .header-btn svg { width: 16px; height: 16px; color: rgba(245, 223, 192, 0.75); }
+  .header-btn svg { width: 16px; height: 16px; color: rgba(245, 223, 192, 0.85); }
 
   /* 分类标签栏 */
   .category-tabs {
@@ -126,16 +126,16 @@
   .category-tab {
     padding: 6px 14px;
     border-radius: 16px;
-    background: rgba(28, 15, 8, 0.7);
-    border: 1px solid rgba(245, 223, 192, 0.18);
+    background: rgba(240, 160, 64, 0.15);
+    border: 1px solid rgba(212, 165, 116, 0.3);
     font-size: 12px;
-    color: rgba(245, 223, 192, 0.7);
+    color: rgba(245, 223, 192, 0.5);
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
     font-weight: 500;
   }
-  .category-tab:hover { background: rgba(240, 160, 64, 0.1); }
+  .category-tab:hover { background: rgba(240, 160, 64, 0.08); }
   .category-tab.active {
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
@@ -157,7 +157,7 @@
     font-weight: 600;
   }
   .category-tab.active .badge {
-    background: rgba(245, 223, 192, 0.25);
+    background: rgba(245, 223, 192, 0.3);
   }
 
   /* 消息列表区域 */
@@ -167,12 +167,12 @@
     padding: 0 16px 72px;
   }
   .message-list::-webkit-scrollbar { width: 3px; }
-  .message-list::-webkit-scrollbar-thumb { background: rgba(245, 223, 192, 0.3); border-radius: 2px; }
+  .message-list::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2px; }
 
   .message-section-title {
     font-size: 11px;
     font-weight: 600;
-    color: rgba(245, 223, 192, 0.72);
+    color: rgba(245, 223, 192, 0.6);
     padding: 8px 4px 6px;
     letter-spacing: 0.8px;
     text-transform: uppercase;
@@ -182,8 +182,8 @@
     display: flex;
     gap: 12px;
     padding: 12px;
-    background: #1C1C1E;
-    border: 1px solid rgba(245, 223, 192, 0.15);
+    background: rgba(28, 15, 8, 0.5);
+    border: 1px solid rgba(212, 165, 116, 0.15);
     border-radius: 14px;
     margin-bottom: 8px;
     cursor: pointer;
@@ -193,12 +193,12 @@
   .message-item:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 14px rgba(28, 15, 8, 0.1);
-    border-color: rgba(245, 223, 192, 0.2);
+    border-color: rgba(212, 165, 116, 0.3);
   }
   .message-item:active { transform: scale(0.98); }
 
   .message-item.unread {
-    background: rgba(28, 15, 8, 0.95);
+    background: rgba(28, 15, 8, 0.6);
     border-color: rgba(240, 160, 64, 0.3);
   }
   .message-item.unread::before {
@@ -252,13 +252,13 @@
   }
   .msg-time {
     font-size: 10px;
-    color: rgba(245, 223, 192, 0.72);
+    color: rgba(245, 223, 192, 0.6);
     flex-shrink: 0;
     margin-left: 8px;
   }
   .msg-preview {
     font-size: 12px;
-    color: rgba(245, 223, 192, 0.75);
+    color: rgba(245, 223, 192, 0.85);
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -277,7 +277,7 @@
     align-items: center;
     justify-content: center;
     font-size: 18px;
-    color: rgba(245, 223, 192, 0.75);
+    color: rgba(245, 223, 192, 0.85);
   }
 
   /* 底部导航栏 */
@@ -285,9 +285,9 @@
     position: absolute;
     bottom: 0; left: 0; right: 0;
     height: 64px;
-    background: rgba(28, 15, 8, 0.95);
+    background: rgba(28, 15, 8, 0.5);
     backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(245, 223, 192, 0.15);
+    border-top: 1px solid rgba(212, 165, 116, 0.15);
     display: flex;
     align-items: center;
     justify-content: space-around;
@@ -307,9 +307,9 @@
     transition: all 0.2s ease;
     flex: 1;
     max-width: 76px;
-    color: rgba(245, 223, 192, 0.7);
+    color: rgba(245, 223, 192, 0.5);
   }
-  .nav-item:hover { background: rgba(240, 160, 64, 0.1); }
+  .nav-item:hover { background: rgba(240, 160, 64, 0.08); }
   .nav-item.active .nav-label { color: #E89020; }
   .nav-item.active svg { color: #E89020; }
   .nav-item svg { width: 26px; height: 26px; transition: color 0.2s; }
@@ -388,7 +388,7 @@
   .empty-state {
     text-align: center;
     padding: 40px 20px;
-    color: rgba(245, 223, 192, 0.72);
+    color: rgba(245, 223, 192, 0.6);
   }
   .empty-state-icon {
     font-size: 40px;
@@ -397,7 +397,7 @@
   }
   .empty-state-text {
     font-size: 13px;
-    color: rgba(245, 223, 192, 0.72);
+    color: rgba(245, 223, 192, 0.6);
   }
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
