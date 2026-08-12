@@ -7157,6 +7157,7 @@
         } else {
           group.classList.add('expanded');
           if (photos) photos.style.maxHeight = '';
+          group.querySelectorAll('.tg-photo').forEach(item => { item.style.display = ''; });
         }
       });
     });
@@ -8897,15 +8898,16 @@
   attachPopupDrag(inspirePopup, document.querySelector('.inspire-popup-handle'), hideInspirePopup);
   attachPopupDrag(explorePopup, document.querySelector('.explore-popup-handle'), hideExplorePopup);
 
-  // 照片组收起/展开（时间组/作者组通用）：默认收起 = 恰好露出第一排照片（精确行高不裁切），
-  // 点击右侧箭头展开全部 / 再点收起。行高 = 首张照片 offsetHeight（正方形缩略图，等于列宽）
+  // 照片组收起/展开（时间组/作者组通用）：默认收起 = 仅第一排（3 张）照片可见，
+  // 其余照片完全隐藏（display:none，不裁切、不叠放）；点击右侧箭头展开全部 / 再点收起
   function applyGroupCollapsed(group) {
     const photos = group.querySelector('.time-group-photos, .author-group-photos');
-    const first = group.querySelector('.tg-photo');
-    if (photos && first) {
-      group.classList.remove('expanded');
-      photos.style.maxHeight = first.offsetHeight + 'px';
-    }
+    const items = group.querySelectorAll('.tg-photo');
+    if (!photos) return;
+    group.classList.remove('expanded');
+    if (items.length) photos.style.maxHeight = items[0].offsetHeight + 'px';
+    // 收起：仅第一排可见，其余照片完全隐藏
+    items.forEach((item, i) => { item.style.display = i < 3 ? '' : 'none'; });
   }
   function applyGroupsCollapsedDefault(container) {
     container.querySelectorAll('.time-group, .author-group').forEach(applyGroupCollapsed);
@@ -8920,6 +8922,7 @@
       } else {
         group.classList.add('expanded');
         if (photos) photos.style.maxHeight = '';
+        group.querySelectorAll('.tg-photo').forEach(item => { item.style.display = ''; });
       }
     });
   }
