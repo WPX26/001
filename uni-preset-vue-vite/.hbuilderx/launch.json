@@ -1,0 +1,11 @@
+{
+    "version" : "1.0",
+    "configurations" : [
+        {
+            "customPlaygroundType" : "device",
+            "packageName" : "com.memomap.app",
+            "playground" : "custom",
+            "type" : "uni-app:app-android"
+        }
+    ]
+}

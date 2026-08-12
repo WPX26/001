@@ -71,17 +71,29 @@
     content: '';
     position: absolute;
     border-radius: 50%;
-    filter: blur(50px);
+    filter: blur(20px);
     opacity: 0.55;
   }
   .phone-screen::before {
     width: 200px; height: 200px;
-    background: #FFE9B8;
+    background:
+      radial-gradient(ellipse 26% 42% at 50% 24%, #FFE9B8 0%, transparent 70%),
+      radial-gradient(ellipse 26% 42% at 74.7% 42%, #FFE9B8 0%, transparent 70%),
+      radial-gradient(ellipse 26% 42% at 65.3% 71%, #FFE9B8 0%, transparent 70%),
+      radial-gradient(ellipse 26% 42% at 34.7% 71%, #FFE9B8 0%, transparent 70%),
+      radial-gradient(ellipse 26% 42% at 25.3% 42%, #FFE9B8 0%, transparent 70%),
+      radial-gradient(circle 26% at 50% 50%, #FFE9B8 0%, transparent 70%);
     top: -50px; right: -50px;
   }
   .phone-screen::after {
     width: 160px; height: 160px;
-    background: #FFB84D;
+    background:
+      radial-gradient(ellipse 26% 42% at 50% 24%, #FFB84D 0%, transparent 70%),
+      radial-gradient(ellipse 26% 42% at 74.7% 42%, #FFB84D 0%, transparent 70%),
+      radial-gradient(ellipse 26% 42% at 65.3% 71%, #FFB84D 0%, transparent 70%),
+      radial-gradient(ellipse 26% 42% at 34.7% 71%, #FFB84D 0%, transparent 70%),
+      radial-gradient(ellipse 26% 42% at 25.3% 42%, #FFB84D 0%, transparent 70%),
+      radial-gradient(circle 26% at 50% 50%, #FFB84D 0%, transparent 70%);
     bottom: -40px; left: -40px;
   }
 
@@ -493,7 +505,54 @@
   @media (max-width: 900px) {
     .container { flex-direction: column; gap: 30px; }
   }
+
+  /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
+  body.full-embed { padding: 0; }
+  body.full-embed .container { max-width: none; gap: 0; }
+  body.full-embed .phone-wrapper { width: 100%; }
+  body.full-embed .phone-frame {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  body.full-embed .phone-frame::before { display: none; }
+  body.full-embed .phone-screen { border-radius: 0; }
+  body.full-embed .status-bar { display: none; }
+  body.full-embed .bottom-nav,
+  body.full-embed .home-indicator { display: none; }
 </style>
+
+<script>
+// ===== 移动端 web-view 桥接（不影响 Web 端 UI/功能） =====
+// 1) URL 带 token 时写入 localStorage.memo_token 并清理 URL
+// 2) URL 带 full=1 时进入全屏嵌入模式（App 内展示）
+// 3) 登录/退出事件桥接：postMessage 通知 App 同步登录态
+(function () {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var token = params.get('token');
+    if (token) {
+      localStorage.setItem('memo_token', token);
+      params.delete('token');
+      var qs = params.toString();
+      var url = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+      window.history.replaceState({}, '', url);
+    }
+    if (params.get('full') === '1') {
+      if (document.body) {
+        document.body.classList.add('full-embed');
+      } else {
+        document.addEventListener('DOMContentLoaded', function () {
+          document.body.classList.add('full-embed');
+        });
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+
 </head>
 <body>
 
@@ -926,6 +985,11 @@
     doRegister(payload).then(function(result) {
       if (result.ok) {
         showToast('🎉 注册成功!', 'success');
+        // App 内嵌（web-view）：通知 App 跳到登录页
+        if (window.uni && uni.postMessage) {
+          uni.postMessage({ data: { type: 'memo_go_login' } });
+          return;
+        }
         setTimeout(function() { window.location.href = 'login-prototype.html'; }, 1500);
       } else {
         showToast('⚠️ ' + (result.msg || '注册失败'), 'warning');
