@@ -1447,6 +1447,8 @@
     z-index: 5;
     pointer-events: auto;
   }
+  /* 扩大点击热区（手机小目标难点）：伪元素外扩 8px */
+  .popup-close::after { content: ''; position: absolute; inset: -8px; }
   .popup-close:hover { background: rgba(255, 255, 255, 0.1); color: white; }
   .popup-close svg { width: 14px; height: 14px; stroke-width: 2.5; }
 
@@ -1593,7 +1595,7 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 4px;
     padding: 0 10px 10px;
-    max-height: 88px;
+    max-height: 145px; /* 兜底：约一排（JS 按实际行高精确设置收起高度，仅 JS 未执行时生效） */
     overflow: hidden;
     transition: max-height 0.35s cubic-bezier(0.32, 0.72, 0, 1);
   }
@@ -2059,6 +2061,8 @@
     z-index: 5;
     pointer-events: auto;
   }
+  /* 扩大点击热区（手机小目标难点）：伪元素外扩 8px */
+  .explore-popup-close::after { content: ''; position: absolute; inset: -8px; }
   .explore-popup-close:hover { background: rgba(255, 255, 255, 0.1); color: white; }
   .explore-popup-close svg { width: 14px; height: 14px; stroke-width: 2.5; }
   .explore-popup-coords {
@@ -2294,6 +2298,8 @@
     z-index: 5;
     pointer-events: auto;
   }
+  /* 扩大点击热区（手机小目标难点）：伪元素外扩 8px */
+  .inspire-popup-close::after { content: ''; position: absolute; inset: -8px; }
   .inspire-popup-close:hover { background: rgba(255, 255, 255, 0.1); color: white; }
   .inspire-popup-close svg { width: 14px; height: 14px; stroke-width: 2.5; }
   .inspire-popup-coords {
@@ -4767,7 +4773,7 @@
         : '';
 
       html += `
-        <div class="time-group expanded">
+        <div class="time-group">
           <div class="time-group-header">
             <div class="time-group-info">
               <div>
@@ -4791,13 +4797,9 @@
 
     popupGroups.innerHTML = html;
 
-    // 绑定分组展开/收起事件
-    popupGroups.querySelectorAll('.time-group-header').forEach(header => {
-      header.addEventListener('click', (e) => {
-        e.stopPropagation();
-        header.parentElement.classList.toggle('expanded');
-      });
-    });
+    // 默认收起（每个时间点只露出一排完整照片），点击箭头展开/收起
+    applyGroupsCollapsedDefault(popupGroups);
+    popupGroups.querySelectorAll('.time-group-header').forEach(bindGroupToggle);
 
     // 绑定照片勾选事件（点击选中照片进行模拟操作）
     popupGroups.querySelectorAll('.tg-photo').forEach((photoEl, idx) => {
@@ -4982,8 +4984,15 @@
         popupEl.classList.remove('show');
         requestAnimationFrame(() => { popupEl.classList.add('show'); });
       } else if (deltaY < thresholdDown) {
-        // 下滑 → 关闭
-        if (onClose) onClose();
+        if (popupEl.classList.contains('fullscreen')) {
+          // 全屏状态下滑：回到半屏（不关闭，可继续查看弹窗）
+          popupEl.classList.remove('fullscreen');
+          popupEl.style.maxHeight = '55%';
+          setTimeout(() => { popupEl.style.maxHeight = ''; }, 350);
+        } else {
+          // 半屏状态下滑 → 关闭
+          if (onClose) onClose();
+        }
       } else {
         // 回弹到原状态
         if (popupEl.classList.contains('fullscreen')) {
@@ -7109,7 +7118,7 @@
       `).join('');
 
       html += `
-        <div class="author-group expanded">
+        <div class="author-group">
           <div class="author-group-header">
             <div class="author-avatar" style="background: ${group.avatar};">${initial}</div>
             <div class="author-group-info">
@@ -7132,13 +7141,23 @@
 
     explorePopupGroups.innerHTML = html;
 
-    // 绑定作者分组展开/收起
+    // 默认收起（每个作者只露出一排完整照片），点击箭头展开/收起
+    applyGroupsCollapsedDefault(explorePopupGroups);
+
+    // 绑定作者分组展开/收起（头像/昵称点击跳主页，不触发展开）
     explorePopupGroups.querySelectorAll('.author-group-header').forEach(header => {
       header.addEventListener('click', (e) => {
         // 若点击源自头像或昵称，则不触发展开/收起，交由专属处理器跳转主页
         if (e.target.closest('.author-avatar') || e.target.closest('.author-name')) return;
         e.stopPropagation();
-        header.parentElement.classList.toggle('expanded');
+        const group = header.parentElement;
+        const photos = group.querySelector('.author-group-photos');
+        if (group.classList.contains('expanded')) {
+          applyGroupCollapsed(group);
+        } else {
+          group.classList.add('expanded');
+          if (photos) photos.style.maxHeight = '';
+        }
       });
     });
 
@@ -7288,7 +7307,7 @@
       const photos = groups[hourKey];
       const label = hourKey + ' - ' + (parseInt(hourKey) + 1).toString().padStart(2, '0') + ':00';
       html += `
-        <div class="time-group expanded">
+        <div class="time-group">
           <div class="time-group-header">
             <div class="time-group-info">
               <span class="time-group-label">${label}</span>
@@ -7326,13 +7345,9 @@
 
     inspirePopupGroups.innerHTML = html;
 
-    // 绑定事件
-    inspirePopupGroups.querySelectorAll('.time-group-header').forEach(header => {
-      header.addEventListener('click', (e) => {
-        e.stopPropagation();
-        header.parentElement.classList.toggle('expanded');
-      });
-    });
+    // 默认收起（每个时间点只露出一排完整照片），点击箭头展开/收起
+    applyGroupsCollapsedDefault(inspirePopupGroups);
+    inspirePopupGroups.querySelectorAll('.time-group-header').forEach(bindGroupToggle);
 
     // 照片点击 → 打开详情
     inspirePopupGroups.querySelectorAll('.tg-photo').forEach(photo => {
@@ -7651,7 +7666,7 @@
       const photos = groups[hourKey];
       const label = hourKey + ' - ' + (parseInt(hourKey) + 1).toString().padStart(2, '0') + ':00';
       html += `
-        <div class="time-group expanded">
+        <div class="time-group">
           <div class="time-group-header">
             <div class="time-group-info">
               <span class="time-group-label">${label}</span>
@@ -7689,13 +7704,9 @@
 
     inspirePopupGroups.innerHTML = html;
 
-    // 绑定事件
-    inspirePopupGroups.querySelectorAll('.time-group-header').forEach(header => {
-      header.addEventListener('click', (e) => {
-        e.stopPropagation();
-        header.parentElement.classList.toggle('expanded');
-      });
-    });
+    // 默认收起（每个时间点只露出一排完整照片），点击箭头展开/收起
+    applyGroupsCollapsedDefault(inspirePopupGroups);
+    inspirePopupGroups.querySelectorAll('.time-group-header').forEach(bindGroupToggle);
 
     inspirePopupGroups.querySelectorAll('.tg-photo').forEach(photoEl => {
       photoEl.addEventListener('click', (e) => {
@@ -8885,6 +8896,33 @@
   attachPopupDrag(popup, document.querySelector('.popup-handle'), hidePopup);
   attachPopupDrag(inspirePopup, document.querySelector('.inspire-popup-handle'), hideInspirePopup);
   attachPopupDrag(explorePopup, document.querySelector('.explore-popup-handle'), hideExplorePopup);
+
+  // 照片组收起/展开（时间组/作者组通用）：默认收起 = 恰好露出第一排照片（精确行高不裁切），
+  // 点击右侧箭头展开全部 / 再点收起。行高 = 首张照片 offsetHeight（正方形缩略图，等于列宽）
+  function applyGroupCollapsed(group) {
+    const photos = group.querySelector('.time-group-photos, .author-group-photos');
+    const first = group.querySelector('.tg-photo');
+    if (photos && first) {
+      group.classList.remove('expanded');
+      photos.style.maxHeight = first.offsetHeight + 'px';
+    }
+  }
+  function applyGroupsCollapsedDefault(container) {
+    container.querySelectorAll('.time-group, .author-group').forEach(applyGroupCollapsed);
+  }
+  function bindGroupToggle(header) {
+    header.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const group = header.parentElement;
+      const photos = group.querySelector('.time-group-photos, .author-group-photos');
+      if (group.classList.contains('expanded')) {
+        applyGroupCollapsed(group);
+      } else {
+        group.classList.add('expanded');
+        if (photos) photos.style.maxHeight = '';
+      }
+    });
+  }
   // 灵感/探索坐标点自动命名：根据坐标点附近的真实地点逆地理编码命名
   // （无条件覆盖为地点名；错峰请求避免并发；命名完成后重渲染当前模式标记）
   var _namedCoords = {};
