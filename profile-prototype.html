@@ -201,30 +201,6 @@
     text-overflow: ellipsis;
   }
 
-  .profile-stats {
-    display: flex;
-    justify-content: space-around;
-    padding: 16px 20px;
-    background: #0a0a0a;
-    flex-shrink: 0;
-  }
-  .stat-item {
-    text-align: center;
-    cursor: pointer;
-    transition: transform 0.2s;
-  }
-  .stat-item:hover { transform: scale(1.05); }
-  .stat-num {
-    font-size: 20px;
-    font-weight: 700;
-    color: #F5DFC0;
-  }
-  .stat-label {
-    font-size: 11px;
-    color: rgba(245, 223, 192, 0.85);
-    margin-top: 2px;
-  }
-
   .profile-scroll {
     flex: 1;
     overflow-y: auto;
@@ -1463,23 +1439,7 @@
             </div>
           </div>
 
-          <!-- 统计 -->
-          <div class="profile-stats">
-            <div class="stat-item">
-              <div class="stat-num">23</div>
-              <div class="stat-label">标记点</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-num">86</div>
-              <div class="stat-label">照片</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-num">5</div>
-              <div class="stat-label">已删除</div>
-            </div>
-          </div>
-
-          <!-- 菜单 -->
+          <!-- 菜单（统计栏已删除：标记点/照片/已删除三项移除，菜单平行上移） -->
           <div class="profile-scroll">
             <div class="menu-section">
               <div class="menu-title">我的主页</div>
@@ -1980,8 +1940,6 @@
     if (markerBadge) markerBadge.textContent = coordCount;
     const photoBadge = document.querySelector('#deletedPhotosEntry .menu-badge');
     if (photoBadge) photoBadge.textContent = photoCount;
-    const statEls = document.querySelectorAll('.profile-stats .stat-item .stat-num');
-    if (statEls.length >= 3) statEls[2].textContent = trashTotal;
   }
 
   // 恢复/永久删除（乐观更新：先移除本地条目再请求；失败重拉真实回收站恢复状态）
@@ -2460,13 +2418,8 @@
       });
     }
 
-    // 统计：标记点 / 照片 / 获赞（我的主页视图）
+    // 统计：坐标点 / 照片 / 获赞（我的主页视图；我的界面统计栏已删除）
     if (d.stats) {
-      const statEls = document.querySelectorAll('.profile-stats .stat-item .stat-num');
-      if (statEls.length >= 3) {
-        if (d.stats.coordCount != null) statEls[0].textContent = d.stats.coordCount;
-        if (d.stats.photoCount != null) statEls[1].textContent = d.stats.photoCount;
-      }
       const coordEl = document.getElementById('myHomeCoordCount');
       if (coordEl && d.stats.coordCount != null) coordEl.textContent = d.stats.coordCount;
       const photoEl = document.getElementById('myHomePhotoCount');
