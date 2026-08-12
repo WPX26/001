@@ -1,5 +1,6 @@
 <template>
   <web-view :src="webSrc" @message="handleMessage" style="width:100%;height:calc(100vh - 160rpx);"></web-view>
+  <custom-tab-bar />
 </template>
 
 <script>

@@ -4,7 +4,8 @@
 			"path": "pages/home/home",
 			"style": {
 				"navigationStyle": "custom",
-				"navigationBarTitleText": "地图相册"
+				"navigationBarTitleText": "地图相册",
+				"disableScroll": true
 			}
 		},
 		{
@@ -18,13 +19,15 @@
 		{
 			"path": "pages/connect/connect",
 			"style": {
-				"navigationBarTitleText": "联机"
+				"navigationBarTitleText": "联机",
+				"disableScroll": true
 			}
 		},
 		{
 			"path": "pages/camera/camera",
 			"style": {
-				"navigationBarTitleText": "相机"
+				"navigationBarTitleText": "相机",
+				"disableScroll": true
 			}
 		},
 		{
@@ -32,13 +35,15 @@
 			"style": {
 				"navigationBarTitleText": "消息",
 				"enablePullDownRefresh": true,
-				"backgroundTextStyle": "dark"
+				"backgroundTextStyle": "dark",
+				"disableScroll": true
 			}
 		},
 		{
 			"path": "pages/profile/profile",
 			"style": {
-				"navigationBarTitleText": "我的"
+				"navigationBarTitleText": "我的",
+				"disableScroll": true
 			}
 		},
 		{
@@ -107,13 +112,13 @@
 		"navigationBarBackgroundColor": "#FAF3E7",
 		"backgroundColor": "#F8F8F8"
 	},
-	"condition" : { //模式配置，仅开发期间生效
-		"current": 0, //当前激活的模式(list 的索引项)
+	"condition": {
+		"current": 0,
 		"list": [
 			{
-				"name": "", //模式名称
-				"path": "", //启动页面，必选
-				"query": "" //启动参数，在页面的onLoad函数里面得到
+				"name": "",
+				"path": "",
+				"query": ""
 			}
 		]
 	}
