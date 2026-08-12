@@ -29,7 +29,7 @@ router.get(
 // 3.2 搜索地点（地标 + 本地坐标混合，lng/lat 可选用于就近排序）
 router.get(
   '/search',
-  requireAuth,
+  optionalAuth,
   [
     query('keyword').trim().notEmpty().withMessage('keyword 不能为空').isLength({ max: 50 }).withMessage('keyword 最长 50 字'),
     query('lng').optional().isFloat({ min: -180, max: 180 }).withMessage('lng 必须是经度数值'),

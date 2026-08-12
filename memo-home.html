@@ -5118,28 +5118,29 @@
     }
   });
 
-  // 定位按钮 — 真实 GPS 定位（原为模拟提示）
-  document.getElementById('locateBtn').addEventListener('click', () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(function (pos) {
-        var lat = pos.coords.latitude;
-        var lng = pos.coords.longitude;
-        lastKnownLocation = { lng: lng, lat: lat, time: Date.now() };
-        if (map && map.setView) map.setView([lat, lng], 16);
-        showToast('📍 已定位到当前位置');
-      }, function () {
-        // 定位失败：回退最近成功定位（60 秒内）或保持地图中心
-        if (lastKnownLocation && (Date.now() - lastKnownLocation.time) <= 60000) {
-          if (map && map.setView) map.setView([lastKnownLocation.lat, lastKnownLocation.lng], 16);
-          showToast('📍 已定位到最近位置');
-        } else {
-          showToast('⚠️ 定位失败，请检查定位权限');
-        }
-      }, { timeout: 8000, enableHighAccuracy: true, maximumAge: 30000 });
-    } else {
-      showToast('⚠️ 当前环境不支持定位');
+  // 定位 — 真实 GPS（manual=true 按钮点击：提示；false 打开地图自动：静默）
+  function locateToCurrent(manual) {
+    if (!navigator.geolocation) {
+      if (manual) showToast('⚠️ 当前环境不支持定位');
+      return;
     }
-  });
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      lastKnownLocation = { lng: lng, lat: lat, time: Date.now() };
+      if (map && map.setView) map.setView([lat, lng], 16);
+      if (manual) showToast('📍 已定位到当前位置');
+    }, function () {
+      // 定位失败：回退最近成功定位（60 秒内）或保持地图中心
+      if (lastKnownLocation && (Date.now() - lastKnownLocation.time) <= 60000) {
+        if (map && map.setView) map.setView([lastKnownLocation.lat, lastKnownLocation.lng], 16);
+        if (manual) showToast('📍 已定位到最近位置');
+      } else if (manual) {
+        showToast('⚠️ 定位失败，请检查定位权限');
+      }
+    }, { timeout: 8000, enableHighAccuracy: true, maximumAge: 30000 });
+  }
+  document.getElementById('locateBtn').addEventListener('click', () => { locateToCurrent(true); });
 
   // 标点按钮 → 弹出菜单
   const markBtn = document.getElementById('markBtn');
@@ -8055,6 +8056,8 @@
       // 延迟启用缩放同步，避免初始化期间的缩放变化影响细化程度
       setTimeout(function() {
         mapReady = true;
+        // 打开地图自动定位：屏幕中心跳转到当前 GPS 位置（静默，失败不打扰）
+        setTimeout(function () { locateToCurrent(false); }, 800);
         // 防御性刷新地图尺寸：布局/容器尺寸变动后保证瓦片铺满容器
         if (map) map.invalidateSize(false);
       }, 500);
