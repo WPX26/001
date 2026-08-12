@@ -102,7 +102,7 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-  .top-btn:hover { background: rgba(240, 160, 64, 0.25); }
+  .top-btn:hover { background: rgba(240, 160, 64, 0.25); box-shadow: 0 0 14px rgba(232, 144, 32, 0.5); }
   .top-btn:active { transform: scale(0.96); }
   .top-btn svg { width: 14px; height: 14px; }
 
@@ -251,7 +251,7 @@
     cursor: pointer;
     transition: background 0.2s;
   }
-  .connect-option:hover { background: rgba(240, 160, 64, 0.08); }
+  .connect-option:hover { background: rgba(240, 160, 64, 0.08); box-shadow: 0 0 12px rgba(232, 144, 32, 0.35); }
   .connect-option:active { background: rgba(240, 160, 64, 0.15); }
 
   .connect-option + .connect-option {
@@ -351,7 +351,7 @@
   }
   .nav-item:hover { background: rgba(240, 160, 64, 0.1); }
   .nav-item.active .nav-label { color: #E89020; }
-  .nav-item.active svg { color: #E89020; }
+  .nav-item.active svg { color: #E89020; filter: drop-shadow(0 0 6px rgba(232, 144, 32, 0.8)); }
   .nav-item svg { width: 26px; height: 26px; transition: color 0.2s; }
   .nav-label { font-size: 11px; transition: color 0.2s; }
 
@@ -371,7 +371,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.5), inset 0 1px 0 rgba(255, 233, 184, 0.4);
+    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.55), 0 0 26px rgba(232, 144, 32, 0.4), inset 0 1px 0 rgba(255, 233, 184, 0.4);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     color: white;
   }

@@ -235,8 +235,8 @@
     transition: all 0.2s ease;
     box-shadow: 0 2px 8px rgba(28, 15, 8, 0.1);
   }
-  .action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28, 15, 8, 0.15); }
-  .action-btn:active { transform: scale(0.95); }
+  .action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28, 15, 8, 0.15), 0 0 14px rgba(232, 144, 32, 0.5); }
+  .action-btn:active { transform: scale(0.95); box-shadow: 0 0 18px rgba(232, 144, 32, 0.65); }
   .action-btn svg { width: 22px; height: 22px; color: rgba(245, 223, 192, 0.85); }
 
   /* 标点弹出菜单 */
@@ -282,6 +282,7 @@
   .mark-menu-item:hover {
     background: rgba(240, 160, 64, 0.15);
     color: #C97B2A;
+    box-shadow: 0 0 12px rgba(232, 144, 32, 0.4);
   }
   .mark-menu-item:active {
     transform: scale(0.96);
@@ -1230,7 +1231,7 @@
   }
   .nav-item:hover { background: rgba(240, 160, 64, 0.08); }
   .nav-item.active .nav-label { color: #E89020; }
-  .nav-item.active svg { color: #E89020; }
+  .nav-item.active svg { color: #E89020; filter: drop-shadow(0 0 6px rgba(232, 144, 32, 0.8)); }
 
   .nav-item svg {
     width: 26px; height: 26px;
@@ -1262,7 +1263,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.5), inset 0 1px 0 rgba(255, 233, 184, 0.4);
+    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.55), 0 0 26px rgba(232, 144, 32, 0.4), inset 0 1px 0 rgba(255, 233, 184, 0.4);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     color: white;
   }
@@ -2931,7 +2932,7 @@
     border: none;
     margin: 0 auto;
   }
-  .detail-btn:hover { background: rgba(240, 160, 64, 0.12); color: #E89020; }
+  .detail-btn:hover { background: rgba(240, 160, 64, 0.12); color: #E89020; box-shadow: 0 0 12px rgba(232, 144, 32, 0.45); }
   .detail-btn:active { transform: scale(0.9); }
   .detail-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .detail-btn:disabled:hover { background: transparent; color: rgba(245, 223, 192, 0.85); }

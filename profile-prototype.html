@@ -85,13 +85,14 @@
 
   /* ===== 我的主页 ===== */
   .profile-header {
-    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    background: linear-gradient(135deg, #D4882F 0%, #B85A16 100%);
     padding: 16px 20px 28px;
     display: flex;
     align-items: center;
     gap: 14px;
     position: relative;
     flex-shrink: 0;
+    box-shadow: 0 8px 28px rgba(212, 136, 47, 0.3);
   }
   .profile-header::after {
     content: '';
@@ -198,8 +199,8 @@
     cursor: pointer;
     transition: background 0.18s;
   }
-  .menu-item:hover { background: rgba(240, 160, 64, 0.08); }
-  .menu-item:active { background: rgba(240, 160, 64, 0.15); }
+  .menu-item:hover { background: rgba(240, 160, 64, 0.08); box-shadow: 0 0 12px rgba(232, 144, 32, 0.35); }
+  .menu-item:active { background: rgba(240, 160, 64, 0.15); box-shadow: 0 0 16px rgba(232, 144, 32, 0.55); }
 
   .menu-item + .menu-item {
     border-top: 1px solid rgba(212, 165, 116, 0.3);
@@ -484,7 +485,7 @@
   }
   .nav-item:hover { background: rgba(240, 160, 64, 0.08); }
   .nav-item.active .nav-label { color: #E89020; }
-  .nav-item.active svg { color: #E89020; }
+  .nav-item.active svg { color: #E89020; filter: drop-shadow(0 0 6px rgba(232, 144, 32, 0.8)); }
   .nav-item svg { width: 26px; height: 26px; transition: color 0.2s; }
   .nav-label { font-size: 11px; transition: color 0.2s; }
 
@@ -504,7 +505,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.5), inset 0 1px 0 rgba(255, 233, 184, 0.4);
+    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.55), 0 0 26px rgba(232, 144, 32, 0.4), inset 0 1px 0 rgba(255, 233, 184, 0.4);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     color: white;
   }

@@ -140,7 +140,7 @@
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
     border-color: transparent;
-    box-shadow: 0 3px 10px rgba(232, 144, 32, 0.4);
+    box-shadow: 0 3px 10px rgba(232, 144, 32, 0.4), 0 0 18px rgba(232, 144, 32, 0.45);
   }
   .category-tab .badge {
     display: inline-flex;
@@ -311,7 +311,7 @@
   }
   .nav-item:hover { background: rgba(240, 160, 64, 0.08); }
   .nav-item.active .nav-label { color: #E89020; }
-  .nav-item.active svg { color: #E89020; }
+  .nav-item.active svg { color: #E89020; filter: drop-shadow(0 0 6px rgba(232, 144, 32, 0.8)); }
   .nav-item svg { width: 26px; height: 26px; transition: color 0.2s; }
   .nav-label { font-size: 11px; transition: color 0.2s; }
 
@@ -331,7 +331,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.5), inset 0 1px 0 rgba(255, 233, 184, 0.4);
+    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.55), 0 0 26px rgba(232, 144, 32, 0.4), inset 0 1px 0 rgba(255, 233, 184, 0.4);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     color: white;
   }
