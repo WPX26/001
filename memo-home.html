@@ -2974,6 +2974,9 @@
   body.full-embed .phone-frame::before { display: none; }
   body.full-embed .phone-screen { border-radius: 0; }
   body.full-embed .status-bar { display: none; }
+  /* App 内由原生 tabBar 承担导航，隐藏 H5 底部导航避免双导航叠加 */
+  body.full-embed .bottom-nav,
+  body.full-embed .home-indicator { display: none; }
 
 </style>
 <!-- Leaflet + 天地图瓦片 -->
@@ -2997,7 +3000,16 @@
       window.history.replaceState({}, '', url);
     }
     if (params.get('full') === '1') {
-      document.body.classList.add('full-embed');
+      // 本段 JS 位于 <head>，此时 document.body 尚未解析（为 null）
+      // 直接 classList.add 会抛 TypeError 被 catch 吞掉 → full-embed 静默失效
+      // 改为：body 已存在则立即加类，否则等 DOMContentLoaded
+      if (document.body) {
+        document.body.classList.add('full-embed');
+      } else {
+        document.addEventListener('DOMContentLoaded', function () {
+          document.body.classList.add('full-embed');
+        });
+      }
     }
   } catch (e) {}
 })();
@@ -5440,34 +5452,10 @@
     });
   }
 
-  // 中心按钮 — 短按系统相机，长按（800ms）打开自定义专业相机
+  // 中心按钮 — 点击一律直接调起系统相机（去掉长按跳转 camera-prototype，避免手机误触跳页）
   (function() {
     var centerBtn = document.getElementById('centerBtn');
-    var longTimer = null;
-    var isLong = false;
-
-    centerBtn.addEventListener('mousedown', function(e) {
-      isLong = false;
-      longTimer = setTimeout(function() { isLong = true; window.location.href = 'camera-prototype.html'; }, 800);
-    });
-    centerBtn.addEventListener('touchstart', function(e) {
-      isLong = false;
-      longTimer = setTimeout(function() { isLong = true; window.location.href = 'camera-prototype.html'; }, 800);
-    });
-    centerBtn.addEventListener('mouseup', function(e) {
-      if (longTimer) clearTimeout(longTimer);
-    });
-    centerBtn.addEventListener('mouseleave', function(e) {
-      if (longTimer) clearTimeout(longTimer);
-    });
-    centerBtn.addEventListener('touchend', function(e) {
-      if (longTimer) clearTimeout(longTimer);
-    });
-    centerBtn.addEventListener('touchcancel', function(e) {
-      if (longTimer) clearTimeout(longTimer);
-    });
     centerBtn.addEventListener('click', function(e) {
-      if (isLong) { isLong = false; return; }
       captureWithSystemCamera();
     });
   })();

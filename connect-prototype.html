@@ -1132,19 +1132,10 @@
     var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
     return isNaN(d.getTime()) ? null : d;
   }
-  // 相机按钮 — 短按系统相机，长按（800ms）自定义专业相机
+  // 相机按钮 — 点击一律直接调起系统相机（去掉长按跳转 camera-prototype，避免手机误触跳页）
   (function() {
     var camBtn = document.getElementById('cameraBtn');
-    var longTimer = null, isLong = false;
-    function startLong() { isLong = false; longTimer = setTimeout(function() { isLong = true; window.location.href = 'camera-prototype.html'; }, 800); }
-    function cancelLong() { if (longTimer) clearTimeout(longTimer); }
-    camBtn.addEventListener('mousedown', startLong);
-    camBtn.addEventListener('touchstart', startLong);
-    camBtn.addEventListener('mouseup', cancelLong);
-    camBtn.addEventListener('mouseleave', cancelLong);
-    camBtn.addEventListener('touchend', cancelLong);
-    camBtn.addEventListener('touchcancel', cancelLong);
-    camBtn.addEventListener('click', function(e) { if (isLong) { isLong = false; return; } captureWithSystemCamera(); });
+    camBtn.addEventListener('click', function(e) { captureWithSystemCamera(); });
   })();
 
   // 客服
