@@ -48,6 +48,20 @@ export default {
     }
     if (this.loggedIn) this.buildWebSrc()
   },
+  onBackPress() {
+    // Android 物理返回键：web-view 内部（H5 页面跳转历史）有可回退页时先回退 H5，
+    // 否则交给系统默认行为（首页即退出 App），避免返回键直接退出或行为错乱
+    // #ifdef APP-PLUS
+    try {
+      const wv = plus.webview.currentWebview().children()[0]
+      if (wv && wv.canBack && wv.canBack()) {
+        wv.back()
+        return true
+      }
+    } catch (e) {}
+    // #endif
+    return false
+  },
   methods: {
     buildWebSrc() {
       const token = memoApi.getToken()
