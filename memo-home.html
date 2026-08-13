@@ -3116,11 +3116,11 @@
     left: 50%; top: 26%;
     width: 240rem; height: 192rem;
     transform: translate(-50%, -50%);
-    animation: splashSunRise 2s cubic-bezier(0.05, 0.65, 0.15, 1) both;
+    animation: splashSunRise 2.1s cubic-bezier(0.05, 0.65, 0.15, 1) both;
   }
   .splash-sun svg {
     width: 100%; height: 100%;
-    animation: splashSunRiseScale 2s cubic-bezier(0.05, 0.65, 0.15, 1) both;
+    animation: splashSunRiseScale 2.1s cubic-bezier(0.05, 0.65, 0.15, 1) both;
     filter: drop-shadow(0 0 18rem rgba(255, 184, 77, 0.45)) drop-shadow(0 0 46rem rgba(232, 144, 32, 0.3));
   }
   .splash-brand {
@@ -3134,7 +3134,7 @@
     letter-spacing: 2.5rem;
     text-shadow: 0 0 22rem rgba(255, 184, 77, 0.35);
     /* opacity 基础 1：动画失败（如 WebView 兼容）时文字仍可见，不永远隐形 */
-    animation: splashPopFlip 1s 1.48s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+    animation: splashPopFlip 1s 1.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
   .splash-welcome {
     position: absolute;
@@ -3146,7 +3146,7 @@
     color: rgba(245, 223, 192, 0.85);
     white-space: nowrap;
     letter-spacing: 4rem;
-    animation: splashPop 1.6s 1.48s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+    animation: splashPop 1.6s 1.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
   body.splash-active .interaction-hint { display: none; }
   @keyframes splashSunRise {
