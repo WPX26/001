@@ -4866,6 +4866,9 @@
         lmarker.on('click', function(e) {
           if (freeMarkMode) return;
           L.DomEvent.stopPropagation(e);
+          // 点击时读取标点最新数据（改名/photoData 键迁移后 _data 已随 renderMarkers 刷新；
+          // 用创建时闭包捕获的 m 会拿到过期标题，导致 showPopup 按旧标题查 photoData 为空——王总反馈"标点无照片"根因）
+          var m = this._data || m;
           // 构造 dataset 兼容原有 showPopup / showLocalUploadDialog
           var fakeDom = { dataset: {} };
           fakeDom.dataset.title = m.title;
