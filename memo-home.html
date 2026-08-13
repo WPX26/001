@@ -2406,6 +2406,28 @@
     overflow: hidden;
   }
   .photo-detail.show { display: flex; }
+  /* 点击图片全屏观看、再次点击退出（王总 2026-08-13：灵感/探索/本地三模式共用） */
+  .photo-detail.fullscreen {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: #000;
+    border-radius: 0;
+  }
+  .photo-detail.fullscreen .photo-detail-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    background-size: contain !important;
+    background-position: center !important;
+    background-repeat: no-repeat;
+  }
+  .photo-detail.fullscreen .photo-detail-info,
+  .photo-detail.fullscreen .photo-detail-path { display: none; }
+  .photo-detail.fullscreen .photo-detail-close { z-index: 5; }
   .photo-detail-close {
     position: absolute;
     top: 12rem; right: 12rem;
@@ -8029,10 +8051,17 @@
   // 关闭图片详情
   function closePhotoDetail() {
     photoDetail.classList.remove('show');
+    photoDetail.classList.remove('fullscreen');
     currentPhotoDetail = null;
   }
 
   photoDetailClose.addEventListener('click', closePhotoDetail);
+
+  // 点击图片：全屏观看 / 再次点击退出（王总 2026-08-13；灵感/探索/本地三模式共用同一详情界面）
+  photoDetailImage.addEventListener('click', function(e) {
+    e.stopPropagation();
+    photoDetail.classList.toggle('fullscreen');
+  });
 
   // 点赞
   photoDetailLike.addEventListener('click', () => {
