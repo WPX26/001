@@ -429,6 +429,148 @@
   body.full-embed.mobile-browser .home-indicator { display: flex; }
   /* 底部导航在 phone-screen 内 absolute 贴底，页面高度直接 = 实际可视高度 */
   body.full-embed.mobile-browser .phone-frame { height: var(--app-h, 100vh); }
+
+  /* ===== 私信对话面板（真实接口接入，样式复用 memo-home.html #chatPanel 设计语言：深棕底/橙色渐变/圆角气泡，类名一致） ===== */
+  .chat-panel {
+    position: absolute;
+    inset: 0;
+    background: #1C1208;
+    border-radius: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    pointer-events: none;
+  }
+  .chat-panel.show { transform: translateY(0); pointer-events: auto; }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 10rem;
+    padding: 14rem 16rem;
+    background: linear-gradient(135deg, #2A1810 0%, #3D2818 100%);
+    border-bottom: 1rem solid rgba(240, 160, 64, 0.15);
+    flex-shrink: 0;
+  }
+  .chat-back, .chat-close {
+    width: 32rem; height: 32rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(245, 223, 192, 0.9);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background 0.2s;
+  }
+  .chat-back:hover, .chat-close:hover { background: rgba(240, 160, 64, 0.15); }
+  .chat-back svg, .chat-close svg { width: 18rem; height: 18rem; }
+  .chat-peer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10rem;
+    min-width: 0;
+  }
+  .chat-peer-avatar {
+    width: 32rem; height: 32rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    background-size: cover;
+    background-position: center;
+  }
+  .chat-peer-name {
+    font-size: 15rem;
+    font-weight: 700;
+    color: #FAF5EC;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16rem;
+    display: flex;
+    flex-direction: column;
+    gap: 10rem;
+    background: #1C1208;
+  }
+  .chat-messages::-webkit-scrollbar { width: 3rem; }
+  .chat-messages::-webkit-scrollbar-thumb { background: rgba(240, 160, 64, 0.3); border-radius: 2rem; }
+  .chat-bubble {
+    max-width: 75%;
+    padding: 9rem 13rem;
+    border-radius: 16rem;
+    font-size: 13rem;
+    line-height: 1.5;
+    word-break: break-word;
+    animation: chatBubbleIn 0.25s ease;
+  }
+  @keyframes chatBubbleIn {
+    from { opacity: 0; transform: translateY(6rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .chat-bubble.peer {
+    align-self: flex-start;
+    background: rgba(255, 255, 255, 0.08);
+    color: #FAF5EC;
+    border-bottom-left-radius: 4rem;
+  }
+  .chat-bubble.me {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    border-bottom-right-radius: 4rem;
+  }
+  .chat-time {
+    font-size: 10rem;
+    color: rgba(245, 223, 192, 0.4);
+    text-align: center;
+    margin: 4rem 0;
+  }
+  .chat-input-bar {
+    display: flex;
+    align-items: center;
+    gap: 8rem;
+    padding: 10rem 12rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 1rem solid rgba(240, 160, 64, 0.15);
+    flex-shrink: 0;
+  }
+  .chat-input-bar input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1rem solid rgba(240, 160, 64, 0.2);
+    border-radius: 20rem;
+    padding: 9rem 14rem;
+    color: #FAF5EC;
+    font-size: 13rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .chat-input-bar input::placeholder { color: rgba(245, 223, 192, 0.4); }
+  .chat-input-bar input:focus { border-color: rgba(240, 160, 64, 0.6); }
+  .chat-input-bar button {
+    width: 38rem; height: 38rem;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.35);
+  }
+  .chat-input-bar button:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.5); }
+  .chat-input-bar button:active { transform: scale(0.92); }
+  .chat-input-bar button svg { width: 16rem; height: 16rem; }
+  .chat-input-bar button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 </style>
 <script src="lib/dexie/dexie.js"></script>
 <script src="api.js"></script>
@@ -576,6 +718,37 @@
           </div>
 
           <div class="home-indicator"></div>
+
+          <!-- 私信对话面板（真实接口，样式复用 memo-home #chatPanel 设计语言） -->
+          <div class="chat-panel" id="chatPanel">
+            <div class="chat-header">
+              <div class="chat-back" id="chatBack" title="返回">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </div>
+              <div class="chat-peer">
+                <div class="chat-peer-avatar" id="chatPeerAvatar"></div>
+                <div class="chat-peer-name" id="chatPeerName"></div>
+              </div>
+              <div class="chat-close" id="chatClose" title="关闭">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+              <!-- 消息由JS动态生成 -->
+            </div>
+            <div class="chat-input-bar">
+              <input type="text" id="chatInput" placeholder="输入消息..." maxlength="2000">
+              <button id="chatSend" title="发送">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -782,6 +955,7 @@
       type: n.type,
       category: TYPE_CATEGORY[n.type] || 'system',
       name: name,
+      actorId: (actor && actor.id) || '',   // 私信对话用：对方用户 id（创建/获取会话）
       avatar: avatarText,
       avatarImg: (actor && actor.avatar) || '',
       avatarClass: TYPE_AVATAR_CLASS[n.type] || 'system',
@@ -882,6 +1056,8 @@
         const msg = getMessageSource().find(m => String(m.id) === id);
         if (msg) {
           markNotificationRead(msg);
+          // 私信类型（已登录 + 有对方用户 id）→ 打开真实对话；其余/未登录/无 id → 原占位行为
+          if (msg.type === 'chat') { openChatConversation(msg); return; }
           showToast('📩 查看与「' + msg.name + '」的对话');
         }
       });
@@ -1060,6 +1236,150 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
   }
+
+  // ========== 私信对话（已登录 → 真实后端，REST 契约 api.md 第 9 章） ==========
+  // 点击 chat 类型消息 → 幂等创建/获取会话 → 拉历史 → 乐观发送；
+  // 未登录/无 actorId/会话创建失败 → 回退原占位行为（toast）；
+  // 错误只 console 提示，绝不弹 UI（与 api.js 约定一致）。
+  const chatPanel = document.getElementById('chatPanel');
+  const chatBack = document.getElementById('chatBack');
+  const chatClose = document.getElementById('chatClose');
+  const chatPeerAvatar = document.getElementById('chatPeerAvatar');
+  const chatPeerName = document.getElementById('chatPeerName');
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+
+  let chatConvId = null;   // 当前会话 id（null = 面板不可用）
+  let chatBubbles = [];    // 当前会话气泡（时间正序，{mine, text, time}）
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function nowStr() {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  // ISO 时间 → HH:MM（与 memo-home 时间分隔格式一致）；无效返回 ''
+  function toHHMM(t) {
+    const d = new Date(t);
+    if (isNaN(d.getTime())) return '';
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  // 后端消息 → 页面气泡（image/coord 用占位文案，与后端 lastMessage 快照一致）
+  function toBubble(m) {
+    const me = (MemoAPI.getUser && MemoAPI.getUser()) || null;
+    let text;
+    if (m.type === 'image') text = '[图片]';
+    else if (m.type === 'coord') text = '[位置]';
+    else text = m.content || '';
+    return { mine: me && String(m.senderId) === String(me.id), text: text, time: toHHMM(m.createdAt) };
+  }
+
+  // 渲染气泡（沿用 memo-home：每 6 条插入一次 chat-time 分隔）
+  function renderChatMessages(list) {
+    chatMessages.innerHTML = (list || []).map((m, i) => {
+      const timeTag = (i > 0 && i % 6 === 0)
+        ? `<div class="chat-time">${m.time}</div>`
+        : '';
+      return timeTag + `<div class="chat-bubble ${m.mine ? 'me' : 'peer'}">${escapeHtml(m.text)}</div>`;
+    }).join('');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  /**
+   * 打开与私信方的真实对话（已登录时）：
+   * POST /chat/conversations 幂等创建/获取 → 打开面板 → GET 历史（正序渲染）→ PUT /read 会话已读
+   */
+  function openChatConversation(msg) {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn() || !msg.actorId) {
+      showToast('📩 查看与「' + msg.name + '」的对话');   // 原占位行为
+      return;
+    }
+    MemoAPI.post('/chat/conversations', { peerId: msg.actorId }).then(function (conv) {
+      if (!conv || !conv.conversationId) throw new Error('会话响应缺少 conversationId');
+      chatConvId = conv.conversationId;
+      // 打开面板（先清空并置空列表，历史异步填充）
+      chatPeerName.textContent = msg.name;
+      if (msg.avatarImg) {
+        chatPeerAvatar.style.backgroundImage = "url('" + msg.avatarImg + "')";
+      } else {
+        chatPeerAvatar.style.backgroundImage = '';
+        chatPeerAvatar.style.background = 'linear-gradient(135deg, #F0A040, #D4691C)';
+      }
+      chatBubbles = [];
+      renderChatMessages(chatBubbles);
+      chatPanel.classList.add('show');
+      setTimeout(() => chatInput.focus(), 320);
+      // 拉取历史（9.2，before 游标暂不用：原型会话量小）
+      MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages?limit=50')
+        .then(function (data) {
+          chatBubbles = ((data && data.list) || []).slice().reverse().map(toBubble);
+          renderChatMessages(chatBubbles);
+        })
+        .catch(function (e) {
+          console.warn('[chat history]', e && e.message);
+        });
+      // 会话标记已读（9.5；失败仅 console，不打扰）
+      MemoAPI.put('/chat/conversations/' + encodeURIComponent(chatConvId) + '/read')
+        .catch(function (e) {
+          console.warn('[conv read]', e && e.message);
+        });
+    }).catch(function (e) {
+      // 会话创建失败（服务不可达/业务拒绝）→ 回退原占位行为，不打开面板
+      console.warn('[chat open]', e && e.message);
+      chatConvId = null;
+      showToast('📩 查看与「' + msg.name + '」的对话');
+    });
+  }
+
+  // 发送消息（乐观追加 → POST 9.3；失败回滚气泡并把文字还回输入框）
+  function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text || !chatConvId) return;
+    chatInput.value = '';
+    const bubble = { mine: true, text: text, time: nowStr() };
+    chatBubbles.push(bubble);
+    renderChatMessages(chatBubbles);
+    chatSend.disabled = true;
+    MemoAPI.post('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages', { type: 'text', content: text })
+      .then(function () {
+        // 成功：乐观气泡保留（内容与后端一致）
+      })
+      .catch(function (e) {
+        console.warn('[chat send]', e && e.message);
+        const idx = chatBubbles.indexOf(bubble);
+        if (idx >= 0) chatBubbles.splice(idx, 1);
+        chatInput.value = text;   // 失败还回输入框，便于重试
+        renderChatMessages(chatBubbles);
+      })
+      .then(function () {
+        chatSend.disabled = false;   // 无论成败恢复可发送
+      });
+  }
+
+  // 返回（关闭面板，回到消息列表）
+  chatBack.addEventListener('click', () => {
+    chatPanel.classList.remove('show');
+    chatInput.blur();
+    chatConvId = null;
+  });
+
+  // 关闭
+  chatClose.addEventListener('click', () => {
+    chatPanel.classList.remove('show');
+    chatInput.blur();
+    chatConvId = null;
+  });
+
+  // 发送
+  chatSend.addEventListener('click', sendChatMessage);
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
+  });
 
   // 初始化：先渲染本地消息（离线兜底），已登录时异步拉取真实通知覆盖
   renderMessages();

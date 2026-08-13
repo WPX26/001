@@ -1020,6 +1020,13 @@
     });
   });
 
+  // 会话级登录标记：本会话内登录成功（含模拟登录）后，回首页不再弹登录引导；
+  // 会话结束（关闭页面）后残留 mock token 不算已登录（见 api.js isLoggedIn），
+  // 未登录时首页登录引导照常弹出——同时满足"登录后不打扰"与"未登录要提示"
+  function markSessionLoggedIn() {
+    try { sessionStorage.setItem('memo_session_logged_in', '1'); } catch (e) {}
+  }
+
   // 登录：优先调真实后端 POST /auth/login（成功保存 token+user）；
   // 服务不可达时回退本地模拟校验，跳转 memo-home.html 逻辑不变。
   function loginByCode(phone, code) {
@@ -1027,6 +1034,7 @@
       return MemoAPI.post('/auth/login', { phone: phone, code: code }).then(function(data) {
         if (data && data.token) {
           MemoAPI.setAuth(data.token, data.user || {});
+          markSessionLoggedIn();
           return { ok: true };
         }
         return { ok: false, msg: '登录失败，请重试' };
@@ -1046,6 +1054,7 @@
         // 本地模拟登录成功同样写入登录态（token+user），
         // 避免跳回 memo-home.html 后 isLoggedIn() 仍为 false 而再次弹出"提示登录"
         if (typeof MemoAPI !== 'undefined') MemoAPI.setAuth(token, { phone: phone });
+        markSessionLoggedIn();
         resolve({ ok: true, token: token });
       } else {
         resolve({ ok: false, msg: '验证码不正确' });
@@ -1085,6 +1094,7 @@
     if (typeof MemoAPI !== 'undefined') {
       MemoAPI.setAuth('mock_pwd_' + Date.now(), { username: username });
     }
+    markSessionLoggedIn();
     showToast('✅ 登录成功!');
     setTimeout(function() { window.location.href = 'memo-home.html'; }, 1200);
   });

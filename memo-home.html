@@ -5494,11 +5494,13 @@
   document.getElementById('locateBtn').addEventListener('click', () => { locateToCurrent(true); });
 
   // 蓝色"我的位置"标记（高德风格蓝点+呼吸光晕），定位成功后显示并随定位更新
+  // 注意：interactive:false + 容器 pointer-events:none——蓝点仅作位置指示，不参与点击命中，
+  // 否则坐标点与自身位置重合时（zIndexOffset:100 永久置顶）蓝点会拦截点击导致无法点中坐标点
   function updateUserLocationMarker(lat, lng) {
     if (!map || !map.addLayer) return;
     if (window._userLocMarker) { map.removeLayer(window._userLocMarker); }
     var icon = L.divIcon({
-      html: '<div style="position:relative;width:34px;height:34px;">' +
+      html: '<div style="position:relative;width:34px;height:34px;pointer-events:none;">' +
               '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:34px;height:34px;border-radius:50%;background:rgba(33,150,243,0.25);animation:ripple 2s infinite;"></div>' +
               '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#2196F3;border:3px solid #fff;box-shadow:0 0 12px rgba(33,150,243,0.9),0 2px 8px rgba(0,0,0,0.4);"></div>' +
             '</div>',
@@ -5506,7 +5508,7 @@
       iconSize: [34, 34],
       iconAnchor: [17, 17]
     });
-    window._userLocMarker = L.marker([lat, lng], { icon: icon, zIndexOffset: 100 }).addTo(map);
+    window._userLocMarker = L.marker([lat, lng], { icon: icon, zIndexOffset: 100, interactive: false }).addTo(map);
   }
 
   // 标点按钮 → 弹出菜单
@@ -7833,6 +7835,9 @@
     // 渲染评论
     renderComments(photo);
 
+    // 登录态：异步拉取真实评论列表（成功替换本地模拟，网络/业务失败保留本地）
+    loadRemoteComments(photo);
+
     photoDetail.classList.add('show');
   }
 
@@ -7882,6 +7887,8 @@
     photoDetailTip.classList.toggle('tipped', photo.tipped);
     photoDetailTipCount.textContent = photo.tips;
     showToast(photo.tipped ? '💰 打赏成功！' : '已取消打赏');
+    // 登录态：同步到后端（乐观更新，失败回滚，交互动画不变）
+    syncPhotoTip(photo);
   });
 
   // 评论
@@ -7894,11 +7901,15 @@
     const text = photoDetailCommentInput.value.trim();
     if (!text) return;
     const { photo } = currentPhotoDetail;
-    photo.comments.push({ name: '@我', text, avatar: '#F0A040' });
+    // 临时 id：供失败精确回滚/成功后替换（后端返回的评论带真实 id）
+    const tempId = '__local_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    photo.comments.push({ id: tempId, name: '@我', text, avatar: '#F0A040' });
     photoDetailCommentInput.value = '';
     photoDetailCommentCount.textContent = photo.comments.length;
     renderComments(photo);
     showToast('💬 评论已发送');
+    // 登录态：同步到后端（乐观更新，失败回滚，交互动画不变）
+    syncPhotoComment(photo, text, tempId);
   });
 
   photoDetailCommentInput.addEventListener('keydown', (e) => {
@@ -9090,6 +9101,101 @@
     });
   }
 
+  // 作者 id → 稳定色块（后端评论头像为 URL/空，映射为色块以保持本地渲染结构不变）
+  function commentAvatarColor(seed) {
+    const palette = ['#F0A040', '#E89020', '#D32F2F', '#1976D2', '#8E24AA', '#4CAF50', '#7B1FA2', '#F57C00', '#C2185B', '#37474F'];
+    let h = 0;
+    const s = String(seed || '');
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
+  }
+
+  // 后端评论 → 本地渲染结构（{ id, name, text, avatar }）
+  function adaptRemoteComment(c) {
+    const author = (c && c.author) || {};
+    return {
+      id: (c && c.id) || '',
+      name: author.nickname || '匿名',
+      text: (c && c.content) || '',
+      avatar: commentAvatarColor(author.id)
+    };
+  }
+
+  // 登录态：拉取真实评论列表（GET /photos/{id}/comments，后端最新在前、分页第一页）
+  // 成功 → 替换本地模拟；无后端 id / 未登录 / 网络或业务失败 → 保留本地模拟评论
+  function loadRemoteComments(photo) {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    const backendId = photo.backendId || MemoAPI.getPhotoBackendId(photo.id);
+    if (!backendId) return;   // 本地模拟照片无后端 id → 保持本地演示行为
+    MemoAPI.get('/photos/' + encodeURIComponent(backendId) + '/comments?page=1&pageSize=100')
+      .then(function(data) {
+        const list = (data && data.list) || [];
+        if (!Array.isArray(list)) return;
+        photo.comments = list.map(adaptRemoteComment);
+        photoDetailCommentCount.textContent = photo.comments.length;
+        renderComments(photo);
+      })
+      .catch(function(e) {
+        console.warn('[remote comments]', e && e.message);
+      });
+  }
+
+  // 发表评论 → POST /photos/{id}/comments（乐观更新，失败按 tempId 精确回滚，成功用后端返回替换）
+  function syncPhotoComment(photo, text, tempId) {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    const backendId = photo.backendId || MemoAPI.getPhotoBackendId(photo.id);
+    if (!backendId) return;   // 本地模拟照片无后端 id → 保持本地演示行为
+    MemoAPI.post('/photos/' + encodeURIComponent(backendId) + '/comments', { content: text })
+      .then(function(data) {
+        if (!data || !data.id) return;
+        const mine = adaptRemoteComment(data);
+        // 用后端返回的评论替换乐观插入的那条（author/content 以后端为准）
+        for (let i = photo.comments.length - 1; i >= 0; i--) {
+          if (photo.comments[i] && photo.comments[i].id === tempId) {
+            photo.comments[i] = mine;
+            break;
+          }
+        }
+        photoDetailCommentCount.textContent = photo.comments.length;
+        renderComments(photo);
+      })
+      .catch(function(e) {
+        console.warn('[sync comment]', e && e.message);
+        // 精确移除本次乐观插入的评论（避免误删远程加载的评论）
+        for (let i = photo.comments.length - 1; i >= 0; i--) {
+          if (photo.comments[i] && photo.comments[i].id === tempId) {
+            photo.comments.splice(i, 1);
+            break;
+          }
+        }
+        photoDetailCommentCount.textContent = photo.comments.length;
+        renderComments(photo);
+      });
+  }
+
+  // 打赏 → POST /photos/{id}/tip（后端单向、60s 限频、不能打赏自己；乐观更新，失败回滚，成功回填权威计数）
+  function syncPhotoTip(photo) {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    const backendId = photo.backendId || MemoAPI.getPhotoBackendId(photo.id);
+    if (!backendId) return;   // 本地模拟照片无后端 id → 保持本地演示行为
+    if (!photo.tipped) return;   // 后端打赏不可取消：仅"打赏"方向同步，取消方向保留本地演示行为
+    MemoAPI.post('/photos/' + encodeURIComponent(backendId) + '/tip', { amount: 1 })
+      .then(function(data) {
+        // 成功后用后端权威计数回填（tips 按金额累加，与本地 +1 演示不同，以后端为准）
+        if (data && typeof data.tips === 'number') {
+          photo.tips = data.tips;
+          photoDetailTipCount.textContent = photo.tips;
+        }
+      })
+      .catch(function(e) {
+        console.warn('[sync tip]', e && e.message);
+        photo.tipped = false;
+        photo.tips -= 1;
+        photoDetailTip.classList.remove('tipped');
+        photoDetailTipCount.textContent = photo.tips;
+      });
+  }
+
   /** 归类结果时间 → 'YYYY-MM-DDTHH:mm'（photoTimes 契约格式） */
   function toISOTime(rt) {
     if (!rt) return '';
@@ -9221,6 +9327,8 @@
 (function () {
   try {
     if (typeof MemoAPI === 'undefined' || MemoAPI.isLoggedIn()) return;
+    // 本会话内刚完成过登录（含模拟登录，login-prototype 写入的会话标记）→ 不打扰
+    try { if (sessionStorage.getItem('memo_session_logged_in')) return; } catch (e) {}
     var hasLocal = false;
     try { hasLocal = !!(detailLevels[3] && detailLevels[3].length); } catch (e) {}
     if (hasLocal) return;

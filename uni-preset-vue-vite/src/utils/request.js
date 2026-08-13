@@ -66,7 +66,10 @@ export function clearAuth() {
 }
 
 export function isLoggedIn() {
-  return !!getToken()
+  // mock_ 前缀是原型模拟登录态（密码登录/后端不可达时的模拟验证码），并非真实登录，
+  // 视为未登录（与 Web 端 api.js 语义一致）——否则残留 mock token 会伪造登录态
+  const t = getToken()
+  return !!t && t.indexOf('mock_') !== 0
 }
 
 /* ---------------- 请求核心 ---------------- */

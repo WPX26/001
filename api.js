@@ -63,7 +63,10 @@
   }
 
   function isLoggedIn() {
-    return !!getToken();
+    var t = getToken();
+    // mock_ 前缀是原型模拟登录态（密码登录/后端不可达时的模拟验证码），并非真实登录，
+    // 视为未登录——否则残留 mock token 会伪造登录态：登录引导不弹、真实接口却必拒（1002）
+    return !!t && t.indexOf('mock_') !== 0;
   }
 
   /* ---------------- 请求核心 ---------------- */
