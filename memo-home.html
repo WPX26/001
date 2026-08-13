@@ -6005,7 +6005,6 @@
     db.pendingPhotos.add(photoData).then(function() {
       var oldInputs = document.querySelectorAll('input[type=file][capture=camera]');
       oldInputs.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
-      try { window.dispatchEvent(new Event('memo_photo_saved')); } catch (e) {}
       // 王总要求（2026-08-13）：拍照保存后不跳转地图——原地归类并提示，标点直接出现在当前地图
       showToast('📷 照片已保存', 'success', 1500);
       if (typeof checkPendingPhotos === 'function') {
@@ -9406,56 +9405,6 @@
     setTimeout(function () { splash.classList.add('done'); }, 2800);
     setTimeout(function () { splash.style.display = 'none'; document.body.classList.remove('splash-active'); }, 3600);
   })();
-</script>
-
-<script>
-// ===== 临时诊断信息条（王总反馈"拍照后标点无照片"，2026-08-13 排查用；定位后删除） =====
-(function () {
-  var el = document.createElement('div');
-  el.id = 'debugPanel';
-  el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;background:rgba(28,15,8,0.92);color:#F5DFC0;font-size:11px;line-height:1.5;padding:8px 10px;border-radius:8px;border:1px solid rgba(245,223,192,0.25);max-width:88vw;white-space:pre-wrap;word-break:break-all;pointer-events:none;';
-  document.body.appendChild(el);
-  var log = ['诊断条已启用'];
-  function refresh() {
-    try {
-      var info = [];
-      info.push('map: ' + (typeof map !== 'undefined' && map ? '就绪(z=' + Math.round(map.getZoom()) + ')' : '未就绪'));
-      info.push('detailLv3(' + (typeof detailLevels !== 'undefined' && detailLevels[3] ? detailLevels[3].length : 0) + '个): ' + (typeof detailLevels !== 'undefined' && detailLevels[3] ? detailLevels[3].map(function(m){return m.id + ':' + m.title + (m._remote ? '(远程)' : '');}).join(' / ') : '空'));
-      var keys = typeof photoData !== 'undefined' ? Object.keys(photoData) : [];
-      info.push('photoData键(' + keys.length + '个): ' + keys.join(' / ') || '(空)');
-      // 拍摄点/寿光 相关键的详细内容
-      var special = keys.filter(function(k){ return k.indexOf('拍摄点') >= 0 || k.indexOf('寿光') >= 0 || k.indexOf('圣城') >= 0; });
-      if (special.length) {
-        info.push('SPECIAL: ' + special.map(function(k){ return k + '=' + JSON.stringify(photoData[k]).slice(0,100); }).join(' ; '));
-      }
-      var pend = '读取中';
-      if (typeof Dexie !== 'undefined') {
-        try {
-          var d = new Dexie('memoPhotos');
-          d.version(1).stores({ pendingPhotos: 'id, hour, lng, lat' });
-          d.pendingPhotos.toArray().then(function(arr) { pend = arr.length + '条'; var el2 = document.getElementById('debugPanel'); if (el2) { el2.textContent = log.join('\n') + '\npending: ' + pend + '\n' + info.join('\n'); } });
-        } catch (e) {}
-      }
-      el.textContent = log.join('\n') + '\n' + info.join('\n') + '\npending: ' + pend;
-    } catch (e) {
-      el.textContent = '诊断错误: ' + e.message;
-    }
-  }
-  // 记录 checkPendingPhotos 的执行轨迹（钩子包装）
-  try {
-    var origCheck = checkPendingPhotos;
-    checkPendingPhotos = function() {
-      log.push('→ checkPendingPhotos 被调用 ' + new Date().toLocaleTimeString());
-      if (log.length > 8) log.shift();
-      refresh();
-      try { return origCheck.apply(this, arguments); } catch (e) { log.push('调用抛错: ' + e.message); refresh(); }
-    };
-  } catch (e) {}
-  setTimeout(refresh, 2500);
-  setInterval(refresh, 5000);
-  // 拍照保存钩子
-  window.addEventListener('memo_photo_saved', function(){ log.push('照片已保存'); refresh(); });
-})();
 </script>
 
 </body>
