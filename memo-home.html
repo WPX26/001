@@ -5060,24 +5060,36 @@
     applyGroupsCollapsedDefault(popupGroups);
     popupGroups.querySelectorAll('.time-group-header').forEach(bindGroupToggle);
 
-    // 绑定照片点击：自己拍的照片（带 id 的本地照片）→ 打开照片详情（王总 2026-08-13 要求与灵感/探索一致）；
-    // 演示照片（无 id）→ 保持原勾选上传行为
+    // 绑定照片点击：坐标点弹窗里所有照片点击都打开详情（王总 2026-08-13 要求与灵感/探索一致）
+    // 自己拍的照片（带 id）→ 本地详情（未上传显示上传按钮）；演示照片 → 完整模拟互动界面
     popupGroups.querySelectorAll('.tg-photo').forEach((photoEl, idx) => {
       photoEl.addEventListener('click', (e) => {
         e.stopPropagation();
         var pid = photoEl.dataset.photoId;
         var coordTitle = popupTitle.textContent;
-        if (pid && typeof openLocalPhotoDetail === 'function') {
-          // 从 photoData 找该照片对象（按当前弹窗标题 + 时间组）
-          var groups = photoData[coordTitle] || {};
-          var found = null;
+        var entry = null, isLocal = false;
+        var groups = photoData[coordTitle] || {};
+        if (pid) {
+          // 精确找本地照片（按 id）
           Object.keys(groups).forEach(function(hk) {
-            if (found) return;
+            if (entry) return;
             (groups[hk] || []).forEach(function(p) {
-              if (!found && p && p.id === pid) found = p;
+              if (!entry && p && p.id === pid) entry = p;
             });
           });
-          if (found) { openLocalPhotoDetail(found, coordTitle); return; }
+          if (entry) isLocal = true;
+        }
+        if (!entry) {
+          // 演示照片：取该坐标点第一个演示条目
+          Object.keys(groups).forEach(function(hk) {
+            if (entry) return;
+            if ((groups[hk] || []).length) entry = groups[hk][0];
+          });
+          entry = entry || { color: '#F0A040' };
+        }
+        if (typeof openLocalPhotoDetail === 'function') {
+          openLocalPhotoDetail(entry, coordTitle, isLocal);
+          return;
         }
         photoEl.classList.toggle('selected');
 
@@ -7870,11 +7882,12 @@
   const photoDetailUploadArea = document.getElementById('photoDetailUploadArea');
   const photoDetailUploadBtn = document.getElementById('photoDetailUploadBtn');
 
-  function openLocalPhotoDetail(photoEntry, coordTitle) {
+  function openLocalPhotoDetail(photoEntry, coordTitle, isLocal) {
     closeAllOverlays();
-    var backendId = (photoEntry.id && typeof MemoAPI !== 'undefined')
-      ? MemoAPI.getPhotoBackendId(photoEntry.id) : null;
+    isLocal = !!isLocal;
     var userMode = localStorage.getItem('profile_mode') || 'life';
+    var backendId = (isLocal && photoEntry.id && typeof MemoAPI !== 'undefined')
+      ? MemoAPI.getPhotoBackendId(photoEntry.id) : null;
     var photo = {
       id: photoEntry.id || ('local_' + Date.now()),
       backendId: backendId || null,
@@ -7901,6 +7914,25 @@
     photoDetailAuthorName.textContent = photo.author;
     var d = new Date();
     photoDetailTime.textContent = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+    // 演示照片（非自己拍的）：完整模拟互动界面，与灵感/探索模式一致
+    if (!isLocal) {
+      photo.likes = Math.floor(Math.random() * 80) + 20;
+      photo.tips = Math.floor(Math.random() * 8);
+      photo.comments = [
+        { id: 'c1', name: '@灵感旅人', text: '这个位置的光线真棒！', avatar: '#8E24AA' },
+        { id: 'c2', name: '@城市漫游者', text: '收藏了，下次去看看 📍', avatar: '#1976D2' }
+      ];
+      photoDetailLike.style.display = ''; photoDetailTip.style.display = '';
+      photoDetailComment.style.display = ''; photoDetailCollect.style.display = '';
+      document.getElementById('photoDetailCommentInput').style.display = '';
+      document.getElementById('photoDetailCommentSend').style.display = '';
+      document.getElementById('photoDetailComments').style.display = '';
+      photoDetailUploadArea.style.display = 'none';
+      renderLocalPhotoDetail(photo);
+      photoDetail.classList.add('show');
+      return;
+    }
 
     var isUploaded = !!backendId;
     // 已上传：完整互动区；未上传：隐藏互动区，显示橙色上传按钮
