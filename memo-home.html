@@ -8874,6 +8874,8 @@
       var autoNameCandidates = [];
 
       pendingPhotos.forEach(function(photo) {
+        // 单张容错：一张照片归类失败不中断整批（2026-08-13 王总反馈"标点里没有照片"后加固）
+        try {
         // 拍摄时间：优先 EXIF（takenAt/takenDate），缺失时回退原拍照时刻字段
         var rt = resolvePhotoTime(photo);
         var lng = (typeof photo.lng === 'number') ? photo.lng : (map ? map.getCenter().lng : 120.3826);
@@ -8945,6 +8947,10 @@
           addSharedPhotoToData(inspireData, targetMarker, lng, lat, photo, sharedPhoto, '#E53935', rt);
         }
         addedCount++;
+        } catch (e) {
+          console.error('单张照片归类失败:', e, photo);
+          showToast('照片归类出错: ' + (e && e.message), 'warning', 4000);
+        }
       });
 
       // 清除 IndexedDB 中的待归类照片
@@ -8963,6 +8969,7 @@
       }, 500);
     }).catch(function(e) {
       console.error('checkPendingPhotos failed:', e);
+      showToast('照片归类出错: ' + (e && e.message), 'warning', 4000);
     });
   }
 
