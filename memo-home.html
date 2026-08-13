@@ -6006,7 +6006,11 @@
       var oldInputs = document.querySelectorAll('input[type=file][capture=camera]');
       oldInputs.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
       try { window.dispatchEvent(new Event('memo_photo_saved')); } catch (e) {}
-      window.location.href = 'memo-home.html';
+      // 王总要求（2026-08-13）：拍照保存后不跳转地图——原地归类并提示，标点直接出现在当前地图
+      showToast('📷 照片已保存', 'success', 1500);
+      if (typeof checkPendingPhotos === 'function') {
+        setTimeout(checkPendingPhotos, 300);
+      }
     });
   }
 
