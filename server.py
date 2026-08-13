@@ -130,6 +130,13 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         # 静态文件
         return super().do_GET()
 
+    def end_headers(self):
+        # 全部响应禁用缓存：手机浏览器启发式缓存旧版 HTML 会导致修复不可见（2026-08-13 定位）
+        self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        self.send_header('Pragma', 'no-cache')
+        self.send_header('Expires', '0')
+        super().end_headers()
+
     def _send_json(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self.send_response(status)
@@ -148,8 +155,21 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    import ssl
     print(f'  ✓ http://localhost:{PORT}/memo-home.html')
+    print(f'  ✓ https://localhost:{PORT + 1}/memo-home.html （自签证书，手机定位需 HTTPS）')
     print(f'  ✓ /api/geocode?address=地名 （正向）')
     print(f'  ✓ /api/geocode?lng=120.38&lat=36.06 （反向）')
-    print(f'  ⚠ 请替换 TDT_KEY 为含地理编码权限的 Key')
-    http.server.HTTPServer(('0.0.0.0', PORT), ProxyHandler).serve_forever()
+
+    # HTTP 服务（8080）
+    httpd = http.server.ThreadingHTTPServer(('0.0.0.0', PORT), ProxyHandler)
+    import threading
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+
+    # HTTPS 服务（8443，自签证书）：手机浏览器 GPS 定位要求安全上下文（HTTPS），
+    # 手机访问 https://<IP>:8081 并信任证书后 geolocation 可用
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain('server.crt', 'server.key')
+    httpsd = http.server.ThreadingHTTPServer(('0.0.0.0', PORT + 1), ProxyHandler)
+    httpsd.socket = ctx.wrap_socket(httpsd.socket, server_side=True)
+    httpsd.serve_forever()

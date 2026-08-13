@@ -7,64 +7,66 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>支付确认管理</title>
-<style>
+<style>  /* ===== 屏宽等比缩放基准（王总 2026-08-13）：1rem = 屏宽/375 px，元素长宽只与屏宽成比例，与屏高无关 ===== */
+  html { font-size: 0.2667vw; }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
     background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
     min-height: 100vh;
-    padding: 24px 16px 40px;
+    padding: 24rem 16rem 40rem;
     overflow-x: hidden;
   }
 
-  .admin-wrap { max-width: 640px; margin: 0 auto; }
+  .admin-wrap { max-width: 640rem; margin: 0 auto; }
 
   /* ========== 登录卡片 ========== */
   .login-card {
     background: #FFF5E6;
-    border: 1px solid rgba(212, 165, 116, 0.3);
-    border-radius: 20px;
-    padding: 36px 28px 32px;
+    border: 1rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 20rem;
+    padding: 36rem 28rem 32rem;
     margin: 10vh auto 0;
-    max-width: 380px;
-    box-shadow: 0 20px 50px rgba(28, 15, 8, 0.18);
+    max-width: 380rem;
+    box-shadow: 0 20rem 50rem rgba(28, 15, 8, 0.18);
     text-align: center;
   }
   .login-emblem {
-    width: 56px; height: 56px;
+    width: 56rem; height: 56rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #FFD98A 0%, #E8B450 50%, #C08020 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 14px;
-    box-shadow: 0 6px 18px rgba(232, 180, 80, 0.45);
+    margin: 0 auto 14rem;
+    box-shadow: 0 6rem 18rem rgba(232, 180, 80, 0.45);
   }
-  .login-emblem svg { width: 26px; height: 26px; color: white; }
-  .login-title { font-size: 19px; font-weight: 800; color: #1C0F08; margin-bottom: 6px; }
-  .login-subtitle { font-size: 12px; color: #8B5E3C; margin-bottom: 24px; }
+  .login-emblem svg { width: 26rem; height: 26rem; color: white; }
+  .login-title { font-size: 19rem; font-weight: 800; color: #1C0F08; margin-bottom: 6rem; }
+  .login-subtitle { font-size: 12rem; color: #8B5E3C; margin-bottom: 24rem; }
 
   .login-input-wrap {
     position: relative;
-    margin-bottom: 16px;
+    margin-bottom: 16rem;
     text-align: left;
   }
   .login-input-wrap label {
     display: block;
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 600;
     color: #9B7B5A;
-    margin-bottom: 6px;
-    letter-spacing: 0.5px;
+    margin-bottom: 6rem;
+    letter-spacing: 0.5rem;
   }
   .login-input {
     width: 100%;
-    padding: 13px 14px;
-    border: 1.5px solid rgba(212, 165, 116, 0.4);
-    border-radius: 12px;
+    padding: 13rem 14rem;
+    border: 1.5rem solid rgba(212, 165, 116, 0.4);
+    border-radius: 12rem;
     background: #FFFDF7;
-    font-size: 15px;
+    font-size: 15rem;
     color: #1C0F08;
     outline: none;
     transition: border-color 0.2s;
@@ -75,80 +77,80 @@
 
   .login-btn {
     width: 100%;
-    padding: 14px;
+    padding: 14rem;
     border: none;
-    border-radius: 14px;
+    border-radius: 14rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    font-size: 15px;
+    font-size: 15rem;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 6px 18px rgba(240, 160, 64, 0.4);
+    box-shadow: 0 6rem 18rem rgba(240, 160, 64, 0.4);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 8rem;
   }
-  .login-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(240, 160, 64, 0.5); }
+  .login-btn:hover { transform: translateY(-1rem); box-shadow: 0 8rem 22rem rgba(240, 160, 64, 0.5); }
   .login-btn:active { transform: scale(0.97); }
   .login-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
-  .login-tip { font-size: 11px; color: #9B7B5A; margin-top: 16px; line-height: 1.6; }
+  .login-tip { font-size: 11rem; color: #9B7B5A; margin-top: 16rem; line-height: 1.6; }
 
   /* ========== 主页面 ========== */
   .admin-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 4px 16px;
+    padding: 6rem 4rem 16rem;
   }
-  .admin-header-left { display: flex; align-items: center; gap: 10px; }
+  .admin-header-left { display: flex; align-items: center; gap: 10rem; }
   .admin-logo {
-    width: 38px; height: 38px;
+    width: 38rem; height: 38rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #FFD98A 0%, #E8B450 50%, #C08020 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(232, 180, 80, 0.4);
+    box-shadow: 0 4rem 12rem rgba(232, 180, 80, 0.4);
     flex-shrink: 0;
   }
-  .admin-logo svg { width: 18px; height: 18px; color: white; }
-  .admin-title { font-size: 17px; font-weight: 800; color: #1C0F08; }
-  .admin-subtitle { font-size: 11px; color: #8B5E3C; margin-top: 1px; }
+  .admin-logo svg { width: 18rem; height: 18rem; color: white; }
+  .admin-title { font-size: 17rem; font-weight: 800; color: #1C0F08; }
+  .admin-subtitle { font-size: 11rem; color: #8B5E3C; margin-top: 1rem; }
 
   .admin-logout {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    border: 1px solid rgba(212, 165, 116, 0.5);
-    border-radius: 10px;
+    gap: 6rem;
+    padding: 8rem 14rem;
+    border: 1rem solid rgba(212, 165, 116, 0.5);
+    border-radius: 10rem;
     background: rgba(250, 245, 236, 0.9);
     color: #8B5E3C;
-    font-size: 13px;
+    font-size: 13rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
   }
   .admin-logout:hover { background: rgba(240, 160, 64, 0.12); color: #D4691C; }
-  .admin-logout svg { width: 15px; height: 15px; }
+  .admin-logout svg { width: 15rem; height: 15rem; }
 
   /* tabs */
   .tabs {
     display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 8rem;
+    margin-bottom: 16rem;
   }
   .tab {
     flex: 1;
-    padding: 12px 0;
-    border: 1px solid rgba(212, 165, 116, 0.35);
-    border-radius: 12px;
+    padding: 12rem 0;
+    border: 1rem solid rgba(212, 165, 116, 0.35);
+    border-radius: 12rem;
     background: rgba(250, 245, 236, 0.9);
     color: #8B5E3C;
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 700;
     text-align: center;
     cursor: pointer;
@@ -158,21 +160,21 @@
   }
   .tab .tab-count {
     display: inline-block;
-    min-width: 20px;
-    padding: 1px 7px;
-    border-radius: 10px;
+    min-width: 20rem;
+    padding: 1rem 7rem;
+    border-radius: 10rem;
     background: rgba(155, 123, 90, 0.18);
     color: #8B5E3C;
-    font-size: 11px;
+    font-size: 11rem;
     font-weight: 700;
-    margin-left: 5px;
-    vertical-align: 2px;
+    margin-left: 5rem;
+    vertical-align: 2rem;
   }
   .tab.active {
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     border-color: transparent;
     color: white;
-    box-shadow: 0 5px 16px rgba(240, 160, 64, 0.35);
+    box-shadow: 0 5rem 16rem rgba(240, 160, 64, 0.35);
   }
   .tab.active .tab-count { background: rgba(255, 255, 255, 0.25); color: white; }
 
@@ -180,55 +182,55 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
-    padding: 0 2px;
+    margin-bottom: 10rem;
+    padding: 0 2rem;
   }
-  .list-title { font-size: 13px; font-weight: 700; color: #9B7B5A; letter-spacing: 0.5px; }
+  .list-title { font-size: 13rem; font-weight: 700; color: #9B7B5A; letter-spacing: 0.5rem; }
   .refresh-btn {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 5rem;
     border: none;
     background: none;
     color: #8B5E3C;
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 600;
     cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 8px;
+    padding: 4rem 8rem;
+    border-radius: 8rem;
     transition: background 0.2s;
   }
   .refresh-btn:hover { background: rgba(240, 160, 64, 0.12); color: #D4691C; }
-  .refresh-btn svg { width: 14px; height: 14px; }
+  .refresh-btn svg { width: 14rem; height: 14rem; }
 
   /* 订单卡片 */
-  .order-list { display: flex; flex-direction: column; gap: 12px; }
+  .order-list { display: flex; flex-direction: column; gap: 12rem; }
   .order-card {
     background: #FFF5E6;
-    border: 1px solid rgba(212, 165, 116, 0.25);
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: 0 4px 14px rgba(28, 15, 8, 0.06);
+    border: 1rem solid rgba(212, 165, 116, 0.25);
+    border-radius: 16rem;
+    padding: 16rem;
+    box-shadow: 0 4rem 14rem rgba(28, 15, 8, 0.06);
   }
   .order-card-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 10rem;
+    margin-bottom: 10rem;
   }
   .order-id {
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 700;
     color: #5C3D2E;
     background: rgba(240, 160, 64, 0.14);
-    border: 1px solid rgba(240, 160, 64, 0.25);
-    padding: 3px 10px;
-    border-radius: 8px;
+    border: 1rem solid rgba(240, 160, 64, 0.25);
+    padding: 3rem 10rem;
+    border-radius: 8rem;
     word-break: break-all;
   }
   .order-amount {
-    font-size: 17px;
+    font-size: 17rem;
     font-weight: 800;
     color: #D4691C;
     white-space: nowrap;
@@ -236,86 +238,86 @@
   .order-card-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px 12px;
-    padding: 12px 0;
-    border-top: 1px dashed rgba(212, 165, 116, 0.25);
-    border-bottom: 1px dashed rgba(212, 165, 116, 0.25);
-    margin-bottom: 12px;
+    gap: 8rem 12rem;
+    padding: 12rem 0;
+    border-top: 1rem dashed rgba(212, 165, 116, 0.25);
+    border-bottom: 1rem dashed rgba(212, 165, 116, 0.25);
+    margin-bottom: 12rem;
   }
-  .order-cell .cell-label { font-size: 11px; color: #9B7B5A; margin-bottom: 3px; }
-  .order-cell .cell-value { font-size: 13px; font-weight: 600; color: #1C0F08; word-break: break-all; }
+  .order-cell .cell-label { font-size: 11rem; color: #9B7B5A; margin-bottom: 3rem; }
+  .order-cell .cell-value { font-size: 13rem; font-weight: 600; color: #1C0F08; word-break: break-all; }
 
   .confirm-btn {
     width: 100%;
-    padding: 12px;
+    padding: 12rem;
     border: none;
-    border-radius: 12px;
+    border-radius: 12rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 5px 14px rgba(240, 160, 64, 0.35);
+    box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.35);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 6rem;
   }
-  .confirm-btn:hover { transform: translateY(-1px); }
+  .confirm-btn:hover { transform: translateY(-1rem); }
   .confirm-btn:active { transform: scale(0.97); }
   .confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
-  .confirm-btn svg { width: 16px; height: 16px; }
+  .confirm-btn svg { width: 16rem; height: 16rem; }
 
   .paid-tag {
     width: 100%;
-    padding: 11px;
-    border-radius: 12px;
+    padding: 11rem;
+    border-radius: 12rem;
     background: rgba(92, 173, 92, 0.1);
-    border: 1px solid rgba(92, 173, 92, 0.3);
+    border: 1rem solid rgba(92, 173, 92, 0.3);
     color: #2E7D32;
-    font-size: 13px;
+    font-size: 13rem;
     font-weight: 700;
     text-align: center;
   }
 
   .status-empty {
     background: rgba(250, 245, 236, 0.85);
-    border: 1px dashed rgba(212, 165, 116, 0.4);
-    border-radius: 14px;
-    padding: 44px 20px;
+    border: 1rem dashed rgba(212, 165, 116, 0.4);
+    border-radius: 14rem;
+    padding: 44rem 20rem;
     text-align: center;
     color: #9B7B5A;
-    font-size: 13px;
+    font-size: 13rem;
     line-height: 1.8;
   }
-  .status-empty svg { width: 34px; height: 34px; color: #D4B896; margin-bottom: 8px; }
+  .status-empty svg { width: 34rem; height: 34rem; color: #D4B896; margin-bottom: 8rem; }
 
   .status-loading {
     background: rgba(250, 245, 236, 0.85);
-    border-radius: 14px;
-    padding: 30px;
+    border-radius: 14rem;
+    padding: 30rem;
     text-align: center;
     color: #9B7B5A;
-    font-size: 13px;
+    font-size: 13rem;
   }
   .spin {
     display: inline-block;
-    width: 18px; height: 18px;
-    border: 2.5px solid #E8D3B4;
+    width: 18rem; height: 18rem;
+    border: 2.5rem solid #E8D3B4;
     border-top-color: #D4691C;
     border-radius: 50%;
     animation: spin 0.9s linear infinite;
-    vertical-align: -4px;
-    margin-right: 8px;
+    vertical-align: -4rem;
+    margin-right: 8rem;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .admin-footer {
     text-align: center;
-    font-size: 11px;
+    font-size: 11rem;
     color: #9B7B5A;
-    margin-top: 24px;
+    margin-top: 24rem;
     opacity: 0.8;
   }
 
@@ -323,72 +325,72 @@
   .invite-gen-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 10rem;
+    margin-bottom: 12rem;
   }
   .invite-gen-label {
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 600;
     color: #9B7B5A;
     flex-shrink: 0;
   }
   .invite-count-input {
-    flex: 0 0 96px;
-    padding: 10px 12px;
-    border: 1.5px solid rgba(212, 165, 116, 0.4);
-    border-radius: 10px;
+    flex: 0 0 96rem;
+    padding: 10rem 12rem;
+    border: 1.5rem solid rgba(212, 165, 116, 0.4);
+    border-radius: 10rem;
     background: #FFFDF7;
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 600;
     color: #1C0F08;
     outline: none;
     -webkit-appearance: none;
   }
   .invite-count-input:focus { border-color: #F0A040; }
-  .invite-gen-btn { flex: 1; width: auto; padding: 12px; font-size: 13px; }
-  .invite-gen-result { margin-top: 2px; }
+  .invite-gen-btn { flex: 1; width: auto; padding: 12rem; font-size: 13rem; }
+  .invite-gen-result { margin-top: 2rem; }
   .invite-gen-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 8rem;
   }
   .invite-code-chip {
     display: inline-flex;
     align-items: center;
-    padding: 6px 12px;
-    border-radius: 8px;
+    padding: 6rem 12rem;
+    border-radius: 8rem;
     background: rgba(240, 160, 64, 0.12);
-    border: 1px solid rgba(240, 160, 64, 0.3);
+    border: 1rem solid rgba(240, 160, 64, 0.3);
     color: #8B4A1F;
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1rem;
     cursor: pointer;
     user-select: all;
     transition: all 0.2s;
   }
-  .invite-code-chip:hover { background: rgba(240, 160, 64, 0.2); transform: translateY(-1px); }
+  .invite-code-chip:hover { background: rgba(240, 160, 64, 0.2); transform: translateY(-1rem); }
   .invite-code-chip.copied {
     background: rgba(92, 173, 92, 0.18);
     border-color: rgba(92, 173, 92, 0.4);
     color: #2E7D32;
   }
-  .invite-code-chip .invite-copy-hint { font-weight: 400; font-size: 10px; margin-left: 6px; letter-spacing: 0; }
+  .invite-code-chip .invite-copy-hint { font-weight: 400; font-size: 10rem; margin-left: 6rem; letter-spacing: 0; }
   .invite-status {
-    padding: 3px 12px;
-    border-radius: 10px;
-    font-size: 12px;
+    padding: 3rem 12rem;
+    border-radius: 10rem;
+    font-size: 12rem;
     font-weight: 700;
     white-space: nowrap;
   }
   .invite-status.unused {
     background: rgba(92, 173, 92, 0.12);
-    border: 1px solid rgba(92, 173, 92, 0.35);
+    border: 1rem solid rgba(92, 173, 92, 0.35);
     color: #2E7D32;
   }
   .invite-status.used {
     background: rgba(155, 123, 90, 0.12);
-    border: 1px solid rgba(155, 123, 90, 0.3);
+    border: 1rem solid rgba(155, 123, 90, 0.3);
     color: #8B5E3C;
   }
   .invite-code { cursor: pointer; user-select: all; }
@@ -396,17 +398,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    margin-top: 14px;
+    gap: 12rem;
+    margin-top: 14rem;
   }
-  .page-info { font-size: 12px; color: #8B5E3C; font-weight: 600; }
+  .page-info { font-size: 12rem; color: #8B5E3C; font-weight: 600; }
   .page-btn {
-    padding: 7px 14px;
-    border: 1px solid rgba(212, 165, 116, 0.45);
-    border-radius: 10px;
+    padding: 7rem 14rem;
+    border: 1rem solid rgba(212, 165, 116, 0.45);
+    border-radius: 10rem;
     background: rgba(250, 245, 236, 0.9);
     color: #8B5E3C;
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -417,16 +419,16 @@
   /* toast */
   .toast {
     position: fixed;
-    top: 56px;
+    top: 56rem;
     left: 50%;
-    transform: translateX(-50%) translateY(-16px);
+    transform: translateX(-50%) translateY(-16rem);
     background: rgba(28, 15, 8, 0.92);
     color: #FAF5EC;
-    font-size: 13px;
+    font-size: 13rem;
     font-weight: 600;
-    padding: 10px 20px;
-    border-radius: 999px;
-    box-shadow: 0 10px 30px rgba(28, 15, 8, 0.35);
+    padding: 10rem 20rem;
+    border-radius: 999rem;
+    box-shadow: 0 10rem 30rem rgba(28, 15, 8, 0.35);
     opacity: 0;
     pointer-events: none;
     transition: all 0.3s ease;

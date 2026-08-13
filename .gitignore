@@ -33,3 +33,14 @@ Thumbs.db
 
 # 个人本地配置（绿灯模式等，不入库）
 .claude/settings.local.json
+
+# 自签证书与私钥（本地 HTTPS 运行必需，但私钥绝不入库）
+server.crt
+server.key
+
+# 调试截图/孤立素材
+_*.png
+旅行者背景图.jpg
+
+# 旧副本页（不入库）
+online_check.html

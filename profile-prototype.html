@@ -7,7 +7,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>我的界面原型设计</title>
-<style>
+<style>  /* ===== 屏宽等比缩放基准（王总 2026-08-13）：1rem = 屏宽/375 px，元素长宽只与屏宽成比例，与屏高无关 ===== */
+  html { font-size: 0.2667vw; }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
@@ -17,14 +19,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 20rem;
     overflow-x: hidden;
   }
 
   .container {
     display: flex;
-    gap: 40px;
-    max-width: 1100px;
+    gap: 40rem;
+    max-width: 100vw; width: 100vw; height: 100vh; margin: 0;
     width: 100%;
     align-items: center;
     justify-content: center;
@@ -34,12 +36,12 @@
   .phone-wrapper { display: flex; flex-direction: column; align-items: center; }
 
   .phone-frame {
-    width: 320px;
-    height: 680px;
+    width: 100vw;
+    height: 100vh;
     background: #F0E4CE;
-    border-radius: 42px;
-    padding: 8px;
-    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(245, 223, 192, 0.35);
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
     position: relative;
   }
 
@@ -47,17 +49,17 @@
     display: none;
     content: '';
     position: absolute;
-    top: 14px; left: 50%;
+    top: 14rem; left: 50%;
     transform: translateX(-50%);
-    width: 120px; height: 28px;
+    width: 120rem; height: 28rem;
     background: #F5DFC0;
-    border-radius: 0 0 18px 18px;
+    border-radius: 0 0 18rem 18rem;
     z-index: 10;
   }
 
   .phone-screen {
     width: 100%; height: 100%;
-    border-radius: 30px;
+    border-radius: 0;
     overflow: hidden;
     position: relative;
     background: #0a0a0a;
@@ -70,14 +72,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px 6px;
+    padding: 14rem 20rem 6rem;
     color: #F5DFC0;
-    font-size: 13px;
+    font-size: 13rem;
     font-weight: 600;
     flex-shrink: 0;
   }
-  .status-icons { display: flex; gap: 5px; align-items: center; }
-  .status-icons svg { width: 14px; height: 11px; }
+  .status-icons { display: flex; gap: 5rem; align-items: center; }
+  .status-icons svg { width: 14rem; height: 11rem; }
 
   /* 视图切换 */
   .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
@@ -87,16 +89,16 @@
   .profile-header {
     position: relative;
     flex-shrink: 0;
-    height: 240px; /* 展开态高度（卡片默认展开） */
-    padding: 20px;
+    height: 240rem; /* 展开态高度（卡片默认展开） */
+    padding: 20rem;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 14rem;
     overflow: hidden;
     cursor: pointer;
     transition: height 0.35s ease;
   }
-  .profile-header.collapsed { height: 180px; }
+  .profile-header.collapsed { height: 180rem; }
   /* 背景图片层：默认橙色渐变，可被相册更换为照片（--card-bg） */
   .profile-header::before {
     content: '';
@@ -115,7 +117,7 @@
   /* 上下边缘模糊条（闭合态显示） */
   .edge-blur {
     position: absolute; left: 0; right: 0;
-    height: 72px; z-index: 2;
+    height: 72rem; z-index: 2;
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -125,16 +127,16 @@
     top: 0;
     /* 磨砂玻璃质感：微亮渐变 + 渐隐，配合 backdrop blur（图片背景时模糊可见） */
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-    backdrop-filter: blur(36px) saturate(160%);
-    -webkit-backdrop-filter: blur(36px) saturate(160%);
+    backdrop-filter: blur(36rem) saturate(160%);
+    -webkit-backdrop-filter: blur(36rem) saturate(160%);
     -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
     mask-image: linear-gradient(180deg, #000 0%, transparent 100%);
   }
   .edge-blur.bottom {
     bottom: 0;
     background: linear-gradient(0deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-    backdrop-filter: blur(36px) saturate(160%);
-    -webkit-backdrop-filter: blur(36px) saturate(160%);
+    backdrop-filter: blur(36rem) saturate(160%);
+    -webkit-backdrop-filter: blur(36rem) saturate(160%);
     -webkit-mask-image: linear-gradient(0deg, #000 0%, transparent 100%);
     mask-image: linear-gradient(0deg, #000 0%, transparent 100%);
   }
@@ -142,8 +144,8 @@
   /* 相册更换按键（右下角） */
   .card-album-btn {
     position: absolute;
-    right: 14px; bottom: 14px;
-    width: 40px; height: 40px;
+    right: 14rem; bottom: 14rem;
+    width: 40rem; height: 40rem;
     border-radius: 50%;
     background: transparent; /* 透明背景，仅图标 */
     border: none;
@@ -155,30 +157,30 @@
   }
   .card-album-btn:hover { background: rgba(240, 160, 64, 0.25); }
   .card-album-btn:active { transform: scale(0.94); }
-  .card-album-btn svg { width: 22px; height: 22px; }
+  .card-album-btn svg { width: 22rem; height: 22rem; }
   /* 闭合态隐藏相册键，展开时可见 */
   .collapsed .card-album-btn { opacity: 0; pointer-events: none; }
   .profile-header::after {
     content: '';
     position: absolute;
-    bottom: -1px; left: 0; right: 0;
-    height: 20px;
+    bottom: -1rem; left: 0; right: 0;
+    height: 20rem;
     background: #0a0a0a;
-    border-radius: 20px 20px 0 0;
+    border-radius: 20rem 20rem 0 0;
   }
 
   .profile-avatar {
-    width: 56px; height: 56px;
+    width: 56rem; height: 56rem;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.3);
-    border: 3px solid rgba(255, 255, 255, 0.6);
+    border: 3rem solid rgba(255, 255, 255, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     overflow: hidden;
   }
-  .profile-avatar svg { width: 28px; height: 28px; color: white; }
+  .profile-avatar svg { width: 28rem; height: 28rem; color: white; }
 
   .profile-info { 
     color: white; 
@@ -186,15 +188,15 @@
     min-width: 0; 
   }
   .profile-name {
-    font-size: 18px;
+    font-size: 18rem;
     font-weight: 700;
-    margin-bottom: 4px;
+    margin-bottom: 4rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .profile-desc {
-    font-size: 12px;
+    font-size: 12rem;
     opacity: 0.85;
     white-space: nowrap;
     overflow: hidden;
@@ -204,66 +206,66 @@
   .profile-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 0 16px 72px;
+    padding: 0 16rem 72rem;
     background: #0a0a0a;
   }
-  .profile-scroll::-webkit-scrollbar { width: 3px; }
-  .profile-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2px; }
+  .profile-scroll::-webkit-scrollbar { width: 3rem; }
+  .profile-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
 
   .menu-section {
-    margin-top: 12px;
-    margin-bottom: 16px;
+    margin-top: 12rem;
+    margin-bottom: 16rem;
   }
 
   .menu-title {
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 700;
     color: rgba(245, 223, 192, 0.5);
-    padding: 8px 4px;
-    letter-spacing: 0.5px;
+    padding: 8rem 4rem;
+    letter-spacing: 0.5rem;
   }
 
   .menu-card {
     background: rgba(28, 15, 8, 0.5);
-    border: 1px solid rgba(212, 165, 116, 0.3);
-    border-radius: 14px;
+    border: 1rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 14rem;
     overflow: hidden;
-    box-shadow: 0 2px 10px rgba(28, 15, 8, 0.05);
+    box-shadow: 0 2rem 10rem rgba(28, 15, 8, 0.05);
   }
 
   .menu-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
+    padding: 14rem 16rem;
     cursor: pointer;
     transition: background 0.18s;
   }
-  .menu-item:hover { background: rgba(240, 160, 64, 0.08); box-shadow: 0 0 12px rgba(232, 144, 32, 0.35); }
-  .menu-item:active { background: rgba(240, 160, 64, 0.15); box-shadow: 0 0 16px rgba(232, 144, 32, 0.55); }
+  .menu-item:hover { background: rgba(240, 160, 64, 0.08); box-shadow: 0 0 12rem rgba(232, 144, 32, 0.35); }
+  .menu-item:active { background: rgba(240, 160, 64, 0.15); box-shadow: 0 0 16rem rgba(232, 144, 32, 0.55); }
 
   .menu-item + .menu-item {
-    border-top: 1px solid rgba(212, 165, 116, 0.3);
+    border-top: 1rem solid rgba(212, 165, 116, 0.3);
   }
 
   .menu-item-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 12rem;
   }
 
   .menu-icon {
-    width: 32px; height: 32px;
-    border-radius: 8px;
+    width: 32rem; height: 32rem;
+    border-radius: 8rem;
     background: rgba(240, 160, 64, 0.12);
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  .menu-icon svg { width: 16px; height: 16px; color: #E89020; }
+  .menu-icon svg { width: 16rem; height: 16rem; color: #E89020; }
 
   .menu-label {
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 600;
     color: #F5DFC0;
   }
@@ -271,17 +273,17 @@
   .menu-item-right {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 6rem;
   }
   .menu-badge {
-    font-size: 11px;
+    font-size: 11rem;
     color: rgba(245, 223, 192, 0.85);
     background: rgba(212, 165, 116, 0.3);
-    padding: 2px 8px;
-    border-radius: 8px;
+    padding: 2rem 8rem;
+    border-radius: 8rem;
   }
   .menu-arrow {
-    width: 14px; height: 14px;
+    width: 14rem; height: 14rem;
     color: rgba(245, 223, 192, 0.6);
   }
 
@@ -289,43 +291,43 @@
   .sub-header {
     display: flex;
     align-items: center;
-    padding: 12px 16px;
+    padding: 12rem 16rem;
     background: rgba(28, 15, 8, 0.5);
-    border-bottom: 1px solid rgba(212, 165, 116, 0.15);
+    border-bottom: 1rem solid rgba(212, 165, 116, 0.15);
     flex-shrink: 0;
   }
   .sub-back {
-    width: 32px; height: 32px;
+    width: 32rem; height: 32rem;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: rgba(245, 223, 192, 0.85);
-    border-radius: 8px;
+    border-radius: 8rem;
     transition: background 0.2s;
   }
   .sub-back:hover { background: rgba(240, 160, 64, 0.12); }
-  .sub-back svg { width: 20px; height: 20px; }
+  .sub-back svg { width: 20rem; height: 20rem; }
   .sub-title {
-    font-size: 16px;
+    font-size: 16rem;
     font-weight: 700;
     color: #F5DFC0;
-    margin-left: 4px;
+    margin-left: 4rem;
   }
 
   .deleted-tabs {
     display: flex;
-    padding: 10px 16px;
-    gap: 8px;
+    padding: 10rem 16rem;
+    gap: 8rem;
     background: rgba(28, 15, 8, 0.5);
     flex-shrink: 0;
   }
   .deleted-tab {
     flex: 1;
-    padding: 8px 14px;
+    padding: 8rem 14rem;
     text-align: center;
-    border-radius: 10px;
-    font-size: 13px;
+    border-radius: 10rem;
+    font-size: 13rem;
     font-weight: 600;
     color: rgba(245, 223, 192, 0.85);
     background: rgba(212, 165, 116, 0.3);
@@ -340,48 +342,48 @@
   .deleted-list {
     flex: 1;
     overflow-y: auto;
-    padding: 12px 16px;
+    padding: 12rem 16rem;
     background: #0a0a0a;
   }
-  .deleted-list::-webkit-scrollbar { width: 3px; }
-  .deleted-list::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2px; }
+  .deleted-list::-webkit-scrollbar { width: 3rem; }
+  .deleted-list::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
 
   .deleted-empty {
     text-align: center;
-    padding: 40px 20px;
+    padding: 40rem 20rem;
     color: rgba(245, 223, 192, 0.6);
   }
-  .deleted-empty svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.5; }
-  .deleted-empty p { font-size: 13px; }
+  .deleted-empty svg { width: 48rem; height: 48rem; margin-bottom: 12rem; opacity: 0.5; }
+  .deleted-empty p { font-size: 13rem; }
 
   /* 删除的坐标点卡片 */
   .deleted-marker-card {
     background: rgba(28, 15, 8, 0.5);
-    border: 1px solid rgba(212, 165, 116, 0.3);
-    border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 10px rgba(28, 15, 8, 0.05);
+    border: 1rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 14rem;
+    padding: 14rem;
+    margin-bottom: 10rem;
+    box-shadow: 0 2rem 10rem rgba(28, 15, 8, 0.05);
     animation: slideIn 0.3s ease;
   }
 
   @keyframes slideIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(10rem); }
     to { opacity: 1; transform: translateY(0); }
   }
 
   .deleted-marker-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 10rem;
+    margin-bottom: 10rem;
   }
 
   .deleted-marker-dot {
-    width: 12px; height: 12px;
+    width: 12rem; height: 12rem;
     border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    border: 2rem solid white;
+    box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.15);
     flex-shrink: 0;
   }
 
@@ -391,14 +393,14 @@
   }
 
   .deleted-marker-name {
-    font-size: 15px;
+    font-size: 15rem;
     font-weight: 700;
     color: #F5DFC0;
-    margin-bottom: 3px;
+    margin-bottom: 3rem;
   }
 
   .deleted-marker-coords {
-    font-size: 11px;
+    font-size: 11rem;
     color: rgba(245, 223, 192, 0.85);
     line-height: 1.5;
   }
@@ -406,51 +408,51 @@
   .deleted-marker-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 11px;
+    gap: 8rem;
+    font-size: 11rem;
     color: rgba(245, 223, 192, 0.5);
-    margin-bottom: 10px;
+    margin-bottom: 10rem;
   }
 
   .deleted-marker-meta span {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 3rem;
   }
 
   .deleted-marker-actions {
     display: flex;
-    gap: 8px;
+    gap: 8rem;
   }
 
   .restore-btn {
     flex: 1;
-    padding: 9px 12px;
+    padding: 9rem 12rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     border: none;
-    border-radius: 10px;
+    border-radius: 10rem;
     color: white;
-    font-size: 13px;
+    font-size: 13rem;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    box-shadow: 0 3px 10px rgba(240, 160, 64, 0.35);
+    gap: 6rem;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.35);
     transition: all 0.2s;
   }
-  .restore-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(240, 160, 64, 0.45); }
+  .restore-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.45); }
   .restore-btn:active { transform: scale(0.96); }
-  .restore-btn svg { width: 14px; height: 14px; }
+  .restore-btn svg { width: 14rem; height: 14rem; }
 
   .restore-permanent {
-    padding: 9px 12px;
+    padding: 9rem 12rem;
     background: rgba(212, 165, 116, 0.3);
     border: none;
-    border-radius: 10px;
+    border-radius: 10rem;
     color: rgba(245, 223, 192, 0.85);
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -461,12 +463,12 @@
   .deleted-photos {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+    gap: 6rem;
   }
 
   .deleted-photo {
     aspect-ratio: 1;
-    border-radius: 10px;
+    border-radius: 10rem;
     position: relative;
     overflow: hidden;
     cursor: pointer;
@@ -479,15 +481,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 10rem;
     color: rgba(255, 255, 255, 0.7);
     text-align: center;
-    padding: 4px;
+    padding: 4rem;
   }
   .deleted-photo-restore {
     position: absolute;
-    bottom: 4px; right: 4px;
-    width: 22px; height: 22px;
+    bottom: 4rem; right: 4rem;
+    width: 22rem; height: 22rem;
     background: rgba(240, 160, 64, 0.9);
     border-radius: 50%;
     display: flex;
@@ -495,21 +497,21 @@
     justify-content: center;
     z-index: 2;
   }
-  .deleted-photo-restore svg { width: 12px; height: 12px; color: white; }
+  .deleted-photo-restore svg { width: 12rem; height: 12rem; color: white; }
 
   /* 底部导航栏 */
   .bottom-nav {
     position: absolute;
     bottom: 0; left: 0; right: 0;
     z-index: 20;
-    height: 64px;
+    height: 64rem;
     background: rgba(28, 15, 8, 0.95);
-    backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(212, 165, 116, 0.15);
+    backdrop-filter: blur(20rem);
+    border-top: 1rem solid rgba(212, 165, 116, 0.15);
     display: flex;
     align-items: center;
     justify-content: space-around;
-    padding: 0 8px;
+    padding: 0 8rem;
     flex-shrink: 0;
   }
 
@@ -517,26 +519,26 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
+    gap: 3rem;
     cursor: pointer;
-    padding: 6px 10px;
-    border-radius: 10px;
+    padding: 6rem 10rem;
+    border-radius: 10rem;
     transition: all 0.2s ease;
     flex: 1;
-    max-width: 76px;
+    max-width: 76rem;
     color: rgba(245, 223, 192, 0.5);
   }
   .nav-item:hover { background: rgba(240, 160, 64, 0.08); }
   .nav-item.active .nav-label { color: #E89020; }
-  .nav-item.active svg { color: #E89020; filter: drop-shadow(0 0 6px rgba(232, 144, 32, 0.8)); }
-  .nav-item svg { width: 26px; height: 26px; transition: color 0.2s; }
-  .nav-label { font-size: 11px; transition: color 0.2s; }
+  .nav-item.active svg { color: #E89020; filter: drop-shadow(0 0 6rem rgba(232, 144, 32, 0.8)); }
+  .nav-item svg { width: 26rem; height: 26rem; transition: color 0.2s; }
+  .nav-label { font-size: 11rem; transition: color 0.2s; }
 
   .nav-center {
     position: relative;
-    width: 60px;
-    height: 60px;
-    margin-top: -26px;
+    width: 60rem;
+    height: 60rem;
+    margin-top: -26rem;
     flex-shrink: 0;
   }
   .nav-center-btn {
@@ -548,21 +550,21 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(232, 144, 32, 0.55), 0 0 26px rgba(232, 144, 32, 0.4), inset 0 1px 0 rgba(255, 233, 184, 0.4);
+    box-shadow: 0 6rem 20rem rgba(232, 144, 32, 0.55), 0 0 26rem rgba(232, 144, 32, 0.4), inset 0 1rem 0 rgba(255, 233, 184, 0.4);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     color: white;
   }
-  .nav-center-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(232, 144, 32, 0.6); }
+  .nav-center-btn:hover { transform: translateY(-2rem); box-shadow: 0 10rem 28rem rgba(232, 144, 32, 0.6); }
   .nav-center-btn:active { transform: translateY(0) scale(0.95); }
-  .nav-center-btn svg { width: 28px; height: 28px; }
+  .nav-center-btn svg { width: 28rem; height: 28rem; }
 
   .home-indicator {
     position: absolute;
-    bottom: 4px; left: 50%;
+    bottom: 4rem; left: 50%;
     transform: translateX(-50%);
-    width: 100px; height: 4px;
+    width: 100rem; height: 4rem;
     background: rgba(28, 15, 8, 0.4);
-    border-radius: 2px;
+    border-radius: 2rem;
     z-index: 5;
   }
 
@@ -571,11 +573,11 @@
     top: 50%; left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
     background: rgba(28, 15, 8, 0.95);
-    backdrop-filter: blur(10px);
-    padding: 16px 28px;
-    border-radius: 14px;
-    box-shadow: 0 10px 40px rgba(28, 15, 8, 0.4);
-    font-size: 14px;
+    backdrop-filter: blur(10rem);
+    padding: 16rem 28rem;
+    border-radius: 14rem;
+    box-shadow: 0 10rem 40rem rgba(28, 15, 8, 0.4);
+    font-size: 14rem;
     color: #F5DFC0;
     font-weight: 500;
     opacity: 0;
@@ -584,207 +586,130 @@
     z-index: 200;
     text-align: center;
     white-space: nowrap;
-    border: 1px solid rgba(240, 160, 64, 0.3);
+    border: 1rem solid rgba(240, 160, 64, 0.3);
   }
   .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
   /* ========== 会员中心视图 ========== */
-  .member-hero {
-    background: linear-gradient(135deg, #2A1810 0%, #4A2818 50%, #6B3818 100%);
-    padding: 24px 20px 28px;
-    color: #1C1C1E;
-    position: relative;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-  .member-hero::before {
-    content: '';
-    position: absolute;
-    top: -40px; right: -40px;
-    width: 160px; height: 160px;
-    background:
-      radial-gradient(ellipse 29% 42% at 50% 24%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
-      radial-gradient(ellipse 29% 42% at 74.7% 42%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
-      radial-gradient(ellipse 29% 42% at 65.3% 71%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
-      radial-gradient(ellipse 29% 42% at 34.7% 71%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
-      radial-gradient(ellipse 29% 42% at 25.3% 42%, rgba(240, 160, 64, 0.25) 0%, transparent 70%),
-      radial-gradient(circle 26% at 50% 50%, rgba(240, 160, 64, 0.25) 0%, transparent 70%);
-    border-radius: 50%;
-  }
-  .member-hero::after {
-    content: '';
-    position: absolute;
-    bottom: -1px; left: 0; right: 0;
-    height: 20px;
-    background: #0a0a0a;
-    border-radius: 20px 20px 0 0;
-  }
-  .member-crown {
-    width: 56px; height: 56px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 14px;
-    box-shadow: 0 6px 20px rgba(240, 160, 64, 0.4);
-    position: relative;
-    z-index: 1;
-  }
-  .member-crown svg { width: 28px; height: 28px; color: white; }
-  .member-title {
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 6px;
-    position: relative;
-    z-index: 1;
-  }
-  .member-subtitle {
-    font-size: 12px;
-    opacity: 0.7;
-    position: relative;
-    z-index: 1;
-  }
-  .member-status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 10px;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 600;
-    background: rgba(240, 160, 64, 0.2);
-    color: #F0A040;
-    border: 1px solid rgba(240, 160, 64, 0.4);
-    position: relative;
-    z-index: 1;
-  }
-  .member-status-badge.active {
-    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
-    color: white;
-    border-color: transparent;
-  }
-
   .member-scroll {
     flex: 1;
     overflow-y: auto;
-    padding: 0 16px 20px;
-    background: #0a0a0a;
+    padding: 0 16rem 20rem;
+    background: #1C0F08;
   }
-  .member-scroll::-webkit-scrollbar { width: 3px; }
-  .member-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2px; }
+  .member-scroll::-webkit-scrollbar { width: 3rem; }
+  .member-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
 
   /* 套餐卡片 */
   .plan-card {
     background: linear-gradient(135deg, #1C1C1E 0%, #F4E8D6 100%);
-    border: 1.5px solid rgba(240, 160, 64, 0.35);
-    border-radius: 18px;
-    padding: 20px 18px;
-    margin-top: 16px;
-    box-shadow: 0 6px 20px rgba(28, 15, 8, 0.08);
+    border: 1.5rem solid rgba(240, 160, 64, 0.35);
+    border-radius: 18rem;
+    padding: 20rem 18rem;
+    margin-top: 16rem;
+    box-shadow: 0 6rem 20rem rgba(28, 15, 8, 0.08);
     position: relative;
     overflow: hidden;
   }
   .plan-card::before {
     content: '推荐';
     position: absolute;
-    top: 12px; right: 12px;
-    padding: 2px 8px;
+    top: 12rem; right: 12rem;
+    padding: 2rem 8rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    font-size: 10px;
+    font-size: 10rem;
     font-weight: 700;
-    border-radius: 6px;
-    letter-spacing: 0.5px;
+    border-radius: 6rem;
+    letter-spacing: 0.5rem;
   }
   .plan-name {
-    font-size: 16px;
+    font-size: 16rem;
     font-weight: 700;
     color: #F5DFC0;
-    margin-bottom: 6px;
+    margin-bottom: 6rem;
   }
   .plan-desc {
-    font-size: 12px;
+    font-size: 12rem;
     color: rgba(245, 223, 192, 0.85);
-    margin-bottom: 14px;
+    margin-bottom: 14rem;
     line-height: 1.5;
   }
   .plan-price {
     display: flex;
     align-items: baseline;
-    gap: 4px;
-    margin-bottom: 16px;
+    gap: 4rem;
+    margin-bottom: 16rem;
   }
-  .plan-price-symbol { font-size: 16px; font-weight: 700; color: #D4691C; }
-  .plan-price-num { font-size: 36px; font-weight: 800; color: #D4691C; line-height: 1; }
-  .plan-price-unit { font-size: 13px; color: rgba(245, 223, 192, 0.85); }
+  .plan-price-symbol { font-size: 16rem; font-weight: 700; color: #D4691C; }
+  .plan-price-num { font-size: 36rem; font-weight: 800; color: #D4691C; line-height: 1; }
+  .plan-price-unit { font-size: 13rem; color: rgba(245, 223, 192, 0.85); }
 
   .plan-btn {
     width: 100%;
-    padding: 13px;
+    padding: 13rem;
     border: none;
-    border-radius: 12px;
-    font-size: 14px;
+    border-radius: 12rem;
+    font-size: 14rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 6rem;
   }
   .plan-btn.subscribe {
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    box-shadow: 0 4px 14px rgba(240, 160, 64, 0.4);
+    box-shadow: 0 4rem 14rem rgba(240, 160, 64, 0.4);
   }
-  .plan-btn.subscribe:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(240, 160, 64, 0.5); }
+  .plan-btn.subscribe:hover { transform: translateY(-1rem); box-shadow: 0 6rem 18rem rgba(240, 160, 64, 0.5); }
   .plan-btn.subscribe:active { transform: scale(0.97); }
   .plan-btn.cancel {
     background: rgba(232, 83, 83, 0.1);
     color: #E85353;
-    border: 1px solid rgba(232, 83, 83, 0.3);
+    border: 1rem solid rgba(232, 83, 83, 0.3);
   }
   .plan-btn.cancel:hover { background: rgba(232, 83, 83, 0.18); }
   .plan-btn.cancel:active { transform: scale(0.97); }
   .plan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 
   /* 权益列表 */
-  .benefits-section { margin-top: 18px; }
+  .benefits-section { margin-top: 18rem; }
   .benefits-title {
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 700;
     color: rgba(245, 223, 192, 0.5);
-    padding: 8px 4px;
-    letter-spacing: 0.5px;
+    padding: 8rem 4rem;
+    letter-spacing: 0.5rem;
   }
   .benefits-list {
     background: rgba(28, 15, 8, 0.5);
-    border: 1px solid rgba(212, 165, 116, 0.3);
-    border-radius: 14px;
+    border: 1rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 14rem;
     overflow: hidden;
   }
   .benefit-item {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
+    gap: 10rem;
+    padding: 12rem 14rem;
   }
-  .benefit-item + .benefit-item { border-top: 1px solid rgba(212, 165, 116, 0.3); }
+  .benefit-item + .benefit-item { border-top: 1rem solid rgba(212, 165, 116, 0.3); }
   .benefit-check {
-    width: 18px; height: 18px;
+    width: 18rem; height: 18rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    margin-top: 1px;
+    margin-top: 1rem;
   }
-  .benefit-check svg { width: 10px; height: 10px; color: white; stroke-width: 3; }
+  .benefit-check svg { width: 10rem; height: 10rem; color: white; stroke-width: 3; }
   .benefit-text {
-    font-size: 13px;
+    font-size: 13rem;
     color: #F5DFC0;
     line-height: 1.5;
   }
@@ -792,99 +717,99 @@
 
   /* 摄影师升级区块 */
   .photographer-block {
-    margin-top: 18px;
-    padding: 16px;
-    border-radius: 14px;
+    margin-top: 18rem;
+    padding: 16rem;
+    border-radius: 14rem;
     background: linear-gradient(135deg, rgba(240, 160, 64, 0.12) 0%, rgba(212, 105, 28, 0.08) 100%);
-    border: 1px dashed rgba(240, 160, 64, 0.4);
+    border: 1rem dashed rgba(240, 160, 64, 0.4);
     text-align: center;
   }
 
   /* ========== 邀请码兑换区块 ========== */
   .invite-card {
-    margin-top: 14px;
-    padding: 16px 18px;
-    border-radius: 16px;
+    margin-top: 14rem;
+    padding: 16rem 18rem;
+    border-radius: 16rem;
     background: linear-gradient(135deg, rgba(240, 160, 64, 0.14) 0%, rgba(212, 105, 28, 0.06) 100%);
-    border: 1.5px solid rgba(240, 160, 64, 0.35);
-    box-shadow: 0 4px 14px rgba(28, 15, 8, 0.06);
+    border: 1.5rem solid rgba(240, 160, 64, 0.35);
+    box-shadow: 0 4rem 14rem rgba(28, 15, 8, 0.06);
   }
   .invite-title {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 15px;
+    gap: 8rem;
+    font-size: 15rem;
     font-weight: 700;
     color: #F5DFC0;
-    margin-bottom: 6px;
+    margin-bottom: 6rem;
   }
-  .invite-title svg { width: 18px; height: 18px; color: #D4691C; }
+  .invite-title svg { width: 18rem; height: 18rem; color: #D4691C; }
   .invite-desc {
-    font-size: 12px;
+    font-size: 12rem;
     color: rgba(245, 223, 192, 0.85);
     line-height: 1.5;
-    margin-bottom: 12px;
+    margin-bottom: 12rem;
   }
   .invite-desc strong { color: #D4691C; }
   .invite-input-row {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 10rem;
+    margin-bottom: 10rem;
   }
   .invite-input {
     width: 100%;
     box-sizing: border-box;
-    padding: 12px 14px;
-    border: 1.5px solid rgba(212, 165, 116, 0.3);
-    border-radius: 10px;
+    padding: 12rem 14rem;
+    border: 1.5rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 10rem;
     background: #0a0a0a;
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 600;
     color: #F5DFC0;
     outline: none;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.5rem;
     text-transform: uppercase;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   .invite-input::placeholder {
     color: rgba(245, 223, 192, 0.6);
     font-weight: 400;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.5rem;
     text-transform: none;
   }
   .invite-input:focus {
     border-color: #F0A040;
-    box-shadow: 0 0 0 3px rgba(240, 160, 64, 0.18);
+    box-shadow: 0 0 0 3rem rgba(240, 160, 64, 0.18);
   }
   .invite-btn {
     width: 100%;
-    padding: 12px 0;
+    padding: 12rem 0;
     border: none;
-    border-radius: 10px;
+    border-radius: 10rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    font-size: 15px;
+    font-size: 15rem;
     font-weight: 700;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 3px 10px rgba(240, 160, 64, 0.35);
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.35);
     flex-shrink: 0;
   }
-  .invite-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(240, 160, 64, 0.45); }
+  .invite-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.45); }
   .invite-btn:active { transform: scale(0.96); }
   .invite-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
   .invite-tip {
-    font-size: 11px;
+    font-size: 11rem;
     color: rgba(245, 223, 192, 0.5);
     text-align: center;
-    padding-top: 8px;
-    border-top: 1px dashed rgba(212, 165, 116, 0.3);
+    padding-top: 8rem;
+    border-top: 1rem dashed rgba(212, 165, 116, 0.3);
   }
   .invite-tip span {
     font-weight: 700;
     color: #D4691C;
-    letter-spacing: 1px;
+    letter-spacing: 1rem;
     user-select: all;
     cursor: pointer;
   }
@@ -895,19 +820,19 @@
   }
   .vip-invite-card .invite-title svg { color: #DCB450; }
   .vip-invite-card .invite-desc strong { color: #C89B32; }
-  .vip-invite-card .invite-input:focus { border-color: #DCB450; box-shadow: 0 0 0 3px rgba(220, 180, 80, 0.18); }
+  .vip-invite-card .invite-input:focus { border-color: #DCB450; box-shadow: 0 0 0 3rem rgba(220, 180, 80, 0.18); }
   .vip-btn {
     background: linear-gradient(135deg, #E6C864 0%, #C89B32 100%);
-    box-shadow: 0 3px 10px rgba(220, 180, 80, 0.35);
+    box-shadow: 0 3rem 10rem rgba(220, 180, 80, 0.35);
   }
-  .vip-btn:hover { box-shadow: 0 5px 14px rgba(220, 180, 80, 0.45); }
+  .vip-btn:hover { box-shadow: 0 5rem 14rem rgba(220, 180, 80, 0.45); }
   .photographer-block.active {
     background: linear-gradient(135deg, rgba(46, 125, 50, 0.1) 0%, rgba(102, 187, 106, 0.08) 100%);
-    border: 1px solid rgba(46, 125, 50, 0.35);
+    border: 1rem solid rgba(46, 125, 50, 0.35);
   }
   .photographer-icon {
-    width: 40px; height: 40px;
-    margin: 0 auto 8px;
+    width: 40rem; height: 40rem;
+    margin: 0 auto 8rem;
     border-radius: 50%;
     background: rgba(240, 160, 64, 0.2);
     display: flex;
@@ -917,32 +842,32 @@
   .photographer-block.active .photographer-icon {
     background: linear-gradient(135deg, #66BB6A 0%, #2E7D32 100%);
   }
-  .photographer-icon svg { width: 20px; height: 20px; color: #D4691C; }
+  .photographer-icon svg { width: 20rem; height: 20rem; color: #D4691C; }
   .photographer-block.active .photographer-icon svg { color: white; }
   .photographer-title {
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 700;
     color: #F5DFC0;
-    margin-bottom: 4px;
+    margin-bottom: 4rem;
   }
   .photographer-desc {
-    font-size: 11px;
+    font-size: 11rem;
     color: rgba(245, 223, 192, 0.85);
-    margin-bottom: 12px;
+    margin-bottom: 12rem;
     line-height: 1.5;
   }
   .photographer-btn {
-    padding: 8px 20px;
+    padding: 8rem 20rem;
     border: none;
-    border-radius: 10px;
+    border-radius: 10rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
   }
-  .photographer-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(240, 160, 64, 0.4); }
+  .photographer-btn:hover { transform: translateY(-1rem); box-shadow: 0 4rem 12rem rgba(240, 160, 64, 0.4); }
   .photographer-btn:active { transform: scale(0.96); }
   .photographer-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none; }
 
@@ -950,39 +875,39 @@
   .mode-switcher {
     display: none;
     background: #0a0a0a;
-    padding: 12px 16px 14px;
+    padding: 12rem 16rem 14rem;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(212, 165, 116, 0.15);
+    border-bottom: 1rem solid rgba(212, 165, 116, 0.15);
   }
   .mode-switcher.show { display: block; animation: slideDown 0.3s ease; }
   @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-8px); }
+    from { opacity: 0; transform: translateY(-8rem); }
     to { opacity: 1; transform: translateY(0); }
   }
   .mode-switcher-label {
-    font-size: 11px;
+    font-size: 11rem;
     font-weight: 700;
     color: rgba(245, 223, 192, 0.5);
-    margin-bottom: 8px;
-    letter-spacing: 0.5px;
+    margin-bottom: 8rem;
+    letter-spacing: 0.5rem;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 6rem;
   }
-  .mode-switcher-label svg { width: 12px; height: 12px; color: #D4691C; }
+  .mode-switcher-label svg { width: 12rem; height: 12rem; color: #D4691C; }
   .mode-switcher-tabs {
     display: flex;
     background: rgba(212, 165, 116, 0.3);
-    border-radius: 10px;
-    padding: 3px;
-    gap: 3px;
+    border-radius: 10rem;
+    padding: 3rem;
+    gap: 3rem;
   }
   .mode-tab {
     flex: 1;
-    padding: 8px 10px;
+    padding: 8rem 10rem;
     text-align: center;
-    border-radius: 8px;
-    font-size: 12px;
+    border-radius: 8rem;
+    font-size: 12rem;
     font-weight: 600;
     color: rgba(245, 223, 192, 0.85);
     cursor: pointer;
@@ -990,13 +915,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 4rem;
   }
-  .mode-tab svg { width: 13px; height: 13px; }
+  .mode-tab svg { width: 13rem; height: 13rem; }
   .mode-tab.active {
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    box-shadow: 0 2px 8px rgba(240, 160, 64, 0.35);
+    box-shadow: 0 2rem 8rem rgba(240, 160, 64, 0.35);
   }
   .mode-tab:not(.active):hover { background: rgba(240, 160, 64, 0.08); }
 
@@ -1004,19 +929,19 @@
   .photographer-badge {
     display: none;
     align-items: center;
-    gap: 3px;
-    margin-top: 4px;
-    padding: 2px 8px;
+    gap: 3rem;
+    margin-top: 4rem;
+    padding: 2rem 8rem;
     background: rgba(255, 255, 255, 0.25);
-    border-radius: 8px;
-    font-size: 10px;
+    border-radius: 8rem;
+    font-size: 10rem;
     font-weight: 600;
     color: white;
     width: fit-content;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(4rem);
   }
   .photographer-badge.show { display: inline-flex; }
-  .photographer-badge svg { width: 10px; height: 10px; }
+  .photographer-badge svg { width: 10rem; height: 10rem; }
 
   /* ========== 我的主页视图 ========== */
   .myhome-scroll {
@@ -1024,29 +949,29 @@
     overflow-y: auto;
     background: #0a0a0a;
   }
-  .myhome-scroll::-webkit-scrollbar { width: 3px; }
-  .myhome-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2px; }
+  .myhome-scroll::-webkit-scrollbar { width: 3rem; }
+  .myhome-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
 
   /* 头部 hero 区（暖橙渐变） */
   /* 我的主页：返回行覆盖在旅行者卡片左上方（特异性高于子元素通用规则） */
   .myhome-hero > .myhome-nav {
     position: absolute;
-    top: 18px; left: 16px;
+    top: 18rem; left: 16rem;
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 2rem;
     z-index: 4;
   }
-  .myhome-nav .sub-title { font-size: 15px; }
+  .myhome-nav .sub-title { font-size: 15rem; }
   .myhome-hero {
     position: relative;
-    height: 240px;
-    padding: 20px;
+    height: 240rem;
+    padding: 20rem;
     display: flex;
     flex-direction: column;
     justify-content: flex-end; /* 头像/旅行者在返回行下方 */
     align-items: center;
-    gap: 14px;
+    gap: 14rem;
     overflow: hidden;
     cursor: pointer;
     transition: height 0.35s ease;
@@ -1054,10 +979,10 @@
   .myhome-content {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 14rem;
     width: 100%;
   }
-  .myhome-hero.collapsed { height: 180px; }
+  .myhome-hero.collapsed { height: 180rem; }
   .myhome-hero::before {
     content: '';
     position: absolute; inset: 0;
@@ -1075,33 +1000,33 @@
   .myhome-hero::after {
     content: '';
     position: absolute;
-    bottom: -1px; left: 0; right: 0;
-    height: 18px;
+    bottom: -1rem; left: 0; right: 0;
+    height: 18rem;
     background: #0a0a0a;
-    border-radius: 18px 18px 0 0;
+    border-radius: 18rem 18rem 0 0;
   }
   .myhome-avatar {
-    width: 64px; height: 64px;
+    width: 64rem; height: 64rem;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.3);
-    border: 3px solid rgba(255, 255, 255, 0.6);
+    border: 3rem solid rgba(255, 255, 255, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     overflow: hidden;
   }
-  .myhome-avatar svg { width: 32px; height: 32px; color: white; }
+  .myhome-avatar svg { width: 32rem; height: 32rem; color: white; }
   .myhome-info { color: white; min-width: 0; }
   .myhome-name {
-    font-size: 19px;
+    font-size: 19rem;
     font-weight: 700;
-    margin-bottom: 4px;
+    margin-bottom: 4rem;
   }
   .myhome-bio {
-    font-size: 12px;
+    font-size: 12rem;
     opacity: 0.9;
-    margin-bottom: 4px;
+    margin-bottom: 4rem;
     line-height: 1.4;
   }
 
@@ -1109,27 +1034,27 @@
   .myhome-stats {
     display: flex;
     justify-content: space-around;
-    padding: 14px 20px 6px;
+    padding: 14rem 20rem 6rem;
     background: #0a0a0a;
     flex-shrink: 0;
   }
   .myhome-stat { text-align: center; }
   .myhome-stat-num {
-    font-size: 20px;
+    font-size: 20rem;
     font-weight: 800;
     color: #F5DFC0;
     transition: text-shadow 0.2s ease, color 0.2s ease;
   }
   .myhome-stat-label {
-    font-size: 11px;
+    font-size: 11rem;
     color: rgba(245, 223, 192, 0.85);
-    margin-top: 2px;
+    margin-top: 2rem;
     transition: text-shadow 0.2s ease, color 0.2s ease;
   }
 
   /* 统计栏三视图容器（随 myhome-scroll 统一滚动；底部留白避开凸起相机按钮） */
   .myhome-tabview {
-    padding: 10px 16px 96px;
+    padding: 10rem 16rem 96rem;
     background: #0a0a0a;
   }
 
@@ -1137,15 +1062,15 @@
   .myhome-search {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 8rem;
     background: rgba(28, 15, 8, 0.5);
-    border: 1px solid rgba(212, 165, 116, 0.2);
-    border-radius: 12px;
-    padding: 9px 12px;
-    margin-bottom: 12px;
+    border: 1rem solid rgba(212, 165, 116, 0.2);
+    border-radius: 12rem;
+    padding: 9rem 12rem;
+    margin-bottom: 12rem;
   }
   .myhome-search:focus-within { border-color: rgba(212, 165, 116, 0.5); }
-  .myhome-search-icon { width: 16px; height: 16px; color: rgba(245, 223, 192, 0.5); flex-shrink: 0; }
+  .myhome-search-icon { width: 16rem; height: 16rem; color: rgba(245, 223, 192, 0.5); flex-shrink: 0; }
   .myhome-search input {
     flex: 1;
     min-width: 0;
@@ -1153,17 +1078,17 @@
     border: none;
     outline: none;
     color: #F5DFC0;
-    font-size: 13px;
+    font-size: 13rem;
   }
   .myhome-search input::placeholder { color: rgba(245, 223, 192, 0.4); }
   .myhome-search-clear {
-    width: 22px;
-    height: 22px;
+    width: 22rem;
+    height: 22rem;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.08);
     border: none;
     color: rgba(245, 223, 192, 0.6);
-    font-size: 12px;
+    font-size: 12rem;
     display: none;
     align-items: center;
     justify-content: center;
@@ -1176,33 +1101,33 @@
   .myhome-photo-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+    gap: 6rem;
   }
 
   /* 坐标点卡片：标题栏（序号+名称+最新拍摄时间+定位键+箭头）+ 三栏照片网格 */
   .myhome-coord-card {
     background: rgba(28, 15, 8, 0.5);
-    border: 1px solid rgba(212, 165, 116, 0.12);
-    border-radius: 14px;
-    padding: 10px;
-    margin-bottom: 10px;
+    border: 1rem solid rgba(212, 165, 116, 0.12);
+    border-radius: 14rem;
+    padding: 10rem;
+    margin-bottom: 10rem;
     transition: border-color 0.2s ease;
   }
   .myhome-coord-card:hover { border-color: rgba(212, 165, 116, 0.3); }
   .myhome-coord-card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 2px 2px 10px;
+    gap: 8rem;
+    padding: 2rem 2rem 10rem;
   }
   .myhome-coord-idx {
-    min-width: 20px;
-    height: 20px;
+    min-width: 20rem;
+    height: 20rem;
     border-radius: 50%;
     background: rgba(240, 160, 64, 0.15);
-    border: 1px solid rgba(212, 165, 116, 0.35);
+    border: 1rem solid rgba(212, 165, 116, 0.35);
     color: #E89020;
-    font-size: 11px;
+    font-size: 11rem;
     font-weight: 800;
     display: flex;
     align-items: center;
@@ -1210,7 +1135,7 @@
     flex-shrink: 0;
   }
   .myhome-coord-name {
-    font-size: 15px;
+    font-size: 15rem;
     font-weight: 800;
     color: #F5DFC0;
     flex-shrink: 0;
@@ -1222,7 +1147,7 @@
   .myhome-coord-time {
     flex: 1;
     min-width: 0;
-    font-size: 11px;
+    font-size: 11rem;
     color: rgba(245, 223, 192, 0.5);
     overflow: hidden;
     white-space: nowrap;
@@ -1233,21 +1158,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
+    width: 32rem;
+    height: 32rem;
+    border-radius: 10rem;
     background: transparent;
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border: 1rem solid rgba(212, 165, 116, 0.3);
     color: #E89020;
     cursor: pointer;
     flex-shrink: 0;
     transition: all 0.2s ease;
   }
-  .myhome-coord-locate svg { width: 16px; height: 16px; }
+  .myhome-coord-locate svg { width: 16rem; height: 16rem; }
   .myhome-coord-locate:hover { background: rgba(240, 160, 64, 0.08); }
   .myhome-coord-locate:active {
     background: rgba(240, 160, 64, 0.15);
-    filter: drop-shadow(0 0 8px rgba(232, 144, 32, 0.8));
+    filter: drop-shadow(0 0 8rem rgba(232, 144, 32, 0.8));
     transform: scale(0.94);
   }
   .myhome-coord-arrow {
@@ -1255,32 +1180,32 @@
     display: flex;
     flex-shrink: 0;
   }
-  .myhome-coord-arrow svg { width: 15px; height: 15px; }
+  .myhome-coord-arrow svg { width: 15rem; height: 15rem; }
   .myhome-coord-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+    gap: 6rem;
   }
   .myhome-coord-thumb {
     aspect-ratio: 1/1;
-    border-radius: 8px;
+    border-radius: 8rem;
     overflow: hidden;
     cursor: pointer;
     background-position: center;
     background-size: cover;
     transition: transform 0.2s ease;
   }
-  .myhome-coord-thumb:hover { transform: translateY(-2px); }
+  .myhome-coord-thumb:hover { transform: translateY(-2rem); }
 
   .myhome-photo-card {
     position: relative;
-    border-radius: 12px;
+    border-radius: 12rem;
     overflow: hidden;
     aspect-ratio: 1/1;
     cursor: pointer;
     transition: transform 0.2s;
   }
-  .myhome-photo-card:hover { transform: translateY(-2px); }
+  .myhome-photo-card:hover { transform: translateY(-2rem); }
   .myhome-photo-card .bg {
     width: 100%; height: 100%;
     display: block;
@@ -1288,7 +1213,7 @@
   .myhome-photo-overlay {
     position: absolute;
     bottom: 0; left: 0; right: 0;
-    padding: 24px 8px 8px;
+    padding: 24rem 8rem 8rem;
     background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
     display: flex;
     justify-content: space-between;
@@ -1296,16 +1221,16 @@
   }
   .myhome-photo-stat {
     color: white;
-    font-size: 11px;
+    font-size: 11rem;
     font-weight: 600;
   }
 
   /* 统计栏交互键（三 tab）：点击文字+数字泛起光晕（弹窗风格），激活项持续光晕 */
   .myhome-stat.clickable {
     cursor: pointer;
-    border-radius: 12px;
-    padding: 6px 18px;
-    margin: -6px -18px;
+    border-radius: 12rem;
+    padding: 6rem 18rem;
+    margin: -6rem -18rem;
     transition: background 0.2s ease, transform 0.2s ease;
   }
   .myhome-stat.clickable:hover { background: rgba(240, 160, 64, 0.08); }
@@ -1318,11 +1243,11 @@
   }
   .myhome-stat.clickable.active .myhome-stat-num {
     color: #F0A848;
-    text-shadow: 0 0 14px rgba(240, 160, 64, 0.95), 0 0 32px rgba(240, 160, 64, 0.5);
+    text-shadow: 0 0 14rem rgba(240, 160, 64, 0.95), 0 0 32rem rgba(240, 160, 64, 0.5);
   }
   .myhome-stat.clickable.active .myhome-stat-label {
     color: #F5DFC0;
-    text-shadow: 0 0 10px rgba(240, 160, 64, 0.8);
+    text-shadow: 0 0 10rem rgba(240, 160, 64, 0.8);
   }
 
   /* 照片展开查看器（我的主页点击照片展开：大图 + 坐标信息 + 透明定位键） */
@@ -1339,16 +1264,16 @@
     position: absolute;
     inset: 0;
     background: rgba(10, 10, 10, 0.88);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12rem);
+    -webkit-backdrop-filter: blur(12rem);
   }
   .myhome-viewer-panel {
     position: relative;
-    width: calc(100% - 44px);
-    max-width: 330px;
+    width: calc(100% - 44rem);
+    max-width: 330rem;
     background: rgba(28, 15, 8, 0.5);
-    border: 1px solid rgba(212, 165, 116, 0.25);
-    border-radius: 16px;
+    border: 1rem solid rgba(212, 165, 116, 0.25);
+    border-radius: 16rem;
     overflow: hidden;
     animation: viewerIn 0.25s ease;
   }
@@ -1358,12 +1283,12 @@
   }
   .myhome-viewer-close {
     position: absolute;
-    top: 10px; right: 10px;
-    width: 30px; height: 30px;
+    top: 10rem; right: 10rem;
+    width: 30rem; height: 30rem;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.45);
     color: #F5DFC0;
-    font-size: 15px;
+    font-size: 15rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1376,48 +1301,48 @@
     background-position: center;
     background-size: cover;
   }
-  .myhome-viewer-info { padding: 14px 16px 18px; }
+  .myhome-viewer-info { padding: 14rem 16rem 18rem; }
   .myhome-viewer-title {
-    font-size: 16px;
+    font-size: 16rem;
     font-weight: 800;
     color: #F5DFC0;
   }
   .myhome-viewer-time {
-    font-size: 12px;
+    font-size: 12rem;
     color: rgba(245, 223, 192, 0.6);
-    margin-top: 3px;
+    margin-top: 3rem;
   }
   /* 透明定位键：透明背景细边框，点击跳转该坐标点（三级细化） */
   .myhome-viewer-locate {
-    margin-top: 14px;
+    margin-top: 14rem;
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
-    padding: 11px 0;
-    border-radius: 12px;
+    gap: 7rem;
+    padding: 11rem 0;
+    border-radius: 12rem;
     background: transparent;
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border: 1rem solid rgba(212, 165, 116, 0.3);
     color: #E89020;
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
   }
-  .myhome-viewer-locate svg { width: 17px; height: 17px; }
+  .myhome-viewer-locate svg { width: 17rem; height: 17rem; }
   .myhome-viewer-locate:hover {
     background: rgba(240, 160, 64, 0.08);
     border-color: rgba(212, 165, 116, 0.5);
   }
   .myhome-viewer-locate:active {
     background: rgba(240, 160, 64, 0.15);
-    filter: drop-shadow(0 0 8px rgba(232, 144, 32, 0.8));
+    filter: drop-shadow(0 0 8rem rgba(232, 144, 32, 0.8));
     transform: scale(0.97);
   }
 
-  @media (max-width: 900px) {
-    .container { flex-direction: column; gap: 30px; }
+  @media (max-width: 900rem) {
+    .container { flex-direction: column; gap: 30rem; }
   }
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
@@ -1448,7 +1373,7 @@
   /* 底部导航在 phone-screen 内 absolute 贴底，页面高度直接 = 实际可视高度 */
   body.full-embed.mobile-browser .phone-frame { height: var(--app-h, 100vh); }
 </style>
-<script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+<script src="lib/dexie/dexie.js"></script>
 <script src="api.js"></script>
 
 <script>
@@ -1859,25 +1784,6 @@
           </div>
 
           <div class="member-scroll">
-            <!-- 顶部 hero -->
-            <div class="member-hero">
-              <div class="member-crown">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <g>
-                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z"/>
-                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(72 12 12)"/>
-                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(144 12 12)"/>
-                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(216 12 12)"/>
-                    <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(288 12 12)"/>
-                  </g>
-                  <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-                </svg>
-              </div>
-              <div class="member-title">尊享会员</div>
-              <div class="member-subtitle">解锁高级权益，升级认证摄影师</div>
-              <div class="member-status-badge" id="memberStatusBadge">未开通</div>
-            </div>
-
             <!-- 套餐卡片 -->
             <div class="plan-card">
               <div class="plan-name">月度会员</div>
@@ -2605,7 +2511,6 @@
 
   // DOM 引用
   const memberBadge = document.getElementById('memberBadge');
-  const memberStatusBadge = document.getElementById('memberStatusBadge');
   const subscribeBtn = document.getElementById('subscribeBtn');
   const photographerBlock = document.getElementById('photographerBlock');
   const photographerTitle = document.getElementById('photographerTitle');
@@ -2623,14 +2528,6 @@
     const remainText = serverStatusLoaded
       ? (serverRemainingDays > 0 ? `剩余 ${serverRemainingDays} 天` : '即将到期')
       : `剩余 ${memberMonths} 个月`;
-    if (isMember) {
-      memberStatusBadge.textContent = `已订阅 · ${remainText}`;
-      memberStatusBadge.classList.add('active');
-    } else {
-      memberStatusBadge.textContent = '未开通';
-      memberStatusBadge.classList.remove('active');
-    }
-
     // 我的页菜单徽章
     memberBadge.textContent = isMember ? `剩余 ${serverStatusLoaded ? serverRemainingDays + ' 天' : memberMonths + ' 个月'}` : '未开通';
     memberBadge.style.color = isMember ? '#D4691C' : 'rgba(245, 223, 192, 0.85)';
@@ -3165,7 +3062,8 @@
    */
   function redeemInviteCodeReal(code, isVip, fallback) {
     if (typeof MemoAPI === 'undefined' || !MemoAPI.getToken()) {
-      window.location.href = 'login-prototype.html';
+      // App 内置浏览器（web-view）内：显式 full=1 全屏打开登录页；Web 端不带参
+      window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
       return;
     }
     MemoAPI.post('/invite/redeem', { code: code }).then(function (data) {
@@ -3209,7 +3107,8 @@
       }
       if (err && err.code === 1002) {  // Token 过期/无效 → 重新登录
         if (typeof MemoAPI !== 'undefined') MemoAPI.clearAuth();
-        window.location.href = 'login-prototype.html';
+        // App 内置浏览器（web-view）内：显式 full=1 全屏打开登录页；Web 端不带参
+        window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
         return;
       }
       // 业务失败：显示后端 message（已使用/不存在/数量超限等）

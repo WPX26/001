@@ -7,7 +7,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>移动端登录页面原型设计</title>
-<style>
+<style>  /* ===== 屏宽等比缩放基准（王总 2026-08-13）：1rem = 屏宽/375 px，元素长宽只与屏宽成比例，与屏高无关 ===== */
+  html { font-size: 0.2667vw; }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
@@ -17,17 +19,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 20rem;
     overflow-x: hidden;
   }
 
   .container {
     display: flex;
-    gap: 40px;
-    max-width: 1100px;
-    width: 100%;
+    gap: 40rem;
+    max-width: 100vw;
+    width: 100vw;
+    height: 100vh;
     align-items: center;
     justify-content: center;
+    margin: 0;
   }
 
   /* ========== 左侧手机预览 ========== */
@@ -38,12 +42,12 @@
   }
 
   .phone-frame {
-    width: 320px;
-    height: 680px;
+    width: 100vw;
+    height: 100vh;
     background: #1C0F08;
-    border-radius: 42px;
-    padding: 8px;
-    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(212, 165, 116, 0.35);
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
     position: relative;
   }
 
@@ -51,113 +55,138 @@
     display: none;
     content: '';
     position: absolute;
-    top: 14px;
+    top: 14rem;
     left: 50%;
     transform: translateX(-50%);
-    width: 120px;
-    height: 28px;
+    width: 120rem;
+    height: 28rem;
     background: #1C0F08;
-    border-radius: 0 0 18px 18px;
+    border-radius: 0 0 18rem 18rem;
     z-index: 10;
   }
 
   .phone-screen {
     width: 100%;
     height: 100%;
-    border-radius: 30px;
+    border-radius: 0;
     overflow: hidden;
     position: relative;
-    background: linear-gradient(165deg, #F0B860 0%, #E89020 40%, #B85A10 100%);
+    /* 精修：顶部奶油柔光罩 + 琥珀主调渐变，底部深琥珀收尾 */
+    /* 王总要求：纯深褐均匀底色，无渐变无光斑，比卡片更深 */
+    background: #120A05;
   }
 
-  /* 背景装饰圆 */
-  .phone-screen::before,
-  .phone-screen::after {
-    content: '';
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(20px);
-    opacity: 0.55;
-  }
-  .phone-screen::before {
-    width: 200px; height: 200px;
-    background:
-      radial-gradient(ellipse 26% 42% at 50% 24%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 74.7% 42%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 65.3% 71%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 34.7% 71%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 25.3% 42%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(circle 26% at 50% 50%, #FFE9B8 0%, transparent 70%);
-    top: -50px; right: -50px;
-  }
-  .phone-screen::after {
-    width: 160px; height: 160px;
-    background:
-      radial-gradient(ellipse 26% 42% at 50% 24%, #FFB84D 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 74.7% 42%, #FFB84D 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 65.3% 71%, #FFB84D 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 34.7% 71%, #FFB84D 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 25.3% 42%, #FFB84D 0%, transparent 70%),
-      radial-gradient(circle 26% at 50% 50%, #FFB84D 0%, transparent 70%);
-    bottom: -40px; left: -40px;
+  /* 设计基准：内容区铺满视口，卡片按固定画面比例（宽 2/3、高 13/20）严格居中 */
+  .screen-content {
+    width: 100%;
+    height: 100%;
+    position: relative;
   }
 
   .status-bar {
-    position: relative;
+    position: absolute;
+    top: 0; left: 0; right: 0;
     z-index: 2;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px 6px;
-    color: #1C0F08;
-    font-size: 13px;
+    padding: 14rem 20rem 6rem;
+    color: #F5DFC0;
+    font-size: 13rem;
     font-weight: 600;
   }
 
-  .status-icons { display: flex; gap: 5px; align-items: center; }
-  .status-icons svg { width: 16px; height: 11px; }
+  .status-icons { display: flex; gap: 5rem; align-items: center; }
+  .status-icons svg { width: 16rem; height: 11rem; }
 
   .login-container {
     position: relative;
     z-index: 2;
-    padding: 30px 28px 20px;
-    height: calc(100% - 50px);
+    padding: 18rem 0 14rem;
+    height: 100%; /* 状态栏为绝对定位不占布局，卡片比例严格基于整个画面 */
     display: flex;
     flex-direction: column;
+    align-items: center;          /* 卡片水平居中 */
+    justify-content: center;      /* 旧浏览器回退 */
+    justify-content: safe center; /* 内容超高时自动贴顶，顶部可达 */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
-  .login-header { text-align: center; margin-bottom: 28px; }
+
+  /* ===== 品牌区（精修新增） ===== */
+  .brand-logo {
+    width: 98rem;
+    height: 83rem;
+    margin: 0 auto 10rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 8rem 22rem rgba(28, 15, 8, 0.35));
+    animation: fadeUp 0.55s cubic-bezier(0.22, 0.9, 0.35, 1) both;
+  }
+  .brand-logo svg { width: 100%; height: 100%; }
+
+  .login-header { text-align: center; margin-bottom: 14rem; animation: fadeUp 0.55s 0.08s cubic-bezier(0.22, 0.9, 0.35, 1) both; }
   .login-title {
-    font-size: 24px;
+    font-size: 20rem;
     font-weight: 700;
-    color: #1C0F08;
-    margin-bottom: 6px;
-    letter-spacing: 1px;
+    color: #F5DFC0;
+    margin-bottom: 3rem;
+    letter-spacing: 1rem;
   }
   .login-subtitle {
-    font-size: 13px;
-    color: #6B4423;
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.65);
+    letter-spacing: 0.5rem;
   }
 
-  /* 毛玻璃卡片 */
+  /* 入场动画 */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14rem); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* 毛玻璃卡片（精修：底色加深保证对比度 + 顶部一线高光） */
   .login-card {
-    background: rgba(28, 15, 8, 0.5);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-radius: 20px;
-    padding: 28px 22px;
-    border: 1px solid rgba(212, 165, 116, 0.25);
-    box-shadow: 0 12px 40px rgba(28, 15, 8, 0.18), inset 0 1px 0 rgba(212, 165, 116, 0.12);
+    background: rgba(28, 15, 8, 0.6);
+    backdrop-filter: blur(24rem);
+    -webkit-backdrop-filter: blur(24rem);
+    border-radius: 20rem;
+    padding: 12rem 12rem;
+    border: 1rem solid rgba(212, 165, 116, 0.28);
+    box-shadow: 0 14rem 44rem rgba(28, 15, 8, 0.22), inset 0 1rem 0 rgba(212, 165, 116, 0.12);
+    position: relative;
+    animation: fadeUp 0.6s 0.16s cubic-bezier(0.22, 0.9, 0.35, 1) both;
+    /* 王总要求：卡片宽 = 画面宽 70%、高 = 画面高 60%，任意视口缩放不变 */
+    width: 70%;
+    height: 60%;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;      /* 内容少时居中 */
+    justify-content: safe center; /* 内容超高时贴顶 + 卡片内滚动 */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1rem;
+    border-radius: 20rem 20rem 0 0;
+    background: linear-gradient(90deg, transparent, rgba(212, 165, 116, 0.55), transparent);
+    pointer-events: none;
   }
 
   .input-group {
-    margin-bottom: 16px;
+    margin-bottom: 10rem;
   }
 
   .input-label {
-    font-size: 12px;
+    font-size: 10rem;
     color: #F5DFC0;
-    margin-bottom: 6px;
+    margin-bottom: 4rem;
     display: block;
     font-weight: 500;
   }
@@ -170,61 +199,73 @@
 
   .input-wrapper svg {
     position: absolute;
-    left: 14px;
-    width: 18px;
-    height: 18px;
+    left: 12rem;
+    width: 16rem;
+    height: 16rem;
     color: rgba(245, 223, 192, 0.5);
     transition: color 0.3s;
   }
 
   .input-field {
     width: 100%;
-    height: 46px;
-    padding: 0 14px 0 42px;
+    height: 40rem;
+    padding: 0 12rem 0 36rem;
     background: rgba(28, 15, 8, 0.55);
-    border: 1.5px solid rgba(212, 165, 116, 0.35);
-    border-radius: 12px;
-    font-size: 14px;
+    border: 1.5rem solid rgba(212, 165, 116, 0.35);
+    border-radius: 11rem;
+    font-size: 11rem;
     color: #F5DFC0;
     outline: none;
+    caret-color: #E89020;
     transition: all 0.3s ease;
   }
 
-  .input-field::placeholder { color: rgba(245, 223, 192, 0.5); }
+  /* 框内占位提示文字（请输入手机号/验证码…）：缩小两号，独立于输入文字 */
+  .input-field::placeholder { color: rgba(245, 223, 192, 0.55); font-size: 10rem; }
 
   .input-field:focus {
-    background: rgba(28, 15, 8, 0.7);
+    background: rgba(28, 15, 8, 0.72);
     border-color: #E89020;
-    box-shadow: 0 0 0 4px rgba(232, 144, 32, 0.15);
+    box-shadow: 0 0 0 4rem rgba(232, 144, 32, 0.16);
   }
 
-  .input-field:focus + .input-icon,
   .input-wrapper:focus-within svg { color: #E89020; }
 
   .form-options {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 20px 0 22px;
-    font-size: 12px;
+    margin: 8rem 0 10rem;
+    font-size: 11rem;
   }
 
   .remember-me {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 6rem;
     cursor: pointer;
     color: #F5DFC0;
     user-select: none;
   }
 
-  .remember-me input { display: none; }
+  /* 视觉隐藏而非 display:none：保留键盘焦点与读屏可达性 */
+  .remember-me input {
+    position: absolute;
+    width: 1rem; height: 1rem;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .remember-me input:focus-visible + .checkbox {
+    outline: 2rem solid #E89020;
+    outline-offset: 2rem;
+  }
 
   .checkbox {
-    width: 16px;
-    height: 16px;
-    border: 1.5px solid #9B7B5A;
-    border-radius: 5px;
+    width: 16rem;
+    height: 16rem;
+    border: 1.5rem solid #9B7B5A;
+    border-radius: 5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -233,12 +274,12 @@
   }
 
   .remember-me input:checked + .checkbox {
-    background: linear-gradient(135deg, #B8864A, #8B5E3C);
+    background: linear-gradient(135deg, #F0A040, #D4691C);
     border-color: transparent;
   }
 
   .checkbox svg {
-    width: 10px; height: 10px;
+    width: 10rem; height: 10rem;
     color: #4A2A0E;
     opacity: 0;
     transform: scale(0.5);
@@ -251,31 +292,31 @@
   }
 
   .forgot-link {
-    color: #E89020;
+    color: #FFB84D;
     text-decoration: none;
     transition: color 0.2s;
     cursor: pointer;
   }
-  .forgot-link:hover { color: #FFB84D; text-decoration: underline; }
+  .forgot-link:hover { color: #FFD28A; text-decoration: underline; }
 
   .login-btn {
     width: 100%;
-    height: 48px;
+    height: 42rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     border: none;
-    border-radius: 12px;
+    border-radius: 11rem;
     color: #4A2A0E;
-    font-size: 15px;
+    font-size: 13rem;
     font-weight: 600;
-    letter-spacing: 2px;
+    letter-spacing: 2rem;
     cursor: pointer;
     transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
                 box-shadow 0.25s ease,
                 filter 0.2s ease,
                 background 0.3s ease;
-    box-shadow: 0 6px 24px rgba(232, 144, 32, 0.5),
-                inset 0 1px 0 rgba(212, 165, 116, 0.25),
-                inset 0 -2px 0 rgba(184, 90, 16, 0.2);
+    box-shadow: 0 6rem 24rem rgba(232, 144, 32, 0.5),
+                inset 0 1rem 0 rgba(212, 165, 116, 0.25),
+                inset 0 -2rem 0 rgba(184, 90, 16, 0.2);
     position: relative;
     overflow: hidden;
   }
@@ -293,18 +334,18 @@
   .login-btn:hover::before { left: 100%; }
 
   .login-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(232, 144, 32, 0.6),
-                inset 0 1px 0 rgba(212, 165, 116, 0.3),
-                inset 0 -2px 0 rgba(184, 90, 16, 0.2);
+    transform: translateY(-2rem);
+    box-shadow: 0 10rem 30rem rgba(232, 144, 32, 0.6),
+                inset 0 1rem 0 rgba(212, 165, 116, 0.3),
+                inset 0 -2rem 0 rgba(184, 90, 16, 0.2);
     filter: brightness(1.08);
   }
 
   .login-btn:active {
-    transform: translateY(1px) scale(0.98);
-    box-shadow: 0 2px 8px rgba(232, 144, 32, 0.4),
-                inset 0 2px 4px rgba(184, 90, 16, 0.3),
-                inset 0 -1px 0 rgba(212, 165, 116, 0.1);
+    transform: translateY(1rem) scale(0.98);
+    box-shadow: 0 2rem 8rem rgba(232, 144, 32, 0.4),
+                inset 0 2rem 4rem rgba(184, 90, 16, 0.3),
+                inset 0 -1rem 0 rgba(212, 165, 116, 0.1);
     filter: brightness(0.95);
     transition: transform 0.1s ease,
                 box-shadow 0.1s ease,
@@ -331,48 +372,69 @@
 
   .register-link {
     text-align: center;
-    margin-top: 22px;
-    font-size: 13px;
-    color: #6B4423;
+    margin-top: 8rem;
+    font-size: 10.5rem;
+    color: rgba(245, 223, 192, 0.72);
   }
 
   .register-link a {
-    color: #E89020;
+    color: #FFB84D;
     text-decoration: none;
     font-weight: 600;
     cursor: pointer;
     transition: color 0.2s;
   }
-  .register-link a:hover { color: #FFB84D; text-decoration: underline; }
+  .register-link a:hover { color: #FFD28A; text-decoration: underline; }
+
+  /* 页脚协议（精修新增） */
+  /* 页脚协议：屏幕最底部半透明胶囊条（王总 2026-08-13） */
+  .terms {
+    position: absolute;
+    bottom: 26rem;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 8rem;
+    color: rgba(245, 223, 192, 0.38);
+    background: rgba(28, 15, 8, 0.25);
+    backdrop-filter: blur(8rem);
+    -webkit-backdrop-filter: blur(8rem);
+    padding: 5rem 14rem;
+    border-radius: 12rem;
+    border: 1rem solid rgba(212, 165, 116, 0.12);
+    letter-spacing: 0.3rem;
+    z-index: 3;
+  }
+  .terms span { color: rgba(255, 184, 77, 0.7); }
 
   .home-indicator {
     position: absolute;
-    bottom: 8px;
+    bottom: 8rem;
     left: 50%;
     transform: translateX(-50%);
-    width: 100px;
-    height: 4px;
+    width: 100rem;
+    height: 4rem;
     background: rgba(28, 15, 8, 0.4);
-    border-radius: 2px;
+    border-radius: 2rem;
     z-index: 5;
   }
 
   /* 交互提示 */
   .interaction-hint {
     position: fixed;
-    bottom: 20px;
+    bottom: 20rem;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(28, 15, 8, 0.92);
     color: #F5DFC0;
-    padding: 10px 22px;
-    border-radius: 20px;
-    font-size: 13px;
+    padding: 10rem 22rem;
+    border-radius: 20rem;
+    font-size: 13rem;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
     z-index: 100;
-    box-shadow: 0 4px 20px rgba(28, 15, 8, 0.25);
+    box-shadow: 0 4rem 20rem rgba(28, 15, 8, 0.25);
   }
   .interaction-hint.show { opacity: 1; }
 
@@ -383,11 +445,12 @@
     left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
     background: rgba(28, 15, 8, 0.92);
-    backdrop-filter: blur(10px);
-    padding: 16px 28px;
-    border-radius: 14px;
-    box-shadow: 0 10px 40px rgba(28, 15, 8, 0.22);
-    font-size: 14px;
+    backdrop-filter: blur(10rem);
+    -webkit-backdrop-filter: blur(10rem);
+    padding: 16rem 28rem;
+    border-radius: 14rem;
+    box-shadow: 0 10rem 40rem rgba(28, 15, 8, 0.22);
+    font-size: 14rem;
     color: #F5DFC0;
     font-weight: 500;
     opacity: 0;
@@ -395,56 +458,70 @@
     transition: all 0.3s ease;
     z-index: 20;
     text-align: center;
+    max-width: 280rem;
   }
   .toast.show {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
   .toast .toast-icon {
-    width: 40px; height: 40px;
+    width: 40rem; height: 40rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #F0A040, #D4691C);
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 10px;
+    margin: 0 auto 10rem;
     color: #4A2A0E;
   }
 
-  /* 登录方式 Tab */
+  /* 登录方式 Tab（精修：深色胶囊内选中项改为琥珀渐变，与主按钮呼应） */
   .login-tabs {
     display: flex;
-    background: rgba(28, 15, 8, 0.4);
-    border-radius: 12px;
-    padding: 3px;
-    margin-bottom: 20px;
-    gap: 3px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 12rem;
+    padding: 3rem;
+    margin-bottom: 10rem;
+    gap: 3rem;
   }
   .login-tab {
     flex: 1;
-    padding: 9px 0;
+    padding: 6rem 0;
     text-align: center;
-    border-radius: 10px;
-    font-size: 13px;
+    border-radius: 10rem;
+    font-size: 11rem;
     font-weight: 600;
-    color: rgba(28, 15, 8, 0.55);
+    color: rgba(245, 223, 192, 0.7);
     cursor: pointer;
     transition: all 0.25s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
+    gap: 5rem;
   }
-  .login-tab svg { width: 14px; height: 14px; }
+  .login-tab svg { width: 14rem; height: 14rem; }
+  .login-tab:hover { color: #F5DFC0; }
+  /* Tab 内 radio 视觉隐藏：保留键盘切换与读屏语义（JS 零改动，click 冒泡不变） */
+  .tab-radio {
+    position: absolute;
+    width: 1rem; height: 1rem;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .login-tab:focus-within {
+    outline: 2rem solid rgba(232, 144, 32, 0.9);
+    outline-offset: -2rem;
+  }
   .login-tab.active {
-    background: #1C0F08;
-    color: #F5DFC0;
-    box-shadow: 0 2px 8px rgba(28, 15, 8, 0.12);
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    color: #4A2A0E;
+    box-shadow: 0 2rem 10rem rgba(232, 144, 32, 0.35), inset 0 1rem 0 rgba(212, 165, 116, 0.3);
   }
 
   /* 密码可见切换 */
   .pwd-toggle {
     position: absolute;
-    right: 12px;
-    width: 28px; height: 28px;
+    right: 10rem;
+    width: 26rem; height: 26rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -454,30 +531,40 @@
     transition: color 0.2s;
     z-index: 2;
   }
-  .pwd-toggle:hover { color: #E89020; }
-  .pwd-toggle svg { width: 16px; height: 16px; stroke-width: 2; }
-  .input-wrapper .input-field { padding-right: 40px; }
+  .pwd-toggle:hover { color: #FFB84D; }
+  .pwd-toggle svg { width: 15rem; height: 15rem; stroke-width: 2; }
+  .input-wrapper .input-field { padding-right: 14rem; }
+  .input-wrapper:has(.pwd-toggle) .input-field { padding-right: 40rem; }
 
   /* 验证码发送按钮 */
-  .code-row { display: flex; gap: 10px; }
+  .code-row { display: flex; gap: 10rem; }
   .code-row .input-wrapper { flex: 1; }
   .send-code-btn {
-    height: 46px;
-    padding: 0 16px;
+    height: 40rem;
+    padding: 0 14rem;
     background: rgba(28, 15, 8, 0.55);
-    border: 1.5px solid #E89020;
-    border-radius: 12px;
-    color: #E89020;
-    font-size: 12px;
+    border: 1.5rem solid #FFB84D;
+    border-radius: 11rem;
+    color: #FFB84D;
+    font-size: 11rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.25s;
     white-space: nowrap;
     flex-shrink: 0;
+    min-width: 84rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .send-code-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #F0A040, #D4691C);
     color: #4A2A0E;
+    transform: translateY(-1rem);
+    box-shadow: 0 4rem 12rem rgba(232, 144, 32, 0.4);
+  }
+  .send-code-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.97);
   }
   .send-code-btn:disabled {
     background: rgba(212, 165, 116, 0.25);
@@ -486,55 +573,95 @@
     cursor: not-allowed;
   }
 
-  /* 第三方登录 */
+  /* 第三方登录（精修：实底深棕圆钮 + 手绘品牌 SVG） */
   .divider {
     display: flex;
     align-items: center;
-    margin: 16px 0;
-    color: rgba(28, 15, 8, 0.35);
-    font-size: 11px;
+    margin: 4rem 0 6rem;
+    color: rgba(245, 223, 192, 0.5);
+    font-size: 11rem;
   }
   .divider::before, .divider::after {
     content: '';
     flex: 1;
-    height: 1px;
+    height: 1rem;
     background: rgba(212, 165, 116, 0.3);
   }
-  .divider span { padding: 0 12px; }
+  .divider span { padding: 0 12rem; }
   .social-login {
     display: flex;
     justify-content: center;
-    gap: 24px;
+    gap: 20rem;
   }
   .social-btn {
-    width: 44px; height: 44px;
+    width: 36rem; height: 36rem;
     border-radius: 50%;
-    border: 1.5px solid rgba(212, 165, 116, 0.3);
-    background: rgba(28, 15, 8, 0.5);
+    border: 1.5rem solid rgba(212, 165, 116, 0.35);
+    background: #1C0F08;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 18px;
+    color: #F5DFC0;
   }
-  .social-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(28, 15, 8, 0.12); }
-  .social-btn:active { transform: scale(0.95); }
+  .social-btn svg { width: 18rem; height: 18rem; }
+  .social-btn:hover {
+    transform: translateY(-2rem);
+    border-color: #E89020;
+    color: #E89020;
+    box-shadow: 0 4rem 14rem rgba(28, 15, 8, 0.3);
+  }
+  .social-btn:active { transform: scale(0.94); }
 
   /* 表单错误提示 */
   .field-hint {
-    font-size: 11px;
-    margin-top: 4px;
-    padding-left: 4px;
+    font-size: 10rem;
+    margin-top: 4rem;
+    padding-left: 4rem;
     display: none;
   }
   .field-hint.show { display: block; }
-  .field-hint.error { color: #E05A3A; }
-  .field-hint.ok { color: #4CAF50; }
+  .field-hint.error { color: #FF7A5C; }
+  .field-hint.ok { color: #66C76E; }
 
   /* 响应式 */
-  @media (max-width: 900px) {
-    .container { flex-direction: column; gap: 30px; }
+  @media (max-width: 900rem) {
+    .container { flex-direction: column; gap: 30rem; }
+  }
+
+  /* ===== 高度流动降级 ===== */
+  /* 矮窗口（横屏/PC 拉矮/小屏机）：内容贴顶 + 压缩间距，保证一屏放得下 */
+  @media (max-height: 620rem) {
+    .login-container { justify-content: flex-start; }
+    .brand-logo { width: 98rem; height: 83rem; margin-bottom: 6rem; }
+    .login-header { margin-bottom: 10rem; }
+    .input-group { margin-bottom: 10rem; }
+    .login-card { padding: 12rem 14rem; }
+    .form-options { margin: 8rem 0 10rem; }
+    .divider { margin: 6rem 0 8rem; }
+    .register-link { margin-top: 10rem; }
+    .terms { margin-top: 6rem; }
+  }
+
+  /* 窄屏（320rem 老机型）：收窄容器内边距，输入框图标让位 */
+  @media (max-width: 340rem) {
+    .login-container { padding: 16rem 0 12rem; }
+    .login-card { padding: 16rem 14rem; }
+    .input-field { padding-left: 34rem; }
+  }
+
+  /* 极端矮窗口（横屏/小屏机）：二级压缩，副标题让位 */
+  @media (max-height: 560rem) {
+    .login-header { margin-bottom: 8rem; }
+    .login-subtitle { display: none; }
+    .brand-logo { width: 82rem; height: 70rem; margin-bottom: 4rem; }
+    .login-card { padding: 12rem 14rem; }
+  }
+
+  /* 移动端输入框 16rem：避免 iOS Safari 聚焦自动缩放破坏 375 定宽布局 */
+  @media (max-width: 480rem) {
+    .input-field { font-size: 16rem; }
   }
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
@@ -544,6 +671,7 @@
   body.full-embed .phone-frame {
     width: 100vw;
     height: 100vh;
+    height: 100dvh; /* iOS Safari 地址栏展开时取动态视口高 */
     border-radius: 0;
     padding: 0;
     box-shadow: none;
@@ -557,7 +685,11 @@
   /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
   body.full-embed.mobile-browser .bottom-nav,
   body.full-embed.mobile-browser .home-indicator { display: flex; }
-  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56px); }
+  /* 仅当页面确实有底部导航时扣减高度（登录/注册页无 bottom-nav，不扣） */
+  body.full-embed.mobile-browser .phone-frame { height: 100dvh; }
+  body.full-embed.mobile-browser:has(.bottom-nav) .phone-frame { height: calc(100dvh - 56rem); }
+
+
 </style>
 
 <script>
@@ -605,6 +737,7 @@
   <div class="phone-wrapper">
     <div class="phone-frame">
       <div class="phone-screen">
+        <div class="screen-content" id="screenContent">
         <div class="status-bar">
           <span>9:41</span>
           <div class="status-icons">
@@ -622,33 +755,52 @@
           </div>
         </div>
 
+
+
         <div class="login-container">
+          <!-- 品牌 Logo（精修新增：琥珀图钉徽章） -->
+          <div class="brand-logo">
+            <svg viewBox="0 0 612 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="brandSun" cx="38%" cy="38%" r="75%">
+                  <stop offset="0%" stop-color="#FFE3A8"/>
+                  <stop offset="42%" stop-color="#FFB84D"/>
+                  <stop offset="100%" stop-color="#E89020"/>
+                </radialGradient>
+              </defs>
+              <path fill-rule="evenodd" fill="url(#brandSun)" d="M306,65.5 L299.5,73 L299.5,76 L295.5,85 L294.5,93 L292.5,96 L290.5,103 L290.5,123 L287.5,130 L287.5,141 L281,143.5 L278.5,146 L278.5,148 L280,149.5 L285,151.5 L300,150.5 L311,146.5 L318.5,141 L316.5,137 L316.5,134 L314.5,129 L314.5,124 L313.5,123 L312.5,104 L309.5,94 L308.5,71 L307.5,70 L308.5,68 L307,65.5 Z M376,84.5 L363.5,98 L356.5,110 L343.5,127 L339.5,134 L336.5,138 L332.5,141 L332.5,143 L335.5,148 L345,157.5 L353,162.5 L356,163.5 L365,163.5 L367.5,161 L367.5,157 L363.5,151 L362.5,142 L364.5,136 L370.5,124 L372.5,122 L376.5,110 L376.5,100 L378.5,93 L378.5,90 L376.5,85 Z M208,95.5 L205.5,98 L205.5,107 L206.5,110 L210.5,115 L210.5,117 L214.5,122 L216.5,127 L222.5,135 L225.5,144 L234.5,154 L235.5,158 L240.5,164 L241.5,167 L241.5,171 L240,171.5 L231.5,181 L231.5,184 L234,186.5 L237,186.5 L242,183.5 L244,183.5 L255,175.5 L265.5,162 L267.5,159 L267.5,157 L227.5,116 L209,95.5 Z M296,165.5 L287,168.5 L278,173.5 L274,176.5 L261.5,190 L255.5,203 L254.5,213 L253.5,214 L253.5,226 L254.5,227 L254.5,231 L260.5,245 L270,256.5 L282,264.5 L284,264.5 L294,269.5 L303,270.5 L304,271.5 L321,271.5 L324,269.5 L329,268.5 L339,262.5 L349.5,252 L353.5,246 L357.5,237 L358.5,229 L359.5,228 L359.5,214 L356.5,204 L349.5,191 L348.5,187 L345.5,184 L344,179.5 L342,179.5 L338,175.5 L328,169.5 L320,168.5 L311,165.5 L297,165.5 Z M428,172.5 L427,173.5 L413,173.5 L412,174.5 L379,175.5 L378,176.5 L369,177.5 L367.5,179 L367.5,194 L370.5,203 L374,206.5 L387,201.5 L394,201.5 L395,200.5 L402,200.5 L403,199.5 L413,198.5 L427,192.5 L430,192.5 L434,189.5 L438,189.5 L449,181.5 L455.5,173 L429,172.5 Z M308,178.5 L305.5,180 L301.5,187 L301.5,200 L304.5,209 L312,215.5 L317,216.5 L318.5,215 L319.5,213 L319.5,203 L318,202.5 L317,204.5 L311,205.5 L306.5,202 L306.5,200 L314,191.5 L320,189.5 L323,189.5 L327.5,192 L331.5,199 L332.5,207 L329.5,215 L324,220.5 L319,222.5 L306,222.5 L298,218.5 L290.5,210 L288,200.5 L287,200.5 L281.5,207 L278.5,216 L278.5,224 L277.5,225 L279.5,231 L284,235.5 L294,240.5 L296,242.5 L302,244.5 L320,242.5 L325,240.5 L331.5,232 L331.5,229 L337.5,219 L339.5,212 L338.5,200 L336.5,197 L336.5,195 L330.5,186 L320,178.5 L309,178.5 Z M157,193.5 L155.5,195 L156.5,198 L163,204.5 L168,207.5 L173,208.5 L180,213.5 L182,213.5 L195,219.5 L202,219.5 L207,221.5 L217,221.5 L218,222.5 L221,222.5 L223.5,225 L224.5,234 L227,235.5 L230,234.5 L233.5,230 L237.5,219 L238.5,205 L237.5,204 L237,193.5 L225,193.5 L224,194.5 L223,193.5 L158,193.5 Z M374,216.5 L371.5,220 L368.5,229 L368.5,234 L367.5,235 L367.5,240 L369.5,247 L371,248.5 L374,248.5 L375,247.5 L391,247.5 L392,248.5 L405,248.5 L406,249.5 L425,248.5 L429,246.5 L435,246.5 L436,245.5 L442,246.5 L446,242.5 L450,241.5 L451.5,239 L433,232.5 L430,232.5 L422,229.5 L419,229.5 L418,228.5 L395,223.5 L384,219.5 L381,219.5 L375,216.5 Z M242,238.5 L238,241.5 L231,243.5 L218,250.5 L171,267.5 L166,270.5 L163.5,273 L163.5,275 L166,277.5 L183,278.5 L187,276.5 L197,275.5 L200,273.5 L207,273.5 L208,272.5 L213,272.5 L222,269.5 L228,269.5 L236,266.5 L245,268.5 L249,273.5 L252,274.5 L254,273.5 L255.5,271 L255.5,263 L248.5,246 L242.5,239 Z M371,261.5 L358,267.5 L349.5,275 L346.5,281 L346.5,287 L350,289.5 L353,289.5 L354,288.5 L359,290.5 L363,293.5 L372,303.5 L379,309.5 L384,311.5 L389.5,318 L393,320.5 L402,325.5 L412,326.5 L413,327.5 L424,326.5 L424.5,325 L401.5,296 L372,261.5 Z M263,272.5 L254.5,286 L244.5,307 L244.5,309 L239.5,318 L239.5,320 L229.5,343 L229.5,344 L232,345.5 L237,345.5 L240,343.5 L258.5,326 L263.5,317 L271.5,310 L284.5,292 L284.5,289 L279,280.5 L274,276.5 L264,272.5 Z M312,288.5 L311,289.5 L294,290.5 L292.5,292 L293.5,293 L293.5,305 L294.5,306 L294.5,337 L295.5,338 L296.5,355 L299.5,360 L299.5,367 L301.5,371 L302.5,377 L305,380.5 L311.5,375 L311.5,372 L313.5,367 L313.5,362 L316.5,356 L316.5,346 L318.5,342 L318.5,335 L320.5,329 L320.5,319 L321.5,318 L323.5,304 L325,301.5 L330,301.5 L333.5,298 L333.5,295 L330,291.5 L326,289.5 L323,288.5 L313,288.5 Z"/>
+              <text x="306" y="502" text-anchor="middle" font-family="STXingkai,华文行楷,KaiTi,楷体,serif" font-size="92" font-weight="bold" letter-spacing="10" fill="#F5DFC0">工一堂</text>
+            </svg>
+          </div>
+
           <div class="login-header">
-            <div class="login-title">欢迎回来</div>
+            <div class="login-title">欢迎您回来</div>
             <div class="login-subtitle">请登录您的账号</div>
           </div>
 
           <div class="login-card">
             <!-- 登录方式 Tab -->
             <div class="login-tabs" id="loginTabs">
-              <div class="login-tab active" data-mode="code">
+              <label class="login-tab active" data-mode="code">
+                <input type="radio" name="loginMode" checked class="tab-radio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
                 </svg>
                 验证码登录
-              </div>
-              <div class="login-tab" data-mode="pwd">
+              </label>
+              <label class="login-tab" data-mode="pwd">
+                <input type="radio" name="loginMode" class="tab-radio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
                 密码登录
-              </div>
+              </label>
             </div>
 
             <!-- 验证码登录面板 -->
             <div class="login-panel" id="panelCode">
               <div class="input-group">
-                <label class="input-label">手机号</label>
+                <label class="input-label" for="phoneLogin">手机号</label>
                 <div class="input-wrapper">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
@@ -658,7 +810,7 @@
                 <div class="field-hint" id="phoneLoginHint"></div>
               </div>
               <div class="input-group">
-                <label class="input-label">验证码</label>
+                <label class="input-label" for="codeLogin">验证码</label>
                 <div class="code-row">
                   <div class="input-wrapper">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -666,7 +818,7 @@
                     </svg>
                     <input type="text" class="input-field" placeholder="请输入验证码" id="codeLogin" maxlength="6">
                   </div>
-                  <button class="send-code-btn" id="sendCodeLoginBtn">获取验证码</button>
+                  <button class="send-code-btn" id="sendCodeLoginBtn">验证码</button>
                 </div>
               </div>
               <button class="login-btn" id="codeLoginBtn">登 录</button>
@@ -675,7 +827,7 @@
             <!-- 密码登录面板 -->
             <div class="login-panel" id="panelPwd" style="display:none;">
               <div class="input-group">
-                <label class="input-label">用户名 / 手机号</label>
+                <label class="input-label" for="username">用户名 / 手机号</label>
                 <div class="input-wrapper">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -684,7 +836,7 @@
                 </div>
               </div>
               <div class="input-group">
-                <label class="input-label">密码</label>
+                <label class="input-label" for="password">密码</label>
                 <div class="input-wrapper">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -712,11 +864,26 @@
               <button class="login-btn" id="loginBtn">登 录</button>
             </div>
 
-            <!-- 第三方登录 -->
+            <!-- 第三方登录（精修：手绘品牌 SVG 图标） -->
             <div class="divider"><span>其他方式登录</span></div>
             <div class="social-login">
-              <div class="social-btn" id="wechatLogin" title="微信登录">💬</div>
-              <div class="social-btn" id="qqLogin" title="QQ登录">🐧</div>
+              <div class="social-btn" id="wechatLogin" title="微信登录">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8.5 3.2C4.6 3.2 1.5 5.8 1.5 9c0 1.8.9 3.4 2.3 4.5l-.55 2.15 2.55-1.3c.55.13 1.15.2 1.75.2h.42a5.7 5.7 0 0 1-.13-1.25C7.85 10.6 10.6 8.4 14.05 8.4h.38C13.95 5.6 11.5 3.2 8.5 3.2z"/>
+                  <circle cx="5.9" cy="8.1" r="1.1"/>
+                  <circle cx="8.1" cy="8.1" r="1.1"/>
+                  <path d="M22.5 12.8c0-2.85-2.8-5.15-6.15-5.15S10.2 9.95 10.2 12.8s2.8 5.15 6.15 5.15c.62 0 1.22-.08 1.77-.23l2.3 1.15-.53-2.05c1.45-.95 2.6-2.3 2.6-4.02z"/>
+                  <circle cx="15" cy="12.7" r="1.05"/>
+                  <circle cx="17.7" cy="12.7" r="1.05"/>
+                </svg>
+              </div>
+              <div class="social-btn" id="qqLogin" title="QQ登录">
+                <!-- QQ 图标：腾讯官方 TDesign logo-qq（iconify 真实矢量，描边线稿），单色跟随按钮颜色 -->
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="currentColor" d="M20.215 14.655a34 34 0 0 0-.702-1.98l-.944-2.36c0-.027.013-.49.013-.73c0-4.033-1.904-8.084-6.585-8.085c-4.68 0-6.585 4.052-6.585 8.085c0 .239.012.703.012.73l-.943 2.36a34 34 0 0 0-.702 1.98c-.891 2.873-.603 4.062-.383 4.09c.472.056 1.84-2.164 1.84-2.164c0 1.286.661 2.963 2.093 4.175c-.535.165-1.192.42-1.614.73c-.379.28-.331.566-.262.682c.3.506 5.148.323 6.547.166c1.4.157 6.247.34 6.547-.166c.068-.115.115-.4-.262-.682c-.42-.311-1.08-.565-1.615-.73c1.431-1.212 2.093-2.89 2.093-4.175c0 0 1.368 2.22 1.84 2.163c.216-.026.506-1.215-.389-4.09"/>
+                  <path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M20.215 14.655a34 34 0 0 0-.702-1.98l-.944-2.36c0-.027.013-.49.013-.73c0-4.033-1.904-8.084-6.585-8.085c-4.68 0-6.585 4.052-6.585 8.085c0 .239.012.703.012.73l-.943 2.36a34 34 0 0 0-.702 1.98c-.891 2.873-.603 4.062-.383 4.09c.472.056 1.84-2.164 1.84-2.164c0 1.286.661 2.963 2.093 4.175c-.535.165-1.192.42-1.614.73c-.379.28-.331.566-.262.682c.3.506 5.148.323 6.547.166c1.4.157 6.247.34 6.547-.166c.068-.115.115-.4-.262-.682c-.42-.311-1.08-.565-1.615-.73c1.431-1.212 2.093-2.89 2.093-4.175c0 0 1.368 2.22 1.84 2.163c.216-.026.506-1.215-.389-4.09Z"/>
+                </svg>
+              </div>
             </div>
 
             <div class="register-link">
@@ -724,6 +891,9 @@
             </div>
           </div>
         </div>
+
+        <!-- 页脚协议：屏幕最底部半透明栏（王总 2026-08-13） -->
+        <div class="terms">登录即代表同意<span>《用户协议》</span>与<span>《隐私政策》</span></div>
 
         <div class="toast" id="toast">
           <div class="toast-icon">
@@ -735,6 +905,7 @@
         </div>
 
         <div class="home-indicator"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -844,7 +1015,7 @@
       loginCountdownTimer = setInterval(function() {
         loginCodeCountdown--;
         sendCodeLoginBtn.textContent = loginCodeCountdown + 's 后重发';
-        if (loginCodeCountdown <= 0) { clearInterval(loginCountdownTimer); sendCodeLoginBtn.disabled = false; sendCodeLoginBtn.textContent = '重新获取'; }
+        if (loginCodeCountdown <= 0) { clearInterval(loginCountdownTimer); sendCodeLoginBtn.disabled = false; sendCodeLoginBtn.textContent = '验证码'; }
       }, 1000);
     });
   });
@@ -871,7 +1042,11 @@
   function mockLoginByCode(phone, code) {
     return new Promise(function(resolve) {
       if (loginGeneratedCode && code === loginGeneratedCode) {
-        resolve({ ok: true, token: 'mock_jwt_' + Date.now() });
+        var token = 'mock_jwt_' + Date.now();
+        // 本地模拟登录成功同样写入登录态（token+user），
+        // 避免跳回 memo-home.html 后 isLoggedIn() 仍为 false 而再次弹出"提示登录"
+        if (typeof MemoAPI !== 'undefined') MemoAPI.setAuth(token, { phone: phone });
+        resolve({ ok: true, token: token });
       } else {
         resolve({ ok: false, msg: '验证码不正确' });
       }
@@ -905,6 +1080,11 @@
     var username = document.getElementById('username').value.trim();
     var password = pwdInput.value;
     if (!username || !password) { showToast('请输入账号和密码', 'warning'); return; }
+    // 本地模拟密码登录成功同样写入登录态（token+user），
+    // 避免跳回 memo-home.html 后 isLoggedIn() 仍为 false 而再次弹出"提示登录"
+    if (typeof MemoAPI !== 'undefined') {
+      MemoAPI.setAuth('mock_pwd_' + Date.now(), { username: username });
+    }
     showToast('✅ 登录成功!');
     setTimeout(function() { window.location.href = 'memo-home.html'; }, 1200);
   });
@@ -977,6 +1157,7 @@
 
   setTimeout(function() { showHint('试试验证码登录和密码登录两种方式', 3000); }, 500);
 </script>
+
 
 </body>
 </html>

@@ -7,7 +7,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>拍摄界面原型设计</title>
-<style>
+<style>  /* ===== 屏宽等比缩放基准（王总 2026-08-13）：1rem = 屏宽/375 px，元素长宽只与屏宽成比例，与屏高无关 ===== */
+  html { font-size: 0.2667vw; }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
@@ -17,14 +19,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 20rem;
     overflow-x: hidden;
   }
 
   .container {
     display: flex;
-    gap: 40px;
-    max-width: 1100px;
+    gap: 40rem;
+    max-width: 100vw; width: 100vw; height: 100vh; margin: 0;
     width: 100%;
     align-items: center;
     justify-content: center;
@@ -34,12 +36,12 @@
   .phone-wrapper { display: flex; flex-direction: column; align-items: center; }
 
   .phone-frame {
-    width: 320px;
-    height: 680px;
+    width: 100vw;
+    height: 100vh;
     background: #F0E4CE;
-    border-radius: 42px;
-    padding: 8px;
-    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(212, 165, 116, 0.35);
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
     position: relative;
   }
 
@@ -47,17 +49,17 @@
     display: none;
     content: '';
     position: absolute;
-    top: 14px; left: 50%;
+    top: 14rem; left: 50%;
     transform: translateX(-50%);
-    width: 120px; height: 28px;
+    width: 120rem; height: 28rem;
     background: #1C0F08;
-    border-radius: 0 0 18px 18px;
+    border-radius: 0 0 18rem 18rem;
     z-index: 10;
   }
 
   .phone-screen {
     width: 100%; height: 100%;
-    border-radius: 30px;
+    border-radius: 0;
     overflow: hidden;
     position: relative;
     background: #0a0a0a;
@@ -83,11 +85,11 @@
   /* 顶部图标组（固定位置，不受 top-filler 高度变化影响） */
   .top-icons {
     position: absolute;
-    top: 30px; left: 14px;
+    top: 30rem; left: 14rem;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 8rem;
     z-index: 10;
   }
 
@@ -116,14 +118,14 @@
   .vf-grid::before {
     left: 33.33%; right: 33.33%;
     top: 0; bottom: 0;
-    border-left: 1px solid rgba(255, 255, 255, 0.25);
-    border-right: 1px solid rgba(255, 255, 255, 0.25);
+    border-left: 1rem solid rgba(255, 255, 255, 0.25);
+    border-right: 1rem solid rgba(255, 255, 255, 0.25);
   }
   .vf-grid::after {
     top: 33.33%; bottom: 33.33%;
     left: 0; right: 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.25);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    border-top: 1rem solid rgba(255, 255, 255, 0.25);
+    border-bottom: 1rem solid rgba(255, 255, 255, 0.25);
   }
 
   /* 顶部调节栏 */
@@ -132,19 +134,19 @@
     bottom: auto; left: auto;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 4rem;
     background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(12px);
-    border-radius: 22px;
-    padding: 5px;
+    backdrop-filter: blur(12rem);
+    border-radius: 22rem;
+    padding: 5rem;
     z-index: 5;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1rem solid rgba(255, 255, 255, 0.08);
     transition: width 0.3s ease;
     overflow: hidden;
   }
 
   .vf-top-icon {
-    width: 28px; height: 28px;
+    width: 28rem; height: 28rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -156,25 +158,25 @@
   }
   .vf-top-icon:hover { background: rgba(255, 255, 255, 0.1); color: white; }
   .vf-top-icon.active { color: #F0A040; }
-  .vf-top-icon svg { width: 18px; height: 18px; stroke-width: 1.8; }
+  .vf-top-icon svg { width: 18rem; height: 18rem; stroke-width: 1.8; }
 
   /* 闪光灯选项展开 */
   .flash-options {
     display: none;
     align-items: center;
-    gap: 2px;
-    padding-right: 6px;
+    gap: 2rem;
+    padding-right: 6rem;
     animation: fadeIn 0.25s ease;
   }
   .flash-options.show { display: flex; }
 
   .flash-option {
-    padding: 5px 10px;
-    font-size: 12px;
+    padding: 5rem 10rem;
+    font-size: 12rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.65);
     cursor: pointer;
-    border-radius: 14px;
+    border-radius: 14rem;
     white-space: nowrap;
     transition: all 0.2s;
   }
@@ -187,54 +189,54 @@
   /* 实况照片徽章 */
   .live-badge {
     position: absolute;
-    top: 12px; left: 50%;
+    top: 12rem; left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(10rem);
     color: #F0A040;
-    font-size: 11px;
+    font-size: 11rem;
     font-weight: 600;
-    padding: 4px 12px;
-    border-radius: 12px;
+    padding: 4rem 12rem;
+    border-radius: 12rem;
     z-index: 5;
     display: none;
     align-items: center;
-    gap: 4px;
-    border: 1px solid rgba(240, 160, 64, 0.3);
+    gap: 4rem;
+    border: 1rem solid rgba(240, 160, 64, 0.3);
   }
   .live-badge.show { display: flex; animation: fadeIn 0.25s ease; }
-  .live-badge svg { width: 12px; height: 12px; }
+  .live-badge svg { width: 12rem; height: 12rem; }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-4px); }
+    from { opacity: 0; transform: translateY(-4rem); }
     to { opacity: 1; transform: translateY(0); }
   }
 
   /* 底部变焦栏 */
   .vf-zoom-bar {
     position: absolute;
-    bottom: 156px; left: 50%;
+    bottom: 156rem; left: 50%;
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 4rem;
     background: transparent;
-    border-radius: 18px;
-    padding: 4px 6px;
+    border-radius: 18rem;
+    padding: 4rem 6rem;
     z-index: 5;
     transition: all 0.3s ease;
-    min-width: 160px;
+    min-width: 160rem;
   }
 
   .vf-zoom-item {
-    padding: 5px 12px;
-    font-size: 12px;
+    padding: 5rem 12rem;
+    font-size: 12rem;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.6);
     cursor: pointer;
-    border-radius: 14px;
+    border-radius: 14rem;
     transition: all 0.2s ease;
-    min-width: 32px;
+    min-width: 32rem;
     text-align: center;
   }
   .vf-zoom-item:hover { color: rgba(255, 255, 255, 0.9); }
@@ -246,34 +248,34 @@
   /* 曝光调整面板 */
   .exposure-panel {
     position: absolute;
-    bottom: 156px; left: 50%;
+    bottom: 156rem; left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(14px);
-    border-radius: 18px;
-    padding: 10px 16px;
+    backdrop-filter: blur(14rem);
+    border-radius: 18rem;
+    padding: 10rem 16rem;
     z-index: 5;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1rem solid rgba(255, 255, 255, 0.08);
     display: none;
     align-items: center;
-    gap: 10px;
-    width: 200px;
+    gap: 10rem;
+    width: 200rem;
     animation: fadeIn 0.25s ease;
   }
   .exposure-panel.show { display: flex; }
 
   .exposure-label {
     position: absolute;
-    top: -22px; left: 50%;
+    top: -22rem; left: 50%;
     transform: translateX(-50%);
     color: rgba(255, 255, 255, 0.85);
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 600;
     white-space: nowrap;
   }
 
   .exposure-reset {
-    width: 28px; height: 28px;
+    width: 28rem; height: 28rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -284,11 +286,11 @@
     transition: all 0.2s;
   }
   .exposure-reset:hover { background: rgba(255, 255, 255, 0.1); color: white; }
-  .exposure-reset svg { width: 18px; height: 18px; stroke-width: 1.8; }
+  .exposure-reset svg { width: 18rem; height: 18rem; stroke-width: 1.8; }
 
   .exposure-track {
     flex: 1;
-    height: 28px;
+    height: 28rem;
     position: relative;
     display: flex;
     align-items: center;
@@ -298,16 +300,16 @@
   .exposure-center-line {
     position: absolute;
     left: 50%;
-    top: 5px; bottom: 5px;
-    width: 2px;
+    top: 5rem; bottom: 5rem;
+    width: 2rem;
     background: rgba(255, 255, 255, 0.3);
   }
 
   .exposure-fill {
     position: absolute;
-    top: 5px; bottom: 5px;
+    top: 5rem; bottom: 5rem;
     background: linear-gradient(180deg, #F0A040, #D4691C);
-    border-radius: 2px;
+    border-radius: 2rem;
     transition: left 0.15s ease, right 0.15s ease, width 0.15s ease;
   }
 
@@ -317,54 +319,54 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 2px;
+    padding: 0 2rem;
   }
   .exposure-ticks span {
-    width: 1px;
-    height: 6px;
+    width: 1rem;
+    height: 6rem;
     background: rgba(255, 255, 255, 0.25);
-    border-radius: 1px;
+    border-radius: 1rem;
   }
 
   .exposure-value {
-    min-width: 32px;
+    min-width: 32rem;
     text-align: center;
     color: white;
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 700;
   }
 
   /* 焦距调整面板 */
   .focal-panel {
     position: absolute;
-    bottom: 156px; left: 50%;
+    bottom: 156rem; left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(14px);
-    border-radius: 18px;
-    padding: 10px 16px;
+    backdrop-filter: blur(14rem);
+    border-radius: 18rem;
+    padding: 10rem 16rem;
     z-index: 5;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1rem solid rgba(255, 255, 255, 0.08);
     display: none;
     align-items: center;
-    gap: 10px;
-    width: 220px;
+    gap: 10rem;
+    width: 220rem;
     animation: fadeIn 0.25s ease;
   }
   .focal-panel.show { display: flex; }
 
   .focal-label {
     position: absolute;
-    top: -22px; left: 50%;
+    top: -22rem; left: 50%;
     transform: translateX(-50%);
     color: rgba(255, 255, 255, 0.85);
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 600;
     white-space: nowrap;
   }
 
   .focal-reset {
-    width: 28px; height: 28px;
+    width: 28rem; height: 28rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -375,11 +377,11 @@
     transition: all 0.2s;
   }
   .focal-reset:hover { background: rgba(255, 255, 255, 0.1); color: white; }
-  .focal-reset svg { width: 18px; height: 18px; stroke-width: 1.8; }
+  .focal-reset svg { width: 18rem; height: 18rem; stroke-width: 1.8; }
 
   .focal-track {
     flex: 1;
-    height: 28px;
+    height: 28rem;
     position: relative;
     display: flex;
     align-items: center;
@@ -389,16 +391,16 @@
   .focal-center-line {
     position: absolute;
     left: 50%;
-    top: 5px; bottom: 5px;
-    width: 2px;
+    top: 5rem; bottom: 5rem;
+    width: 2rem;
     background: rgba(255, 255, 255, 0.3);
   }
 
   .focal-fill {
     position: absolute;
-    top: 5px; bottom: 5px;
+    top: 5rem; bottom: 5rem;
     background: linear-gradient(180deg, #F0A040, #D4691C);
-    border-radius: 2px;
+    border-radius: 2rem;
     transition: left 0.15s ease, right 0.15s ease, width 0.15s ease;
   }
 
@@ -408,20 +410,20 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 2px;
+    padding: 0 2rem;
   }
   .focal-ticks span {
-    width: 1px;
-    height: 6px;
+    width: 1rem;
+    height: 6rem;
     background: rgba(255, 255, 255, 0.25);
-    border-radius: 1px;
+    border-radius: 1rem;
   }
 
   .focal-value {
-    min-width: 44px;
+    min-width: 44rem;
     text-align: center;
     color: white;
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 700;
   }
 
@@ -433,12 +435,12 @@
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 6px 24px 12px;
+    padding: 6rem 24rem 12rem;
     background: #0a0a0a;
   }
 
   .tool-btn {
-    width: 36px; height: 36px;
+    width: 36rem; height: 36rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -449,25 +451,25 @@
   }
   .tool-btn:hover { background: rgba(255, 255, 255, 0.1); color: white; }
   .tool-btn:active { transform: scale(0.9); }
-  .tool-btn svg { width: 24px; height: 24px; stroke-width: 1.8; }
+  .tool-btn svg { width: 24rem; height: 24rem; stroke-width: 1.8; }
   .tool-btn.active { color: #F0A040; }
   .tool-btn.active svg { stroke: #F0A040; }
 
   /* 底部操作区 */
   .bottom-area {
     position: relative;
-    height: 88px;
+    height: 88rem;
     background: #0a0a0a;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 28px;
-    padding-bottom: 4px;
+    padding: 0 28rem;
+    padding-bottom: 4rem;
   }
 
   /* 左：相册缩略图 */
   .gallery-thumb {
-    width: 54px; height: 54px;
+    width: 54rem; height: 54rem;
     border-radius: 50%;
     background: transparent;
     border: none;
@@ -481,7 +483,7 @@
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    width: 30px; height: 30px;
+    width: 30rem; height: 30rem;
     color: rgba(255, 255, 255, 0.85);
     z-index: 1;
   }
@@ -494,18 +496,18 @@
   }
 
   .shutter-btn {
-    width: 72px; height: 72px;
+    width: 72rem; height: 72rem;
     border-radius: 50%;
     background: white;
-    border: 4px solid rgba(255, 255, 255, 0.4);
+    border: 4rem solid rgba(255, 255, 255, 0.4);
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 20rem rgba(255, 255, 255, 0.15);
   }
   .shutter-btn:hover {
     border-color: #F0A040;
-    box-shadow: 0 0 30px rgba(240, 160, 64, 0.3);
+    box-shadow: 0 0 30rem rgba(240, 160, 64, 0.3);
   }
   .shutter-btn:active {
     transform: scale(0.92);
@@ -543,61 +545,61 @@
 
   /* 右：模式切换 */
   .mode-switch {
-    width: 54px; height: 54px;
+    width: 54rem; height: 54rem;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: rgba(255, 255, 255, 0.75);
-    border-radius: 10px;
+    border-radius: 10rem;
     transition: all 0.25s ease;
     position: relative;
   }
   .mode-switch:hover { background: rgba(255, 255, 255, 0.08); color: white; }
   .mode-switch:active { transform: scale(0.92); }
-  .mode-switch svg { width: 32px; height: 32px; stroke-width: 1.8; }
+  .mode-switch svg { width: 32rem; height: 32rem; stroke-width: 1.8; }
 
   /* 模式弹出菜单 */
   .mode-menu {
     position: absolute;
-    bottom: 64px; right: 0;
+    bottom: 64rem; right: 0;
     background: rgba(30, 30, 30, 0.95);
-    backdrop-filter: blur(12px);
-    border-radius: 12px;
-    padding: 6px;
+    backdrop-filter: blur(12rem);
+    border-radius: 12rem;
+    padding: 6rem;
     display: none;
-    min-width: 110px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    min-width: 110rem;
+    border: 1rem solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8rem 30rem rgba(0, 0, 0, 0.4);
     z-index: 20;
   }
   .mode-menu.show { display: block; animation: fadeUp 0.2s ease; }
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(8rem); }
     to { opacity: 1; transform: translateY(0); }
   }
   .mode-item {
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 13px;
+    padding: 10rem 14rem;
+    border-radius: 8rem;
+    font-size: 13rem;
     color: rgba(255, 255, 255, 0.8);
     cursor: pointer;
     transition: all 0.15s ease;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 8rem;
   }
   .mode-item:hover { background: rgba(240, 160, 64, 0.2); color: #F0A040; }
   .mode-item.active { color: #F0A040; }
-  .mode-item svg { width: 16px; height: 16px; }
+  .mode-item svg { width: 16rem; height: 16rem; }
 
   .home-indicator {
     position: absolute;
-    bottom: 4px; left: 50%;
+    bottom: 4rem; left: 50%;
     transform: translateX(-50%);
-    width: 100px; height: 4px;
+    width: 100rem; height: 4rem;
     background: rgba(255, 255, 255, 0.4);
-    border-radius: 2px;
+    border-radius: 2rem;
     z-index: 5;
   }
 
@@ -606,7 +608,7 @@
     position: relative;
     bottom: auto; left: auto;
     margin: 0;
-    width: 34px; height: 34px;
+    width: 34rem; height: 34rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -617,16 +619,16 @@
     z-index: 6;
   }
   .back-btn:hover { background: rgba(255, 255, 255, 0.1); color: white; }
-  .back-btn svg { width: 22px; height: 22px; }
+  .back-btn svg { width: 22rem; height: 22rem; }
 
   .interaction-hint {
-    position: fixed; bottom: 20px; left: 50%;
+    position: fixed; bottom: 20rem; left: 50%;
     transform: translateX(-50%);
     background: rgba(28, 15, 8, 0.92);
-    color: #F5DFC0; padding: 10px 22px; border-radius: 20px;
-    font-size: 13px; opacity: 0; pointer-events: none;
+    color: #F5DFC0; padding: 10rem 22rem; border-radius: 20rem;
+    font-size: 13rem; opacity: 0; pointer-events: none;
     transition: opacity 0.3s ease; z-index: 100;
-    box-shadow: 0 4px 20px rgba(28, 15, 8, 0.25);
+    box-shadow: 0 4rem 20rem rgba(28, 15, 8, 0.25);
   }
   .interaction-hint.show { opacity: 1; }
 
@@ -634,24 +636,24 @@
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
     background: rgba(250, 245, 236, 0.97);
-    backdrop-filter: blur(10px);
-    padding: 16px 28px; border-radius: 14px;
-    box-shadow: 0 10px 40px rgba(28, 15, 8, 0.22);
-    font-size: 14px; color: #1C0F08; font-weight: 500;
+    backdrop-filter: blur(10rem);
+    padding: 16rem 28rem; border-radius: 14rem;
+    box-shadow: 0 10rem 40rem rgba(28, 15, 8, 0.22);
+    font-size: 14rem; color: #1C0F08; font-weight: 500;
     opacity: 0; pointer-events: none;
     transition: all 0.3s ease; z-index: 200;
     text-align: center; white-space: nowrap;
   }
   .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   .toast .toast-icon {
-    width: 40px; height: 40px; border-radius: 50%;
+    width: 40rem; height: 40rem; border-radius: 50%;
     background: linear-gradient(135deg, #F0A040, #D4691C);
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 10px; color: white;
+    margin: 0 auto 10rem; color: white;
   }
 
-  @media (max-width: 900px) {
-    .container { flex-direction: column; gap: 30px; }
+  @media (max-width: 900rem) {
+    .container { flex-direction: column; gap: 30rem; }
   }
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
@@ -674,9 +676,9 @@
   /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
   body.full-embed.mobile-browser .bottom-nav,
   body.full-embed.mobile-browser .home-indicator { display: flex; }
-  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56px); }
+  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56rem); }
 </style>
-<script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+<script src="lib/dexie/dexie.js"></script>
 
 <script>
 // ===== 移动端 web-view 桥接（不影响 Web 端 UI/功能） =====

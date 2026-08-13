@@ -7,7 +7,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>摄影师升级支付</title>
-<style>
+<style>  /* ===== 屏宽等比缩放基准（王总 2026-08-13）：1rem = 屏宽/375 px，元素长宽只与屏宽成比例，与屏高无关 ===== */
+  html { font-size: 0.2667vw; }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
@@ -17,14 +19,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 20rem;
     overflow-x: hidden;
   }
 
   .container {
     display: flex;
-    gap: 40px;
-    max-width: 1100px;
+    gap: 40rem;
+    max-width: 100vw; width: 100vw; height: 100vh; margin: 0;
     width: 100%;
     align-items: center;
     justify-content: center;
@@ -34,12 +36,12 @@
   .phone-wrapper { display: flex; flex-direction: column; align-items: center; }
 
   .phone-frame {
-    width: 320px;
-    height: 680px;
+    width: 100vw;
+    height: 100vh;
     background: #F0E4CE;
-    border-radius: 42px;
-    padding: 8px;
-    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(212, 165, 116, 0.35);
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
     position: relative;
   }
 
@@ -47,17 +49,17 @@
     display: none;
     content: '';
     position: absolute;
-    top: 14px; left: 50%;
+    top: 14rem; left: 50%;
     transform: translateX(-50%);
-    width: 120px; height: 28px;
+    width: 120rem; height: 28rem;
     background: #1C0F08;
-    border-radius: 0 0 18px 18px;
+    border-radius: 0 0 18rem 18rem;
     z-index: 10;
   }
 
   .phone-screen {
     width: 100%; height: 100%;
-    border-radius: 30px;
+    border-radius: 0;
     overflow: hidden;
     position: relative;
     background: #FFF5E6;
@@ -70,40 +72,40 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px 6px;
+    padding: 14rem 20rem 6rem;
     color: #1C0F08;
-    font-size: 13px;
+    font-size: 13rem;
     font-weight: 600;
     flex-shrink: 0;
   }
-  .status-icons { display: flex; gap: 5px; align-items: center; }
-  .status-icons svg { width: 14px; height: 11px; }
+  .status-icons { display: flex; gap: 5rem; align-items: center; }
+  .status-icons svg { width: 14rem; height: 11rem; }
 
   /* 顶部导航 */
   .pay-header {
     display: flex;
     align-items: center;
-    padding: 10px 16px 12px;
+    padding: 10rem 16rem 12rem;
     background: #FFF5E6;
     flex-shrink: 0;
   }
   .pay-back {
-    width: 32px; height: 32px;
+    width: 32rem; height: 32rem;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     color: #5C3D2E;
-    border-radius: 8px;
+    border-radius: 8rem;
     transition: background 0.2s;
   }
   .pay-back:hover { background: rgba(240, 160, 64, 0.12); }
-  .pay-back svg { width: 20px; height: 20px; }
+  .pay-back svg { width: 20rem; height: 20rem; }
   .pay-title {
-    font-size: 16px;
+    font-size: 16rem;
     font-weight: 700;
     color: #1C0F08;
-    margin-left: 4px;
+    margin-left: 4rem;
   }
 
   /* 内容滚动区 */
@@ -111,28 +113,28 @@
     flex: 1;
     overflow-y: auto;
     background: #FFF5E6;
-    padding: 0 16px 16px;
+    padding: 0 16rem 16rem;
   }
-  .pay-scroll::-webkit-scrollbar { width: 3px; }
-  .pay-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2px; }
+  .pay-scroll::-webkit-scrollbar { width: 3rem; }
+  .pay-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2rem; }
 
   /* 套餐卡片 */
   .package-card {
     background: linear-gradient(135deg, #2A2018 0%, #0F0A06 100%);
-    border-radius: 16px;
-    padding: 22px 18px;
+    border-radius: 16rem;
+    padding: 22rem 18rem;
     color: #FAF5EC;
     position: relative;
     overflow: hidden;
-    margin-bottom: 16px;
-    box-shadow: 0 8px 24px rgba(28, 15, 8, 0.25);
+    margin-bottom: 16rem;
+    box-shadow: 0 8rem 24rem rgba(28, 15, 8, 0.25);
   }
   /* 金色光晕装饰 */
   .package-card::before {
     content: '';
     position: absolute;
-    top: -40px; right: -40px;
-    width: 140px; height: 140px;
+    top: -40rem; right: -40rem;
+    width: 140rem; height: 140rem;
     background:
       radial-gradient(ellipse 29% 42% at 50% 24%, rgba(232, 180, 80, 0.35) 0%, transparent 70%),
       radial-gradient(ellipse 29% 42% at 74.7% 42%, rgba(232, 180, 80, 0.35) 0%, transparent 70%),
@@ -144,78 +146,78 @@
     pointer-events: none;
   }
   .package-emblem {
-    width: 48px; height: 48px;
+    width: 48rem; height: 48rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #FFD98A 0%, #E8B450 50%, #C08020 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 12px;
-    box-shadow: 0 4px 14px rgba(232, 180, 80, 0.5);
+    margin-bottom: 12rem;
+    box-shadow: 0 4rem 14rem rgba(232, 180, 80, 0.5);
     position: relative;
     z-index: 1;
   }
-  .package-emblem svg { width: 24px; height: 24px; color: white; }
+  .package-emblem svg { width: 24rem; height: 24rem; color: white; }
   .package-title {
-    font-size: 19px;
+    font-size: 19rem;
     font-weight: 800;
-    margin-bottom: 6px;
+    margin-bottom: 6rem;
     position: relative;
     z-index: 1;
   }
   .package-subtitle {
-    font-size: 11px;
+    font-size: 11rem;
     color: rgba(255, 217, 138, 0.75);
-    margin-bottom: 14px;
+    margin-bottom: 14rem;
     position: relative;
     z-index: 1;
   }
   .package-price {
     display: flex;
     align-items: baseline;
-    gap: 4px;
+    gap: 4rem;
     position: relative;
     z-index: 1;
   }
   .price-currency {
-    font-size: 16px;
+    font-size: 16rem;
     font-weight: 600;
     color: #FFD98A;
   }
   .price-amount {
-    font-size: 32px;
+    font-size: 32rem;
     font-weight: 800;
     color: #FFD98A;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.5rem;
   }
   .price-period {
-    font-size: 12px;
+    font-size: 12rem;
     color: rgba(255, 217, 138, 0.6);
-    margin-left: 4px;
+    margin-left: 4rem;
   }
   .price-original {
-    font-size: 12px;
+    font-size: 12rem;
     color: rgba(255, 255, 255, 0.35);
     text-decoration: line-through;
-    margin-left: 8px;
+    margin-left: 8rem;
   }
 
   /* 订单详情 */
   .order-section {
     background: rgba(250, 245, 236, 0.95);
-    border: 1px solid rgba(212, 165, 116, 0.2);
-    border-radius: 14px;
-    padding: 14px 16px;
-    margin-bottom: 16px;
+    border: 1rem solid rgba(212, 165, 116, 0.2);
+    border-radius: 14rem;
+    padding: 14rem 16rem;
+    margin-bottom: 16rem;
   }
   .order-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 7px 0;
-    font-size: 13px;
+    padding: 7rem 0;
+    font-size: 13rem;
   }
-  .order-row + .order-row { border-top: 1px dashed rgba(212, 165, 116, 0.2); }
+  .order-row + .order-row { border-top: 1rem dashed rgba(212, 165, 116, 0.2); }
   .order-label {
     color: #8B5E3C;
   }
@@ -224,52 +226,52 @@
     font-weight: 600;
   }
   .order-row.total {
-    margin-top: 4px;
-    padding-top: 10px;
-    border-top: 1.5px solid rgba(212, 165, 116, 0.3);
-    font-size: 15px;
+    margin-top: 4rem;
+    padding-top: 10rem;
+    border-top: 1.5rem solid rgba(212, 165, 116, 0.3);
+    font-size: 15rem;
   }
   .order-row.total .order-value {
     color: #D4691C;
-    font-size: 18px;
+    font-size: 18rem;
     font-weight: 800;
   }
 
   /* 支付方式 */
   .pay-section-title {
-    font-size: 12px;
+    font-size: 12rem;
     font-weight: 700;
     color: #9B7B5A;
-    padding: 4px 4px 10px;
-    letter-spacing: 0.5px;
+    padding: 4rem 4rem 10rem;
+    letter-spacing: 0.5rem;
   }
   .pay-methods {
     background: rgba(250, 245, 236, 0.95);
-    border: 1px solid rgba(212, 165, 116, 0.2);
-    border-radius: 14px;
+    border: 1rem solid rgba(212, 165, 116, 0.2);
+    border-radius: 14rem;
     overflow: hidden;
-    margin-bottom: 20px;
+    margin-bottom: 20rem;
   }
   .pay-method {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
+    gap: 12rem;
+    padding: 14rem 16rem;
     cursor: pointer;
     transition: background 0.18s;
     position: relative;
   }
   .pay-method:hover { background: rgba(240, 160, 64, 0.06); }
-  .pay-method + .pay-method { border-top: 1px solid rgba(212, 165, 116, 0.12); }
+  .pay-method + .pay-method { border-top: 1rem solid rgba(212, 165, 116, 0.12); }
   .pay-method-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
+    width: 36rem; height: 36rem;
+    border-radius: 10rem;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .pay-method-icon svg { width: 22px; height: 22px; color: white; }
+  .pay-method-icon svg { width: 22rem; height: 22rem; color: white; }
   /* 微信 - 绿色 */
   .pay-method[data-method="wechat"] .pay-method-icon {
     background: linear-gradient(135deg, #2DC100 0%, #1A9500 100%);
@@ -284,19 +286,19 @@
   }
   .pay-method-info { flex: 1; }
   .pay-method-name {
-    font-size: 14px;
+    font-size: 14rem;
     font-weight: 600;
     color: #1C0F08;
-    margin-bottom: 2px;
+    margin-bottom: 2rem;
   }
   .pay-method-desc {
-    font-size: 11px;
+    font-size: 11rem;
     color: #8B5E3C;
   }
   .pay-method-radio {
-    width: 20px; height: 20px;
+    width: 20rem; height: 20rem;
     border-radius: 50%;
-    border: 2px solid #D4B896;
+    border: 2rem solid #D4B896;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -308,7 +310,7 @@
     background: #F0A040;
   }
   .pay-method-radio svg {
-    width: 12px; height: 12px;
+    width: 12rem; height: 12rem;
     color: white;
     opacity: 0;
     transition: opacity 0.2s;
@@ -317,114 +319,114 @@
 
   /* 底部支付按钮 */
   .pay-footer {
-    padding: 12px 16px 18px;
+    padding: 12rem 16rem 18rem;
     background: #FFF5E6;
-    border-top: 1px solid rgba(212, 165, 116, 0.2);
+    border-top: 1rem solid rgba(212, 165, 116, 0.2);
     flex-shrink: 0;
   }
   .pay-confirm {
     width: 100%;
-    padding: 14px;
+    padding: 14rem;
     border: none;
-    border-radius: 14px;
+    border-radius: 14rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    font-size: 15px;
+    font-size: 15rem;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 6px 18px rgba(240, 160, 64, 0.4);
+    box-shadow: 0 6rem 18rem rgba(240, 160, 64, 0.4);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 8rem;
   }
-  .pay-confirm:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(240, 160, 64, 0.5); }
+  .pay-confirm:hover { transform: translateY(-1rem); box-shadow: 0 8rem 22rem rgba(240, 160, 64, 0.5); }
   .pay-confirm:active { transform: scale(0.96); }
   .pay-confirm:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
 
   .home-indicator {
-    width: 100px; height: 4px;
+    width: 100rem; height: 4rem;
     background: rgba(28, 15, 8, 0.4);
-    border-radius: 2px;
-    margin: 10px auto;
+    border-radius: 2rem;
+    margin: 10rem auto;
   }
 
   /* 收款码面板（下单成功后显示，新增业务元素，不改动原有样式） */
   .qr-panel {
     display: none;
     background: rgba(250, 245, 236, 0.95);
-    border: 1px solid rgba(212, 165, 116, 0.2);
-    border-radius: 14px;
-    padding: 18px 16px;
-    margin-bottom: 16px;
+    border: 1rem solid rgba(212, 165, 116, 0.2);
+    border-radius: 14rem;
+    padding: 18rem 16rem;
+    margin-bottom: 16rem;
     text-align: center;
   }
   .qr-panel.show { display: block; }
-  .qr-title { font-size: 14px; font-weight: 800; color: #1C0F08; margin-bottom: 4px; }
-  .qr-subtitle { font-size: 11px; color: #8B5E3C; margin-bottom: 12px; line-height: 1.7; }
+  .qr-title { font-size: 14rem; font-weight: 800; color: #1C0F08; margin-bottom: 4rem; }
+  .qr-subtitle { font-size: 11rem; color: #8B5E3C; margin-bottom: 12rem; line-height: 1.7; }
   .qr-order-id {
     display: inline-block;
-    font-size: 11px;
+    font-size: 11rem;
     font-weight: 700;
     color: #5C3D2E;
     background: rgba(240, 160, 64, 0.14);
-    border: 1px solid rgba(240, 160, 64, 0.25);
-    padding: 3px 10px;
-    border-radius: 8px;
-    margin-bottom: 12px;
+    border: 1rem solid rgba(240, 160, 64, 0.25);
+    padding: 3rem 10rem;
+    border-radius: 8rem;
+    margin-bottom: 12rem;
     word-break: break-all;
     max-width: 100%;
   }
   .qr-img-wrap {
-    width: 180px; height: 180px;
-    margin: 0 auto 12px;
+    width: 180rem; height: 180rem;
+    margin: 0 auto 12rem;
     background: #fff;
-    border-radius: 12px;
-    padding: 8px;
-    border: 1px solid rgba(212, 165, 116, 0.3);
+    border-radius: 12rem;
+    padding: 8rem;
+    border: 1rem solid rgba(212, 165, 116, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
   }
-  .qr-img-wrap img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+  .qr-img-wrap img { width: 100%; height: 100%; object-fit: contain; border-radius: 8rem; }
   .qr-img-placeholder {
     color: #9B7B5A;
-    font-size: 12px;
+    font-size: 12rem;
     line-height: 1.8;
-    padding: 10px;
+    padding: 10rem;
   }
   .qr-tip {
-    font-size: 12px;
+    font-size: 12rem;
     color: #D4691C;
     font-weight: 700;
     line-height: 1.7;
   }
   .qr-waiting {
-    font-size: 12px;
+    font-size: 12rem;
     color: #8B5E3C;
-    margin-top: 12px;
+    margin-top: 12rem;
     line-height: 1.8;
   }
   .qr-waiting .spin {
     display: inline-block;
-    width: 14px; height: 14px;
-    border: 2px solid #E8D3B4;
+    width: 14rem; height: 14rem;
+    border: 2rem solid #E8D3B4;
     border-top-color: #D4691C;
     border-radius: 50%;
     animation: spin 0.9s linear infinite;
-    vertical-align: -2px;
-    margin-right: 6px;
+    vertical-align: -2rem;
+    margin-right: 6rem;
   }
   .qr-retry-btn {
-    margin-top: 10px;
-    padding: 8px 18px;
-    border: 1px solid rgba(240, 160, 64, 0.5);
-    border-radius: 10px;
+    margin-top: 10rem;
+    padding: 8rem 18rem;
+    border: 1rem solid rgba(240, 160, 64, 0.5);
+    border-radius: 10rem;
     background: #FFFDF7;
     color: #D4691C;
-    font-size: 13px;
+    font-size: 13rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
@@ -433,8 +435,8 @@
   .qr-retry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  @media (max-width: 900px) {
-    .container { flex-direction: column; gap: 30px; }
+  @media (max-width: 900rem) {
+    .container { flex-direction: column; gap: 30rem; }
   }
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
@@ -457,7 +459,7 @@
   /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
   body.full-embed.mobile-browser .bottom-nav,
   body.full-embed.mobile-browser .home-indicator { display: flex; }
-  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56px); }
+  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56rem); }
 </style>
 
 <script>

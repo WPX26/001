@@ -7,7 +7,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>移动端注册页面原型设计</title>
-<style>
+<style>  /* ===== 屏宽等比缩放基准（王总 2026-08-13）：1rem = 屏宽/375 px，元素长宽只与屏宽成比例，与屏高无关 ===== */
+  html { font-size: 0.2667vw; }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
@@ -17,14 +19,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 20rem;
     overflow-x: hidden;
   }
 
   .container {
     display: flex;
-    gap: 40px;
-    max-width: 1100px;
+    gap: 40rem;
+    max-width: 100vw; width: 100vw; height: 100vh; margin: 0;
     width: 100%;
     align-items: center;
     justify-content: center;
@@ -38,12 +40,12 @@
   }
 
   .phone-frame {
-    width: 320px;
-    height: 680px;
+    width: 100vw;
+    height: 100vh;
     background: #1C0F08;
-    border-radius: 42px;
-    padding: 8px;
-    box-shadow: 0 30px 80px rgba(28, 15, 8, 0.18), 0 0 0 2px rgba(212, 165, 116, 0.35);
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
     position: relative;
   }
 
@@ -51,131 +53,140 @@
     display: none;
     content: '';
     position: absolute;
-    top: 14px;
+    top: 14rem;
     left: 50%;
     transform: translateX(-50%);
-    width: 120px;
-    height: 28px;
+    width: 120rem;
+    height: 28rem;
     background: #1C0F08;
-    border-radius: 0 0 18px 18px;
+    border-radius: 0 0 18rem 18rem;
     z-index: 10;
   }
 
   .phone-screen {
     width: 100%;
     height: 100%;
-    border-radius: 30px;
+    border-radius: 0;
     overflow: hidden;
     position: relative;
-    background: linear-gradient(165deg, #F0B860 0%, #E89020 40%, #B85A10 100%);
+    /* 王总要求：纯深褐均匀底色，无渐变无光斑，比卡片更深 */
+    background: #120A05;
   }
 
-  .phone-screen::before,
-  .phone-screen::after {
-    content: '';
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(20px);
-    opacity: 0.55;
-  }
-  .phone-screen::before {
-    width: 200px; height: 200px;
-    background:
-      radial-gradient(ellipse 26% 42% at 50% 24%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 74.7% 42%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 65.3% 71%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 34.7% 71%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 25.3% 42%, #FFE9B8 0%, transparent 70%),
-      radial-gradient(circle 26% at 50% 50%, #FFE9B8 0%, transparent 70%);
-    top: -50px; right: -50px;
-  }
-  .phone-screen::after {
-    width: 160px; height: 160px;
-    background:
-      radial-gradient(ellipse 26% 42% at 50% 24%, #FFB84D 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 74.7% 42%, #FFB84D 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 65.3% 71%, #FFB84D 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 34.7% 71%, #FFB84D 0%, transparent 70%),
-      radial-gradient(ellipse 26% 42% at 25.3% 42%, #FFB84D 0%, transparent 70%),
-      radial-gradient(circle 26% at 50% 50%, #FFB84D 0%, transparent 70%);
-    bottom: -40px; left: -40px;
+  /* 设计基准：内容区铺满视口，卡片按固定画面比例（宽 2/3、高 13/20）严格居中 */
+  .screen-content {
+    width: 100%;
+    height: 100%;
+    position: relative;
   }
 
   .status-bar {
-    position: relative;
+    position: absolute;
+    top: 0; left: 0; right: 0;
     z-index: 2;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px 6px;
-    color: #1C0F08;
-    font-size: 13px;
+    padding: 14rem 20rem 6rem;
+    color: #F5DFC0;
+    font-size: 13rem;
     font-weight: 600;
   }
 
-  .status-icons { display: flex; gap: 5px; align-items: center; }
-  .status-icons svg { width: 16px; height: 11px; }
+  .status-icons { display: flex; gap: 5rem; align-items: center; }
+  .status-icons svg { width: 16rem; height: 11rem; }
 
   .login-container {
     position: relative;
     z-index: 2;
-    padding: 20px 24px 20px;
-    height: calc(100% - 50px);
+    padding: 18rem 0 14rem;
+    height: 100%; /* 状态栏为绝对定位不占布局，卡片比例严格基于整个画面 */
     display: flex;
     flex-direction: column;
+    align-items: center;          /* 卡片水平居中 */
+    justify-content: center;      /* 旧浏览器回退 */
+    justify-content: safe center; /* 内容超高时自动贴顶，顶部可达 */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .back-btn {
     display: inline-flex;
     align-items: center;
     color: #F5DFC0;
-    font-size: 14px;
+    font-size: 12rem;
+    font-weight: 500;
     cursor: pointer;
     width: fit-content;
-    margin-bottom: 8px;
-    padding: 4px 8px;
-    border-radius: 8px;
+    margin-bottom: 8rem;
+    padding: 4rem 8rem;
+    border-radius: 8rem;
     transition: background 0.2s;
   }
-  .back-btn:hover { background: rgba(212, 165, 116, 0.25); }
-  .back-btn svg { width: 16px; height: 16px; margin-right: 2px; }
+  .back-btn:hover { background: rgba(245, 223, 192, 0.15); }
+  .back-btn svg { width: 16rem; height: 16rem; margin-right: 2rem; }
 
-  .login-header { text-align: center; margin-bottom: 18px; }
+  .login-header { text-align: center; margin-bottom: 14rem; animation: fadeUp 0.55s 0.08s cubic-bezier(0.22, 0.9, 0.35, 1) both; }
   .login-title {
-    font-size: 22px;
+    font-size: 20rem;
     font-weight: 700;
-    color: #1C0F08;
-    margin-bottom: 4px;
-    letter-spacing: 1px;
+    color: #F5DFC0;
+    margin-bottom: 3rem;
+    letter-spacing: 1rem;
   }
   .login-subtitle {
-    font-size: 12px;
-    color: #6B4423;
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.65);
+    letter-spacing: 0.5rem;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14rem); }
+    to   { opacity: 1; transform: none; }
   }
 
   .login-card {
-    background: rgba(28, 15, 8, 0.5);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border-radius: 20px;
-    padding: 20px 20px;
-    border: 1px solid rgba(212, 165, 116, 0.25);
-    box-shadow: 0 12px 40px rgba(28, 15, 8, 0.18), inset 0 1px 0 rgba(212, 165, 116, 0.12);
-    flex: 1;
+    background: rgba(28, 15, 8, 0.6);
+    backdrop-filter: blur(24rem);
+    -webkit-backdrop-filter: blur(24rem);
+    border-radius: 20rem;
+    padding: 12rem 12rem;
+    border: 1rem solid rgba(212, 165, 116, 0.28);
+    box-shadow: 0 14rem 44rem rgba(28, 15, 8, 0.22), inset 0 1rem 0 rgba(212, 165, 116, 0.12);
+    position: relative;
+    animation: fadeUp 0.6s 0.16s cubic-bezier(0.22, 0.9, 0.35, 1) both;
+    /* 王总要求：卡片宽 = 画面宽 70%、高 = 画面高 60%，任意视口缩放不变 */
+    width: 70%;
+    height: 60%;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;      /* 内容少时居中 */
+    justify-content: safe center; /* 内容超高时贴顶 + 卡片内滚动 */
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1rem;
+    border-radius: 20rem 20rem 0 0;
+    background: linear-gradient(90deg, transparent, rgba(212, 165, 116, 0.55), transparent);
+    pointer-events: none;
   }
 
-  .login-card::-webkit-scrollbar { width: 4px; }
-  .login-card::-webkit-scrollbar-thumb { background: rgba(184, 134, 74, 0.3); border-radius: 2px; }
+  .login-card::-webkit-scrollbar { width: 4rem; }
+  .login-card::-webkit-scrollbar-thumb { background: rgba(184, 134, 74, 0.3); border-radius: 2rem; }
 
   .input-group {
-    margin-bottom: 12px;
+    margin-bottom: 10rem;
   }
 
   .input-label {
-    font-size: 12px;
+    font-size: 10rem;
     color: #F5DFC0;
-    margin-bottom: 5px;
+    margin-bottom: 4rem;
     display: block;
     font-weight: 500;
   }
@@ -188,32 +199,34 @@
 
   .input-wrapper svg {
     position: absolute;
-    left: 14px;
-    width: 17px;
-    height: 17px;
+    left: 12rem;
+    width: 16rem;
+    height: 16rem;
     color: rgba(245, 223, 192, 0.5);
     transition: color 0.3s;
   }
 
   .input-field {
     width: 100%;
-    height: 42px;
-    padding: 0 12px 0 40px;
+    height: 40rem;
+    padding: 0 12rem 0 36rem;
     background: rgba(28, 15, 8, 0.55);
-    border: 1.5px solid rgba(212, 165, 116, 0.35);
-    border-radius: 10px;
-    font-size: 13px;
+    border: 1.5rem solid rgba(212, 165, 116, 0.35);
+    border-radius: 11rem;
+    font-size: 11rem;
     color: #F5DFC0;
     outline: none;
+    caret-color: #E89020;
     transition: all 0.3s ease;
   }
 
-  .input-field::placeholder { color: rgba(245, 223, 192, 0.5); }
+  /* 框内占位提示文字（请输入手机号/验证码…）：缩小两号，独立于输入文字 */
+  .input-field::placeholder { color: rgba(245, 223, 192, 0.55); font-size: 10rem; }
 
   .input-field:focus {
-    background: rgba(28, 15, 8, 0.7);
+    background: rgba(28, 15, 8, 0.72);
     border-color: #E89020;
-    box-shadow: 0 0 0 3px rgba(232, 144, 32, 0.15);
+    box-shadow: 0 0 0 4rem rgba(232, 144, 32, 0.16);
   }
 
   .input-wrapper:focus-within svg { color: #E89020; }
@@ -221,7 +234,7 @@
   /* 验证码输入组 */
   .code-wrapper {
     display: flex;
-    gap: 10px;
+    gap: 10rem;
     align-items: center;
   }
 
@@ -229,13 +242,13 @@
 
   .send-code-btn {
     flex-shrink: 0;
-    height: 42px;
-    padding: 0 14px;
+    height: 40rem;
+    padding: 0 12rem;
     background: rgba(28, 15, 8, 0.55);
-    border: 1.5px solid #E89020;
-    border-radius: 10px;
-    color: #E89020;
-    font-size: 12px;
+    border: 1.5rem solid #FFB84D;
+    border-radius: 11rem;
+    color: #FFB84D;
+    font-size: 11rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.25s ease;
@@ -243,14 +256,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 92px;
+    min-width: 84rem;
   }
 
   .send-code-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #F0A040, #D4691C);
     color: #4A2A0E;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(232, 144, 32, 0.4);
+    transform: translateY(-1rem);
+    box-shadow: 0 4rem 12rem rgba(232, 144, 32, 0.4);
   }
 
   .send-code-btn:active:not(:disabled) {
@@ -266,10 +279,10 @@
 
   /* 密码强度 */
   .password-strength {
-    height: 3px;
+    height: 3rem;
     background: rgba(212, 165, 116, 0.3);
-    border-radius: 2px;
-    margin-top: 6px;
+    border-radius: 2rem;
+    margin-top: 6rem;
     overflow: hidden;
     display: none;
   }
@@ -277,17 +290,17 @@
   .password-strength-bar {
     height: 100%;
     width: 0;
-    border-radius: 2px;
+    border-radius: 2rem;
     transition: width 0.3s ease, background 0.3s ease;
   }
-  .strength-weak { width: 33%; background: #E05A3A; }
-  .strength-medium { width: 66%; background: #E89020; }
-  .strength-strong { width: 100%; background: #4CAF50; }
+  .strength-weak { width: 33%; background: #FF7A5C; }
+  .strength-medium { width: 66%; background: #FFB84D; }
+  .strength-strong { width: 100%; background: #66C76E; }
 
   .input-hint {
-    font-size: 11px;
+    font-size: 10rem;
     color: #8B5E3C;
-    margin-top: 4px;
+    margin-top: 4rem;
     display: none;
   }
   .input-hint.show { display: block; }
@@ -295,27 +308,38 @@
   .agreement {
     display: flex;
     align-items: flex-start;
-    gap: 6px;
-    margin: 14px 0 16px;
-    font-size: 11px;
+    gap: 6rem;
+    margin: 6rem 0 8rem;
+    font-size: 9.5rem;
     color: #F5DFC0;
     line-height: 1.5;
   }
 
-  .agreement input { display: none; }
+  /* 视觉隐藏而非 display:none：保留键盘焦点与读屏可达性 */
+  .agreement input {
+    position: absolute;
+    width: 1rem; height: 1rem;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .agreement input:focus-visible + .agreement-checkbox {
+    outline: 2rem solid #E89020;
+    outline-offset: 2rem;
+  }
 
   .agreement-checkbox {
-    width: 14px;
-    height: 14px;
-    border: 1.5px solid #9B7B5A;
-    border-radius: 4px;
+    width: 13rem;
+    height: 13rem;
+    border: 1.5rem solid #9B7B5A;
+    border-radius: 4rem;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.25s ease;
     background: rgba(28, 15, 8, 0.5);
     flex-shrink: 0;
-    margin-top: 1px;
+    margin-top: 1rem;
   }
 
   .agreement input:checked + .agreement-checkbox {
@@ -324,7 +348,7 @@
   }
 
   .agreement-checkbox svg {
-    width: 9px; height: 9px;
+    width: 9rem; height: 9rem;
     color: #4A2A0E;
     opacity: 0;
     transform: scale(0.5);
@@ -337,7 +361,7 @@
   }
 
   .agreement a {
-    color: #E89020;
+    color: #FFB84D;
     text-decoration: none;
     cursor: pointer;
   }
@@ -345,21 +369,21 @@
 
   .register-btn {
     width: 100%;
-    height: 46px;
+    height: 42rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     border: none;
-    border-radius: 12px;
+    border-radius: 11rem;
     color: #4A2A0E;
-    font-size: 15px;
+    font-size: 13rem;
     font-weight: 600;
-    letter-spacing: 2px;
+    letter-spacing: 2rem;
     cursor: pointer;
     transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
                 box-shadow 0.25s ease,
                 filter 0.2s ease;
-    box-shadow: 0 6px 24px rgba(232, 144, 32, 0.5),
-                inset 0 1px 0 rgba(212, 165, 116, 0.25),
-                inset 0 -2px 0 rgba(184, 90, 16, 0.2);
+    box-shadow: 0 6rem 24rem rgba(232, 144, 32, 0.5),
+                inset 0 1rem 0 rgba(212, 165, 116, 0.25),
+                inset 0 -2rem 0 rgba(184, 90, 16, 0.2);
     position: relative;
     overflow: hidden;
   }
@@ -377,18 +401,18 @@
   .register-btn:hover::before { left: 100%; }
 
   .register-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(232, 144, 32, 0.6),
-                inset 0 1px 0 rgba(212, 165, 116, 0.3),
-                inset 0 -2px 0 rgba(184, 90, 16, 0.2);
+    transform: translateY(-2rem);
+    box-shadow: 0 10rem 30rem rgba(232, 144, 32, 0.6),
+                inset 0 1rem 0 rgba(212, 165, 116, 0.3),
+                inset 0 -2rem 0 rgba(184, 90, 16, 0.2);
     filter: brightness(1.08);
   }
 
   .register-btn:active {
-    transform: translateY(1px) scale(0.98);
-    box-shadow: 0 2px 8px rgba(232, 144, 32, 0.4),
-                inset 0 2px 4px rgba(184, 90, 16, 0.3),
-                inset 0 -1px 0 rgba(212, 165, 116, 0.1);
+    transform: translateY(1rem) scale(0.98);
+    box-shadow: 0 2rem 8rem rgba(232, 144, 32, 0.4),
+                inset 0 2rem 4rem rgba(184, 90, 16, 0.3),
+                inset 0 -1rem 0 rgba(212, 165, 116, 0.1);
     filter: brightness(0.95);
     transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
   }
@@ -409,46 +433,46 @@
 
   .login-link {
     text-align: center;
-    margin-top: 14px;
-    font-size: 12px;
-    color: #6B4423;
+    margin-top: 8rem;
+    font-size: 10.5rem;
+    color: rgba(245, 223, 192, 0.72);
   }
 
   .login-link a {
-    color: #E89020;
+    color: #FFB84D;
     text-decoration: none;
     font-weight: 600;
     cursor: pointer;
   }
-  .login-link a:hover { color: #FFB84D; text-decoration: underline; }
+  .login-link a:hover { color: #FFD28A; text-decoration: underline; }
 
   .home-indicator {
     position: absolute;
-    bottom: 8px;
+    bottom: 8rem;
     left: 50%;
     transform: translateX(-50%);
-    width: 100px;
-    height: 4px;
+    width: 100rem;
+    height: 4rem;
     background: rgba(28, 15, 8, 0.4);
-    border-radius: 2px;
+    border-radius: 2rem;
     z-index: 5;
   }
 
   .interaction-hint {
     position: fixed;
-    bottom: 20px;
+    bottom: 20rem;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(28, 15, 8, 0.92);
     color: #F5DFC0;
-    padding: 10px 22px;
-    border-radius: 20px;
-    font-size: 13px;
+    padding: 10rem 22rem;
+    border-radius: 20rem;
+    font-size: 13rem;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
     z-index: 100;
-    box-shadow: 0 4px 20px rgba(28, 15, 8, 0.25);
+    box-shadow: 0 4rem 20rem rgba(28, 15, 8, 0.25);
   }
   .interaction-hint.show { opacity: 1; }
 
@@ -458,11 +482,12 @@
     left: 50%;
     transform: translate(-50%, -50%) scale(0.8);
     background: rgba(28, 15, 8, 0.92);
-    backdrop-filter: blur(10px);
-    padding: 16px 28px;
-    border-radius: 14px;
-    box-shadow: 0 10px 40px rgba(28, 15, 8, 0.22);
-    font-size: 14px;
+    backdrop-filter: blur(10rem);
+    -webkit-backdrop-filter: blur(10rem);
+    padding: 16rem 28rem;
+    border-radius: 14rem;
+    box-shadow: 0 10rem 40rem rgba(28, 15, 8, 0.22);
+    font-size: 14rem;
     color: #F5DFC0;
     font-weight: 500;
     opacity: 0;
@@ -470,44 +495,84 @@
     transition: all 0.3s ease;
     z-index: 20;
     text-align: center;
-    white-space: nowrap;
+    max-width: 280rem;
   }
   .toast.show {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
   .toast .toast-icon {
-    width: 40px; height: 40px;
+    width: 40rem; height: 40rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #F0A040, #D4691C);
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 10px;
+    margin: 0 auto 10rem;
     color: #4A2A0E;
   }
 
   /* 密码可见切换 */
   .pwd-toggle {
     position: absolute;
-    right: 12px;
-    width: 28px; height: 28px;
+    right: 10rem;
+    width: 26rem; height: 26rem;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; color: rgba(245, 223, 192, 0.5);
     border-radius: 50%; transition: color 0.2s; z-index: 2;
   }
-  .pwd-toggle:hover { color: #E89020; }
-  .pwd-toggle svg { width: 16px; height: 16px; stroke-width: 2; }
-  .input-wrapper .input-field { padding-right: 40px; }
+  .pwd-toggle:hover { color: #FFB84D; }
+  .pwd-toggle svg { width: 15rem; height: 15rem; stroke-width: 2; }
+  .input-wrapper .input-field { padding-right: 14rem; }
+  .input-wrapper:has(.pwd-toggle) .input-field { padding-right: 40rem; }
 
   /* 表单实时提示 */
   .field-hint {
-    font-size: 11px; margin-top: 4px; padding-left: 4px; display: none;
+    font-size: 10rem; margin-top: 4rem; padding-left: 4rem; display: none;
   }
   .field-hint.show { display: block; }
-  .field-hint.error { color: #E05A3A; }
-  .field-hint.ok   { color: #4CAF50; }
+  .field-hint.error { color: #FF7A5C; }
+  .field-hint.ok   { color: #66C76E; }
 
-  @media (max-width: 900px) {
-    .container { flex-direction: column; gap: 30px; }
+  @media (max-width: 900rem) {
+    .container { flex-direction: column; gap: 30rem; }
+  }
+
+  /* ===== 高度流动降级 ===== */
+  /* 矮窗口（横屏/PC 拉矮/小屏机）：内容贴顶 + 压缩间距；注册页内容多，卡片自带滚动兜底 */
+  @media (max-height: 620rem) {
+    .login-container { justify-content: flex-start; }
+    .login-header { margin-bottom: 10rem; }
+    .input-group { margin-bottom: 10rem; }
+    .login-card { padding: 12rem 14rem; }
+    .agreement { margin: 10rem 0 12rem; }
+    .login-link { margin-top: 10rem; }
+  }
+
+  /* 窄屏（320rem 老机型）：收窄容器内边距，输入框图标让位 */
+  @media (max-width: 340rem) {
+    .login-container { padding: 16rem 0 12rem; }
+    .login-card { padding: 16rem 14rem; }
+    .input-field { padding-left: 34rem; }
+  }
+
+  /* 注册页内容多：700 高度（含桌面 667 展示框）即触发压缩，避免默认滚动条常驻 */
+  @media (max-height: 700rem) {
+    .login-card { padding: 12rem 14rem; }
+    .input-group { margin-bottom: 8rem; }
+    .agreement { margin: 8rem 0 10rem; }
+    .login-header { margin-bottom: 10rem; }
+  }
+
+  /* 极端矮窗口（横屏/小屏机）：二级压缩，副标题让位 */
+  @media (max-height: 560rem) {
+    .login-header { margin-bottom: 8rem; }
+    .login-subtitle { display: none; }
+    .brand-logo { width: 40rem; height: 40rem; margin-bottom: 4rem; }
+    .login-card { padding: 12rem 14rem; }
+  }
+
+  /* 移动端输入框 16rem：避免 iOS Safari 聚焦自动缩放破坏 375 定宽布局 */
+  @media (max-width: 480rem) {
+    .input-field { font-size: 16rem; }
   }
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
@@ -517,6 +582,7 @@
   body.full-embed .phone-frame {
     width: 100vw;
     height: 100vh;
+    height: 100dvh; /* iOS Safari 地址栏展开时取动态视口高 */
     border-radius: 0;
     padding: 0;
     box-shadow: none;
@@ -530,7 +596,9 @@
   /* 移动端浏览器 App 化：自动全屏但保留 H5 底部导航（手机浏览器无原生 tabBar） */
   body.full-embed.mobile-browser .bottom-nav,
   body.full-embed.mobile-browser .home-indicator { display: flex; }
-  body.full-embed.mobile-browser .phone-frame { height: calc(100vh - 56px); }
+  /* 仅当页面确实有底部导航时扣减高度（登录/注册页无 bottom-nav，不扣） */
+  body.full-embed.mobile-browser .phone-frame { height: 100dvh; }
+  body.full-embed.mobile-browser:has(.bottom-nav) .phone-frame { height: calc(100dvh - 56rem); }
 </style>
 
 <script>
@@ -578,6 +646,7 @@
   <div class="phone-wrapper">
     <div class="phone-frame">
       <div class="phone-screen">
+        <div class="screen-content" id="screenContent">
         <div class="status-bar">
           <span>9:41</span>
           <div class="status-icons">
@@ -610,7 +679,7 @@
 
           <div class="login-card">
             <div class="input-group">
-              <label class="input-label">手机号</label>
+              <label class="input-label" for="phone">手机号</label>
               <div class="input-wrapper">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
@@ -622,7 +691,7 @@
             </div>
 
             <div class="input-group">
-              <label class="input-label">验证码</label>
+              <label class="input-label" for="code">验证码</label>
               <div class="code-wrapper">
                 <div class="input-wrapper">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -631,12 +700,12 @@
                   </svg>
                   <input type="text" class="input-field" placeholder="请输入验证码" id="code" maxlength="6">
                 </div>
-                <button class="send-code-btn" id="sendCodeBtn">获取验证码</button>
+                <button class="send-code-btn" id="sendCodeBtn">验证码</button>
               </div>
             </div>
 
             <div class="input-group">
-              <label class="input-label">用户名</label>
+              <label class="input-label" for="username">用户名</label>
               <div class="input-wrapper">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -648,7 +717,7 @@
             </div>
 
             <div class="input-group">
-              <label class="input-label">密码</label>
+              <label class="input-label" for="password">密码</label>
               <div class="input-wrapper">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -658,12 +727,12 @@
                   <div class="pwd-toggle" id="pwdToggle1" title="显示密码"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
               </div>
               <div class="password-strength" id="strengthBar">
-                <div class="password-strength-bar" id="strengthBar"></div>
+                <div class="password-strength-bar"></div>
               </div>
             </div>
 
             <div class="input-group">
-              <label class="input-label">确认密码</label>
+              <label class="input-label" for="confirmPwd">确认密码</label>
               <div class="input-wrapper">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 12l2 2 4-4"/>
@@ -703,6 +772,7 @@
         </div>
 
         <div class="home-indicator"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -819,7 +889,7 @@
       if (seconds <= 0) {
         clearInterval(countdownTimer);
         sendCodeBtn.disabled = false;
-        sendCodeBtn.textContent = '重新获取';
+        sendCodeBtn.textContent = '验证码';
       } else {
         sendCodeBtn.textContent = seconds + 's 后重发';
       }
