@@ -8091,9 +8091,24 @@
   photoDetailClose.addEventListener('click', closePhotoDetail);
 
   // 点击图片：全屏观看 / 再次点击退出（王总 2026-08-13；灵感/探索/本地三模式共用同一详情界面）
+  var savedImageBg = '';
   photoDetailImage.addEventListener('click', function(e) {
     e.stopPropagation();
-    photoDetail.classList.toggle('fullscreen');
+    if (photoDetail.classList.contains('fullscreen')) {
+      // 退出全屏：恢复原背景（cover 展示）
+      photoDetail.classList.remove('fullscreen');
+      if (savedImageBg) { photoDetailImage.style.background = savedImageBg; savedImageBg = ''; }
+    } else {
+      savedImageBg = photoDetailImage.style.background || '';
+      // 提取照片 url（background 里的第一个 url(...)）
+      var m = savedImageBg.match(/url\(['"]?([^'")]+)['"]?\)/);
+      var imgUrl = m ? m[1] : '';
+      photoDetail.classList.add('fullscreen');
+      // 全屏：照片 contain 居中显示 + 黑棕色底色（王总要求：全屏底面黑偏棕，非橙色渐变）
+      photoDetailImage.style.background = imgUrl
+        ? "url('" + imgUrl + "') center/contain no-repeat #1C0F08"
+        : '#1C0F08';
+    }
   });
 
   // 点赞
