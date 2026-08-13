@@ -1060,20 +1060,7 @@
   /* ========== 上传模式样式（统一照片勾选等） ========== */
   /* 注意：.upload-banner 样式已在前面定义（琥珀色渐变），此处不再重复 */
 
-  /* 统一照片勾选样式 */
-  .upload-photo-check {
-    position: absolute;
-    top: 6rem; right: 6rem;
-    width: 20rem; height: 20rem;
-    border: 2rem solid rgba(255, 255, 255, 0.8);
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.25);
-    display: flex;
-    align-items: center; justify-content: center;
-    color: transparent;
-    z-index: 2;
-    transition: all 0.2s ease;
-  }
+  /* 照片选中反馈（对号已按王总要求移除，保留选中边框高亮） */
   .tg-photo.selected::before {
     content: '';
     position: absolute;
