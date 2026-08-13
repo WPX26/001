@@ -3095,6 +3095,15 @@
   body.full-embed.mobile-browser .phone-frame { height: var(--app-h, 100vh); }
 
   /* ===== 开场动画（落日 splash，王总 2026-08-13）：太阳出现→缩小→落地→依次弹出工一堂/欢迎您回来 → 淡出进入登录页 ===== */
+  /* 行书字体本地化（王总 2026-08-13：工一堂改行书；来源 Windows STXINGKA.TTF，子集仅工一堂三字，随镜像打包 fonts/） */
+  @font-face {
+    font-family: 'STXingkaiLocal';
+    src: url('./fonts/STXINGKA-subset.ttf') format('truetype'),
+         url('./fonts/STXINGKA.TTF') format('truetype');
+    /* 行书单字重：声明覆盖 400-700，避免浏览器对 700 做假粗体合成糊掉笔画 */
+    font-weight: 400 700;
+    font-display: swap;
+  }
   .splash {
     position: absolute;
     inset: 0;
@@ -3107,25 +3116,25 @@
     left: 50%; top: 26%;
     width: 240rem; height: 192rem;
     transform: translate(-50%, -50%);
-    animation: splashSunRise 1.3s cubic-bezier(0.45, 0, 0.35, 1) both;
+    animation: splashSunRise 2.3s cubic-bezier(0.05, 0.65, 0.15, 1) both;
   }
   .splash-sun svg {
     width: 100%; height: 100%;
-    animation: splashSunRiseScale 1.3s cubic-bezier(0.45, 0, 0.35, 1) both;
+    animation: splashSunRiseScale 2.3s cubic-bezier(0.05, 0.65, 0.15, 1) both;
     filter: drop-shadow(0 0 18rem rgba(255, 184, 77, 0.45)) drop-shadow(0 0 46rem rgba(232, 144, 32, 0.3));
   }
   .splash-brand {
     position: absolute;
     left: 50%; top: 46.5%;
     transform: translateX(-50%);
-    font-family: STXingkai, 华文行楷, KaiTi, 楷体, serif;
+    font-family: 'STXingkaiLocal', STXingkai, 华文行楷, KaiTi, 楷体, serif;
     font-size: 24rem;
     font-weight: 700;
     color: #F5DFC0;
     letter-spacing: 2.5rem;
     text-shadow: 0 0 22rem rgba(255, 184, 77, 0.35);
     opacity: 0;
-    animation: splashPop 1.2s 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+    animation: splashPopFlip 1s 1.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
   .splash-welcome {
     position: absolute;
@@ -3138,26 +3147,43 @@
     white-space: nowrap;
     letter-spacing: 1.5rem;
     opacity: 0;
-    animation: splashPop 1.2s 1.0s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+    animation: splashPop 1.6s 1.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
   body.splash-active .interaction-hint { display: none; }
   @keyframes splashSunRise {
     0%   { top: 112%; opacity: 0; }
-    8%   { opacity: 1; }
-    45%  { top: 33%; }
-    52%  { top: 32.2%; }
-    56%  { top: 33%; }
+    5%   { opacity: 1; }
+    52%  { top: 37%; }
+    66%  { top: 33.8%; }
+    72%  { top: 33%; }
+    78%  { top: 32.4%; }
+    84%  { top: 33%; }
     100% { top: 33%; opacity: 1; }
   }
   @keyframes splashSunRiseScale {
-    0%, 20% { transform: scale(1.15); }
-    50%     { transform: scale(1); }
+    0%, 65% { transform: scale(2.7); }
+    69%     { transform: scale(1.2); }
+    72%     { transform: scale(1.1, 0.86); }
+    78%     { transform: scale(0.96, 1.06); }
+    84%     { transform: scale(1.02, 0.98); }
     100%    { transform: scale(1); }
   }
   @keyframes splashPop {
-    0%   { opacity: 0; transform: translateX(-50%) translateY(26rem) scale(0.85); }
-    60%  { opacity: 1; transform: translateX(-50%) translateY(-4rem) scale(1.04); }
-    100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    0%   { opacity: 0; transform: translateX(-50%) scale(0.3); }
+    60%  { opacity: 1; transform: translateX(-50%) scale(1.08); }
+    100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  }
+  /* 工一堂被棋子震出：悬空快速翻滚 3 圈（动态模糊）→ 坠落（由大变小、渐锐化）→ 落定回弹（王总 2026-08-13） */
+  @keyframes splashPopFlip {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(-64rem) scale(2.3) rotate(0deg);    filter: blur(6rem); }
+    12%  { opacity: 1; transform: translateX(-50%) translateY(-64rem) scale(2.3) rotate(130deg);  filter: blur(6rem); }
+    35%  { transform: translateX(-50%) translateY(-58rem) scale(2.2) rotate(760deg); filter: blur(6rem); }
+    50%  { transform: translateX(-50%) translateY(-52rem) scale(2) rotate(1080deg);  filter: blur(4rem); }
+    60%  { transform: translateX(-50%) translateY(-38rem) scale(1.7) rotate(1080deg); filter: blur(2.5rem); }
+    72%  { transform: translateX(-50%) translateY(-12rem) scale(1.25) rotate(1080deg); filter: blur(1rem); }
+    82%  { transform: translateX(-50%) translateY(0) scale(0.95) rotate(1080deg); filter: blur(0); }
+    92%  { transform: translateX(-50%) translateY(0) scale(1.06) rotate(1080deg); filter: blur(0); }
+    100% { transform: translateX(-50%) translateY(0) scale(1) rotate(1080deg); filter: blur(0); }
   }
   /* 淡出进入首页 */
   .splash.done {
@@ -9704,8 +9730,8 @@
     splash.dataset.played = '1';
     try { sessionStorage.setItem('app_splash_played', '1'); } catch (e) {}
     document.body.classList.add('splash-active');
-    setTimeout(function () { splash.classList.add('done'); }, 2800);
-    setTimeout(function () { splash.style.display = 'none'; document.body.classList.remove('splash-active'); }, 3600);
+    setTimeout(function () { splash.classList.add('done'); }, 3800);
+    setTimeout(function () { splash.style.display = 'none'; document.body.classList.remove('splash-active'); }, 4600);
   })();
 </script>
 
