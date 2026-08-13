@@ -2544,6 +2544,31 @@
     padding-top: 10rem;
     border-top: 1rem solid rgba(255, 255, 255, 0.06);
   }
+  /* 未上传照片的上传按钮区（王总 2026-08-13：评论区位置显示橙色上传按钮） */
+  .photo-detail-upload-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8rem;
+    padding: 20rem 0 12rem;
+    border-top: 1rem solid rgba(255, 255, 255, 0.06);
+  }
+  .photo-detail-upload-btn {
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    border: none;
+    border-radius: 20rem;
+    color: #fff;
+    font-size: 15rem;
+    font-weight: 700;
+    padding: 10rem 44rem;
+    cursor: pointer;
+    box-shadow: 0 4rem 14rem rgba(240, 160, 64, 0.35);
+  }
+  .photo-detail-upload-btn:active { transform: scale(0.96); }
+  .photo-detail-upload-hint {
+    font-size: 11rem;
+    color: rgba(255, 255, 255, 0.4);
+  }
   .photo-detail-comment-input input {
     flex: 1;
     background: rgba(255, 255, 255, 0.08);
@@ -3715,6 +3740,11 @@
               </div>
               <div class="photo-detail-comments" id="photoDetailComments">
                 <!-- 评论由JS动态生成 -->
+              </div>
+              <!-- 未上传照片：评论区位置显示橙色上传按钮（王总 2026-08-13 要求） -->
+              <div class="photo-detail-upload-area" id="photoDetailUploadArea" style="display:none;">
+                <button class="photo-detail-upload-btn" id="photoDetailUploadBtn">上传</button>
+                <div class="photo-detail-upload-hint">上传后可评论、点赞、收藏</div>
               </div>
               <div class="photo-detail-comment-input">
                 <input type="text" id="photoDetailCommentInput" placeholder="添加评论...">
@@ -4991,7 +5021,7 @@
         } else {
           bgStyle = `background: linear-gradient(${135 + i * 20}deg, ${p}, ${adjustColor(p, -15)});`;
         }
-        return `<div class="tg-photo" style="${bgStyle}">
+        return `<div class="tg-photo" ${(p && p.id) ? 'data-photo-id="' + p.id + '"' : ''} style="${bgStyle}">
            ${timeTag}
          </div>`;
       }).join('');
@@ -5030,18 +5060,33 @@
     applyGroupsCollapsedDefault(popupGroups);
     popupGroups.querySelectorAll('.time-group-header').forEach(bindGroupToggle);
 
-    // 绑定照片勾选事件（点击选中照片进行模拟操作）
+    // 绑定照片点击：自己拍的照片（带 id 的本地照片）→ 打开照片详情（王总 2026-08-13 要求与灵感/探索一致）；
+    // 演示照片（无 id）→ 保持原勾选上传行为
     popupGroups.querySelectorAll('.tg-photo').forEach((photoEl, idx) => {
       photoEl.addEventListener('click', (e) => {
         e.stopPropagation();
+        var pid = photoEl.dataset.photoId;
+        var coordTitle = popupTitle.textContent;
+        if (pid && typeof openLocalPhotoDetail === 'function') {
+          // 从 photoData 找该照片对象（按当前弹窗标题 + 时间组）
+          var groups = photoData[coordTitle] || {};
+          var found = null;
+          Object.keys(groups).forEach(function(hk) {
+            if (found) return;
+            (groups[hk] || []).forEach(function(p) {
+              if (!found && p && p.id === pid) found = p;
+            });
+          });
+          if (found) { openLocalPhotoDetail(found, coordTitle); return; }
+        }
         photoEl.classList.toggle('selected');
-        
+
         // 统计选中数量
         const selectedCount = popupGroups.querySelectorAll('.tg-photo.selected').length;
         const footer = document.getElementById('popupFooter');
         const countSpan = document.getElementById('popupSelectedCount');
         const confirmBtn = document.getElementById('popupConfirmBtn');
-        
+
         if (selectedCount > 0) {
           footer.style.display = 'flex';
           countSpan.textContent = selectedCount;
@@ -7819,6 +7864,129 @@
     `).join('');
   }
 
+  // ===== 本地照片详情（自己拍的照片，2026-08-13 王总要求与灵感/探索界面一致） =====
+  // 未上传（无后端 id）：无评论区/点赞/收藏，评论区位置显示橙色上传按钮，点击上传
+  // 已上传：与灵感/探索完全一致（评论区/点赞/收藏走真实接口）
+  const photoDetailUploadArea = document.getElementById('photoDetailUploadArea');
+  const photoDetailUploadBtn = document.getElementById('photoDetailUploadBtn');
+
+  function openLocalPhotoDetail(photoEntry, coordTitle) {
+    closeAllOverlays();
+    var backendId = (photoEntry.id && typeof MemoAPI !== 'undefined')
+      ? MemoAPI.getPhotoBackendId(photoEntry.id) : null;
+    var userMode = localStorage.getItem('profile_mode') || 'life';
+    var photo = {
+      id: photoEntry.id || ('local_' + Date.now()),
+      backendId: backendId || null,
+      color: photoEntry.color || '#F0A040',
+      likes: 0, tips: 0, liked: false, tipped: false, collected: false,
+      comments: [],
+      uploadTime: Math.floor(Date.now() / 1000),
+      url: photoEntry.url || '',
+      author: '@我',
+      authorAvatar: userMode === 'work' ? '#5E35B1' : '#F0A040',
+      _local: true
+    };
+    currentPhotoDetail = { photo: photo, coord: { title: coordTitle } };
+
+    // 渲染图片（有缩略图用 url，无则色块）
+    photoDetailImage.style.background = photo.url
+      ? `url('${photo.url}') center/cover no-repeat, linear-gradient(135deg, ${photo.color}, ${adjustColor(photo.color, -20)})`
+      : `linear-gradient(135deg, ${photo.color}, ${adjustColor(photo.color, -20)})`;
+
+    var pathEl = document.getElementById('photoDetailPath');
+    if (pathEl) { pathEl.textContent = ''; pathEl.style.display = 'none'; }
+
+    photoDetailAvatar.style.background = photo.authorAvatar;
+    photoDetailAuthorName.textContent = photo.author;
+    var d = new Date();
+    photoDetailTime.textContent = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+    var isUploaded = !!backendId;
+    // 已上传：完整互动区；未上传：隐藏互动区，显示橙色上传按钮
+    photoDetailLike.style.display = isUploaded ? '' : 'none';
+    photoDetailTip.style.display = isUploaded ? '' : 'none';
+    photoDetailComment.style.display = isUploaded ? '' : 'none';
+    photoDetailCollect.style.display = isUploaded ? '' : 'none';
+    document.getElementById('photoDetailCommentInput').style.display = isUploaded ? '' : 'none';
+    document.getElementById('photoDetailCommentSend').style.display = isUploaded ? '' : 'none';
+    document.getElementById('photoDetailComments').style.display = isUploaded ? '' : 'none';
+    photoDetailUploadArea.style.display = isUploaded ? 'none' : 'flex';
+    if (photoDetailUploadBtn) { photoDetailUploadBtn.disabled = false; photoDetailUploadBtn.textContent = '上传'; }
+
+    if (isUploaded) {
+      // 已上传：拉取云端真实数据（点赞/收藏/评论）填充
+      if (typeof MemoAPI !== 'undefined' && MemoAPI.isLoggedIn()) {
+        MemoAPI.get('/photos/' + encodeURIComponent(backendId)).then(function(data) {
+          if (!data) return;
+          photo.likes = data.likes || 0; photo.tips = data.tips || 0;
+          photo.liked = !!data.isLiked; photo.tipped = !!data.isTipped; photo.collected = !!data.isCollected;
+          photo.comments = data.comments || [];
+          renderLocalPhotoDetail(photo);
+        }).catch(function(e) { console.warn('[local photo detail]', e && e.message); });
+      }
+      renderLocalPhotoDetail(photo);
+    }
+
+    photoDetail.classList.add('show');
+  }
+
+  function renderLocalPhotoDetail(photo) {
+    photoDetailLike.classList.toggle('liked', photo.liked);
+    photoDetailLikeCount.textContent = photo.likes;
+    photoDetailTip.classList.toggle('tipped', photo.tipped);
+    photoDetailTipCount.textContent = photo.tips;
+    photoDetailCommentCount.textContent = photo.comments.length;
+    photoDetailCollect.classList.toggle('collected', photo.collected);
+    renderComments(photo);
+    if (photo.backendId) loadRemoteComments(photo);
+  }
+
+  // 未上传照片 → 上传（/upload/callback + /coords），成功后刷新详情为已上传态
+  if (photoDetailUploadBtn) {
+    photoDetailUploadBtn.addEventListener('click', function() {
+      var cp = currentPhotoDetail;
+      if (!cp || !cp.photo || !cp.photo.id) return;
+      var pid = cp.photo.id;
+      if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
+        showToast('请先登录后再上传', 'warning', 2000);
+        return;
+      }
+      var btn = this;
+      btn.disabled = true; btn.textContent = '上传中…';
+      // 从 detailLevels[3] 找标点坐标（按标题）
+      var coordLng = null, coordLat = null;
+      try {
+        (detailLevels[3] || []).forEach(function(m) {
+          if (m.title === cp.coord.title) { coordLng = m.lng; coordLat = m.lat; }
+        });
+      } catch (e) {}
+      MemoAPI.post('/upload/callback', { files: [{ key: pid, hash: pid, size: 0 }] }).then(function(data) {
+        var photoIds = (data && data.photoIds) || [];
+        if (!photoIds[0]) { var err = new Error('上传未返回照片 ID'); err.business = true; throw err; }
+        MemoAPI.setPhotoBackendId(pid, photoIds[0]);
+        // 创建后端坐标（title=坐标点名；无坐标时用默认值，后端可再校正）
+        return MemoAPI.post('/coords', {
+          title: String(cp.coord.title || '').slice(0, 50),
+          lng: coordLng !== null ? coordLng : 120.3826,
+          lat: coordLat !== null ? coordLat : 36.0671,
+          photoIds: [photoIds[0]],
+          photoTimes: {}
+        });
+      }).then(function() {
+        showToast('✅ 已上传，照片现在可评论、点赞、收藏', 'success', 2500);
+        if (currentPhotoDetail && currentPhotoDetail.photo) {
+          currentPhotoDetail.photo.backendId = MemoAPI.getPhotoBackendId(pid);
+        }
+        openLocalPhotoDetail(currentPhotoDetail.photo, currentPhotoDetail.coord.title);
+      }).catch(function(e) {
+        console.warn('[upload local photo]', e && e.message);
+        showToast('上传失败: ' + (e && e.message), 'warning', 2500);
+        btn.disabled = false; btn.textContent = '上传';
+      });
+    });
+  }
+
   // 关闭图片详情
   function closePhotoDetail() {
     photoDetail.classList.remove('show');
@@ -8886,10 +9054,11 @@
         if (!photoData[targetMarker.title][hourKey]) photoData[targetMarker.title][hourKey] = [];
         // 真实照片优先：photoDataUrl 非空 → 写入 {url}，弹窗走 background-image cover 分支显示真实照片；
         // 无 photoDataUrl → 保持原 {color, timeStr} 色块（行为与旧版一致）
+        // 注意：条目带 id（pendingPhotos 的 photo.id），供"已上传判定（backendId 映射）"与单张上传使用
         if (photo.photoDataUrl) {
-          photoData[targetMarker.title][hourKey].unshift({ url: photo.photoDataUrl, timeStr: rt.timeStr });
+          photoData[targetMarker.title][hourKey].unshift({ id: photo.id, url: photo.photoDataUrl, timeStr: rt.timeStr });
         } else {
-          photoData[targetMarker.title][hourKey].unshift({ color: photo.color, timeStr: rt.timeStr });
+          photoData[targetMarker.title][hourKey].unshift({ id: photo.id, color: photo.color, timeStr: rt.timeStr });
         }
 
         targetMarker.count = (targetMarker.count || 0) + 1;
