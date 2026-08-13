@@ -9456,8 +9456,14 @@
     try {
       var info = [];
       info.push('map: ' + (typeof map !== 'undefined' && map ? '就绪(z=' + Math.round(map.getZoom()) + ')' : '未就绪'));
-      info.push('detailLv3: ' + (typeof detailLevels !== 'undefined' && detailLevels[3] ? detailLevels[3].length + '个: ' + detailLevels[3].slice(0,3).map(function(m){return m.title;}).join(' / ') : '空'));
-      info.push('photoData键: ' + (typeof photoData !== 'undefined' ? Object.keys(photoData).slice(0,5).join(' / ') || '(空)' : '无'));
+      info.push('detailLv3(' + (typeof detailLevels !== 'undefined' && detailLevels[3] ? detailLevels[3].length : 0) + '个): ' + (typeof detailLevels !== 'undefined' && detailLevels[3] ? detailLevels[3].map(function(m){return m.id + ':' + m.title + (m._remote ? '(远程)' : '');}).join(' / ') : '空'));
+      var keys = typeof photoData !== 'undefined' ? Object.keys(photoData) : [];
+      info.push('photoData键(' + keys.length + '个): ' + keys.join(' / ') || '(空)');
+      // 拍摄点/寿光 相关键的详细内容
+      var special = keys.filter(function(k){ return k.indexOf('拍摄点') >= 0 || k.indexOf('寿光') >= 0 || k.indexOf('圣城') >= 0; });
+      if (special.length) {
+        info.push('SPECIAL: ' + special.map(function(k){ return k + '=' + JSON.stringify(photoData[k]).slice(0,100); }).join(' ; '));
+      }
       var pend = '读取中';
       if (typeof Dexie !== 'undefined') {
         try {
