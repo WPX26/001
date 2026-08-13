@@ -5860,15 +5860,13 @@
   // 最近一次成功定位缓存（GPS 获取失败时回退用，60 秒内有效）
   var lastKnownLocation = null;
 
-  // 应用内相机：getUserMedia 摄像头预览 + 拍摄按钮，拍完自动保存（无系统相机确认）
-  // 拍完自动默认为确认，符合王总要求；不支持 getUserMedia 时降级系统相机
+  // 相机入口：直接打开手机本地（系统）相机。
+  // 2026-08-13 王总要求：夸克等浏览器此前走了 getUserMedia 页面内相机（体验不符合预期），
+  // 微信内置浏览器因 getUserMedia 受限自动降级系统相机（体验一致）——统一为系统相机。
+  // openInAppCamera 保留（未删除），如需页面内相机可改回。
   var _cameraStream = null;
   function captureWithSystemCamera() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      legacySystemCamera();
-      return;
-    }
-    openInAppCamera();
+    legacySystemCamera();
   }
 
   // 应用内相机界面：全屏预览 + 底部拍摄/关闭按钮
