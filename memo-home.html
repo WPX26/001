@@ -2460,10 +2460,12 @@
     flex-shrink: 0;
   }
   .photo-detail-info {
-    background: #141010;
+    /* 王总 2026-08-13：作者区顶部、评论/输入框贴底、中间空隙深棕色填充 */
+    background: #2A1810;
     padding: 16rem;
-    /* 信息区（含评论区/输入框）固定页面底部（王总 2026-08-13） */
-    margin-top: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
   .photo-detail-author {
     display: flex;
@@ -2536,6 +2538,8 @@
   .photo-detail-action.tipped .photo-detail-action-count { color: #FFD700; }
   .photo-detail-action:active { transform: scale(0.95); }
   .photo-detail-comments {
+    /* 评论区贴底（作者区与评论之间的空隙由深棕色填充，王总 2026-08-13） */
+    margin-top: auto;
     padding: 12rem 0;
     max-height: 200rem;
     overflow-y: auto;
