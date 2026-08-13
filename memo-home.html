@@ -2510,6 +2510,12 @@
     border-color: #F0A040;
   }
   .photo-detail-collect.collected svg { color: white; fill: #F0A040; }
+  /* 关注键高亮（王总 2026-08-13：右上角收藏键改关注键，已关注为绿色） */
+  .photo-detail-collect.followed {
+    background: #4CAF50;
+    border-color: #4CAF50;
+  }
+  .photo-detail-collect.followed svg { color: white; fill: #4CAF50; }
   .photo-detail-actions {
     display: flex;
     gap: 16rem;
@@ -2535,12 +2541,14 @@
   }
   .photo-detail-action.liked svg { color: #E53935; fill: #E53935; }
   .photo-detail-action.liked .photo-detail-action-count { color: #E53935; }
-  .photo-detail-action.tipped svg { color: #FFD700; }
-  .photo-detail-action.tipped .photo-detail-action-count { color: #FFD700; }
+  /* 收藏键高亮（王总 2026-08-13：原打赏键改收藏键） */
+  .photo-detail-action.collected svg { color: #F0A040; fill: #F0A040; }
+  .photo-detail-action.collected .photo-detail-action-count { color: #F0A040; }
   .photo-detail-action:active { transform: scale(0.95); }
   .photo-detail-comments {
-    /* 评论区贴底（作者区与评论之间的空隙由深棕色填充，王总 2026-08-13） */
-    margin-top: auto;
+    /* 评论区：上下可滑动、最新在上、评论不足时排在上面（王总 2026-08-13） */
+    flex: 1;
+    overflow-y: auto;
     padding: 12rem 0;
     max-height: 200rem;
     overflow-y: auto;
@@ -3743,9 +3751,10 @@
                   <div class="photo-detail-author-name" id="photoDetailAuthorName">@摄影师小林</div>
                   <div class="photo-detail-time" id="photoDetailTime">2026年8月3日 15:30</div>
                 </div>
-                <div class="photo-detail-collect" id="photoDetailCollect" title="收藏到我的坐标">
+                <div class="photo-detail-collect" id="photoDetailCollect" title="关注作者">
+                  <!-- 右上角：关注键（王总 2026-08-13：原收藏键改为关注键） -->
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
                   </svg>
                 </div>
               </div>
@@ -3756,11 +3765,12 @@
                   </svg>
                   <span class="photo-detail-action-count" id="photoDetailLikeCount">128</span>
                 </div>
-                <div class="photo-detail-action" id="photoDetailTip">
+                <div class="photo-detail-action" id="photoDetailTip" title="收藏">
+                  <!-- 点赞旁的收藏键（五角星；王总 2026-08-13：原时钟打赏键改为收藏键） -->
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                   </svg>
-                  <span class="photo-detail-action-count" id="photoDetailTipCount">6</span>
+                  <span class="photo-detail-action-count" id="photoDetailTipCount">0</span>
                 </div>
                 <div class="photo-detail-action" id="photoDetailComment">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -7902,7 +7912,9 @@
       photoDetailComments.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);font-size:13px;padding:20px;">暂无评论</div>';
         return;
     }
-    photoDetailComments.innerHTML = photo.comments.map(c => `
+    // 最新评论在最上面（倒序渲染；本地模拟数组正序追加，后端倒序返回）
+    const list = Array.isArray(photo.comments) ? photo.comments.slice().reverse() : [];
+    photoDetailComments.innerHTML = list.map(c => `
       <div class="photo-detail-comment">
         <div class="photo-detail-comment-avatar" style="background:${c.avatar}"></div>
         <div class="photo-detail-comment-body">
@@ -8086,16 +8098,27 @@
   });
 
   // 打赏
+  // 点赞旁的收藏键（五角星；王总 2026-08-13：原打赏键改收藏键）
   photoDetailTip.addEventListener('click', () => {
     if (!currentPhotoDetail) return;
     const { photo, coord } = currentPhotoDetail;
-    photo.tipped = !photo.tipped;
-    photo.tips += photo.tipped ? 1 : -1;
-    photoDetailTip.classList.toggle('tipped', photo.tipped);
-    photoDetailTipCount.textContent = photo.tips;
-    showToast(photo.tipped ? '💰 打赏成功！' : '已取消打赏');
-    // 登录态：同步到后端（乐观更新，失败回滚，交互动画不变）
-    syncPhotoTip(photo);
+    photo.collected = !photo.collected;
+    photoDetailTip.classList.toggle('collected', photo.collected);
+    if (photo.collected) {
+      // 有真实坐标（灵感/探索）→ 同步红色坐标收藏；本地照片（无 id）仅记录状态
+      if (coord && coord.id) { try { saveCoordAsRedMarker(coord); } catch (e) {} }
+      showToast('⭐ 已收藏', 'success', 2000);
+    } else {
+      if (coord && coord.id) {
+        try {
+          const existing = savedRedMarkers.find(m => m.sourceCoordId === coord.id);
+          if (existing) removeSavedMarker(existing.id);
+        } catch (e) {}
+      }
+      showToast('已取消收藏');
+    }
+    // 登录态：同步到后端（乐观更新，失败回滚）
+    if (typeof syncPhotoCollect === 'function') syncPhotoCollect(photo, coord);
   });
 
   // 评论
@@ -8775,23 +8798,24 @@
 
 
   // 图片详情页收藏 → 生成持久红色坐标
+  // 右上角关注键（王总 2026-08-13：原收藏键改关注键）
   photoDetailCollect.addEventListener('click', () => {
     if (!currentPhotoDetail) return;
-    const { photo, coord } = currentPhotoDetail;
-    photo.collected = !photo.collected;
-
-    if (photo.collected) {
-      saveCoordAsRedMarker(coord);
-      showToast('⭐ 已收藏为红色坐标', 'success', 2500);
-      photoDetailCollect.classList.add('collected');
+    const { photo } = currentPhotoDetail;
+    photo.followed = !photo.followed;
+    photoDetailCollect.classList.toggle('followed', photo.followed);
+    const name = photo.author || '@匿名';
+    if (photo.followed) {
+      showToast('✅ 已关注 ' + name, 'success', 2000);
     } else {
-      const existing = savedRedMarkers.find(m => m.sourceCoordId === coord.id);
-      if (existing) removeSavedMarker(existing.id);
-      showToast('已取消收藏');
-      photoDetailCollect.classList.remove('collected');
+      showToast('已取消关注');
     }
-    // 登录态：同步到后端（乐观更新，失败回滚，交互动画不变）
-    syncPhotoCollect(photo, coord);
+    // 登录态：有作者后端 id 时同步关注（/users/{id}/follow）
+    if (photo.followed && photo.authorId && typeof MemoAPI !== 'undefined' && MemoAPI.isLoggedIn()) {
+      MemoAPI.post('/users/' + encodeURIComponent(photo.authorId) + '/follow', {}).catch(function(e) {
+        console.warn('[follow]', e && e.message);
+      });
+    }
   });
 
   // 初始化
