@@ -5975,20 +5975,24 @@
       var file = input.files[0];
       if (!file) { document.body.removeChild(input); return; }
 
-      // 生成缩略图
+      // 生成缩略图（网格用 200px）+ 大图（详情用 1280px）——王总反馈详情照片模糊后改进（2026-08-13）
       var getThumbnail = new Promise(function(resolve) {
         var reader = new FileReader();
         reader.onload = function(e) {
           var img = new Image();
           img.onload = function() {
-            var canvas = document.createElement('canvas');
-            var maxSize = 200;
-            var scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', 0.6));
+            function makeCanvas(maxSize, quality) {
+              var canvas = document.createElement('canvas');
+              var scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+              canvas.width = Math.max(1, Math.round(img.width * scale));
+              canvas.height = Math.max(1, Math.round(img.height * scale));
+              canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+              return canvas.toDataURL('image/jpeg', quality);
+            }
+            resolve({
+              thumb: makeCanvas(200, 0.6),          // 网格缩略图
+              large: makeCanvas(1280, 0.75)          // 详情大图
+            });
           };
           img.src = e.target.result;
         };
@@ -6054,7 +6058,9 @@
       hour: hour,
       lng: +lng.toFixed(6),
       lat: +lat.toFixed(6),
-      photoDataUrl: thumbnail
+      // thumbnail 兼容两种：字符串（旧版单缩略图）或 {thumb, large}（双图，详情大图用）
+      photoDataUrl: typeof thumbnail === 'string' ? thumbnail : (thumbnail ? thumbnail.thumb : ''),
+      photoDataUrlLarge: (typeof thumbnail === 'object' && thumbnail) ? thumbnail.large : ''
     };
     // 标记近似定位来源（GPS 失败回退时写入；归类逻辑忽略该字段，仅作数据溯源）
     if (gpsSource) photoData.gpsSource = gpsSource;
@@ -7895,7 +7901,8 @@
       likes: 0, tips: 0, liked: false, tipped: false, collected: false,
       comments: [],
       uploadTime: Math.floor(Date.now() / 1000),
-      url: photoEntry.url || '',
+      // 详情显示优先大图（urlLarge），避免 200px 缩略图放大模糊（王总反馈）
+      url: photoEntry.urlLarge || photoEntry.url || '',
       author: '@我',
       authorAvatar: userMode === 'work' ? '#5E35B1' : '#F0A040',
       _local: true
@@ -9086,9 +9093,14 @@
         if (!photoData[targetMarker.title][hourKey]) photoData[targetMarker.title][hourKey] = [];
         // 真实照片优先：photoDataUrl 非空 → 写入 {url}，弹窗走 background-image cover 分支显示真实照片；
         // 无 photoDataUrl → 保持原 {color, timeStr} 色块（行为与旧版一致）
-        // 注意：条目带 id（pendingPhotos 的 photo.id），供"已上传判定（backendId 映射）"与单张上传使用
+        // 注意：条目带 id（pendingPhotos 的 photo.id），供"已上传判定（backendId 映射）"与单张上传使用；
+        // urlLarge 为详情大图（详情显示用，避免 200px 缩略图放大模糊）
         if (photo.photoDataUrl) {
-          photoData[targetMarker.title][hourKey].unshift({ id: photo.id, url: photo.photoDataUrl, timeStr: rt.timeStr });
+          photoData[targetMarker.title][hourKey].unshift({
+            id: photo.id, url: photo.photoDataUrl,
+            urlLarge: photo.photoDataUrlLarge || photo.photoDataUrl,
+            timeStr: rt.timeStr
+          });
         } else {
           photoData[targetMarker.title][hourKey].unshift({ id: photo.id, color: photo.color, timeStr: rt.timeStr });
         }
