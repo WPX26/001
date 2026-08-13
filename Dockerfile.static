@@ -1,12 +1,13 @@
 # ============================================================
-# 地图相册平台 - 静态前端容器镜像（9 个 HTML + api.js，nginx 托管）
+# 地图相册平台 - 静态前端容器镜像（9 个 HTML + api.js + lib/，nginx 托管）
 #
 # 构建命令（在项目根目录执行）：
 #   docker build -f Dockerfile.static -t <镜像仓库>/memomap-frontend:1.0 .
 #
 # 说明：
 #   - 页面之间互相跳转均为相对路径，nginx 默认配置即可
-#   - 页面唯一本地引用的脚本是 api.js，其余资源（leaflet/dexie）走 CDN
+#   - 本地引用的脚本：api.js + lib/（leaflet/dexie 已本地化，见 memo-home.html 等
+#     页面的 src="lib/..." 引用；必须随镜像打包，否则线上 404 导致页面脚本中断）
 #   - server.py 是本地开发用的 Python 静态服务器，nginx 场景不需要，不打包
 #   - api.js 默认后端地址 http://localhost:3000/api/v1 由 nginx sub_filter
 #     改写成同源 /api/v1，再由 nginx 反向代理到后端应用（详见 nginx.conf），
@@ -22,6 +23,9 @@ COPY album-prototype.html camera-prototype.html connect-prototype.html \
      /usr/share/nginx/html/
 
 COPY api.js /usr/share/nginx/html/
+
+# 本地化依赖库（leaflet/dexie/images）——页面按 lib/ 相对路径引用，缺失会 404
+COPY lib /usr/share/nginx/html/lib/
 
 # PWA 手机网站（manifest + 应用图标）
 COPY manifest.json icon-192.png icon-512.png /usr/share/nginx/html/
