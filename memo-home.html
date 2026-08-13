@@ -2449,6 +2449,8 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    /* 中间空缺区域深棕色填充（王总 2026-08-13：图片与底部信息区之间） */
+    background: #2A1810;
   }
   .photo-detail-content::-webkit-scrollbar { width: 3rem; }
   .photo-detail-content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 2rem; }
@@ -2460,6 +2462,8 @@
   .photo-detail-info {
     background: #141010;
     padding: 16rem;
+    /* 信息区（含评论区/输入框）固定页面底部（王总 2026-08-13） */
+    margin-top: auto;
   }
   .photo-detail-author {
     display: flex;
