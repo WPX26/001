@@ -539,25 +539,7 @@
     background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.15));
     pointer-events: none;
   }
-  /* 勾选标记 */
-  .upload-photo-check {
-    position: absolute;
-    top: 4rem; right: 4rem;
-    width: 20rem; height: 20rem;
-    border-radius: 50%;
-    border: 2rem solid rgba(255, 255, 255, 0.8);
-    background: rgba(0, 0, 0, 0.3);
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s;
-    z-index: 2;
-  }
-  .upload-photo-check svg { width: 12rem; height: 12rem; color: white; display: none; }
-  .upload-photo.selected .upload-photo-check {
-    background: #F0A040;
-    border-color: #F0A040;
-    box-shadow: 0 2rem 8rem rgba(240, 160, 64, 0.5);
-  }
-  .upload-photo.selected .upload-photo-check svg { display: block; }
+  /* 照片选中态（王总要求去掉照片上的勾选对号，2026-08-13；选中反馈保留为橙色边框光晕） */
   .upload-photo.selected {
     box-shadow: 0 0 0 2rem #F0A040, 0 4rem 12rem rgba(240, 160, 64, 0.3);
   }
@@ -1092,13 +1074,6 @@
     z-index: 2;
     transition: all 0.2s ease;
   }
-  .tg-photo.selected .upload-photo-check {
-    background: #F0A040;
-    border-color: #F0A040;
-    color: white;
-    animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
-  .upload-photo-check svg { width: 12rem; height: 12rem; }
   .tg-photo.selected::before {
     content: '';
     position: absolute;
@@ -5031,11 +5006,6 @@
         }
         return `<div class="tg-photo" style="${bgStyle}">
            ${timeTag}
-           <div class="tg-photo-check">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-               <polyline points="20 6 9 17 4 12"/>
-             </svg>
-           </div>
          </div>`;
       }).join('');
 
