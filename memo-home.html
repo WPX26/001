@@ -3133,7 +3133,7 @@
     color: #F5DFC0;
     letter-spacing: 2.5rem;
     text-shadow: 0 0 22rem rgba(255, 184, 77, 0.35);
-    opacity: 0;
+    /* opacity 基础 1：动画失败（如 WebView 兼容）时文字仍可见，不永远隐形 */
     animation: splashPopFlip 1s 1.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
   .splash-welcome {
@@ -3146,7 +3146,6 @@
     color: rgba(245, 223, 192, 0.85);
     white-space: nowrap;
     letter-spacing: 1.5rem;
-    opacity: 0;
     animation: splashPop 1.6s 1.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
   body.splash-active .interaction-hint { display: none; }
@@ -3161,10 +3160,10 @@
     100% { top: 33%; opacity: 1; }
   }
   @keyframes splashSunRiseScale {
-    0%, 65% { transform: scale(2.7); }
-    69%     { transform: scale(1.2); }
-    72%     { transform: scale(1.1, 0.86); }
-    78%     { transform: scale(0.96, 1.06); }
+    0%, 65% { transform: scale(1.8); }
+    69%     { transform: scale(1.15); }
+    72%     { transform: scale(1.08, 0.88); }
+    78%     { transform: scale(0.97, 1.05); }
     84%     { transform: scale(1.02, 0.98); }
     100%    { transform: scale(1); }
   }
