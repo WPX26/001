@@ -7872,6 +7872,18 @@
     if (!photo) return;
     currentPhotoDetail = { photo, coord };
 
+    // 复位状态（王总 2026-08-13：灵感/探索模式保持上一版完整互动界面，不被"上传"残留污染）
+    // 防止之前打开过"自己未上传照片"（显示上传按钮）后残留
+    photoDetailUploadArea.style.display = 'none';
+    photoDetailLike.style.display = '';
+    photoDetailTip.style.display = '';
+    photoDetailComment.style.display = '';
+    photoDetailCollect.style.display = '';
+    document.getElementById('photoDetailCommentInput').style.display = '';
+    document.getElementById('photoDetailCommentSend').style.display = '';
+    document.getElementById('photoDetailComments').style.display = '';
+    photoDetail.classList.remove('fullscreen');
+
     // 渲染图片
     photoDetailImage.style.background = `linear-gradient(135deg, ${photo.color}, ${adjustColor(photo.color, -20)})`;
 
