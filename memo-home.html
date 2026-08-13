@@ -3172,16 +3172,16 @@
     60%  { opacity: 1; transform: translateX(-50%) scale(1.08); }
     100% { opacity: 1; transform: translateX(-50%) scale(1); }
   }
-  /* 工一堂被棋子震出：原地绕横轴翻滚 3 圈（严格不乱动，动态模糊）→ 垂直落下由大变小 → 落定回弹（王总 2026-08-13） */
+  /* 工一堂被棋子震出：原地绕横轴翻滚 3 圈（只轻跳一点、无模糊）→ 落下由大变小 → 落定回弹（王总 2026-08-13） */
   @keyframes splashPopFlip {
-    0%   { opacity: 0; transform: perspective(375rem) translateX(-50%) translateY(-40rem) scale(2.3) rotateX(0deg);    filter: blur(6rem); }
-    10%  { opacity: 1; transform: perspective(375rem) translateX(-50%) translateY(-40rem) scale(2.3) rotateX(120deg);  filter: blur(6rem); }
-    35%  { transform: perspective(375rem) translateX(-50%) translateY(-40rem) scale(2.3) rotateX(720deg); filter: blur(6rem); }
-    50%  { transform: perspective(375rem) translateX(-50%) translateY(-40rem) scale(2.3) rotateX(1080deg);  filter: blur(4rem); }
-    62%  { transform: perspective(375rem) translateX(-50%) translateY(-22rem) scale(1.7) rotateX(1080deg); filter: blur(2rem); }
-    78%  { transform: perspective(375rem) translateX(-50%) translateY(0) scale(1.1) rotateX(1080deg);  filter: blur(0); }
-    88%  { transform: perspective(375rem) translateX(-50%) translateY(0) scale(0.96) rotateX(1080deg); filter: blur(0); }
-    100% { transform: perspective(375rem) translateX(-50%) translateY(0) scale(1) rotateX(1080deg);  filter: blur(0); }
+    0%   { opacity: 0; transform: perspective(375rem) translateX(-50%) translateY(-14rem) scale(2.3) rotateX(0deg); }
+    10%  { opacity: 1; transform: perspective(375rem) translateX(-50%) translateY(-14rem) scale(2.3) rotateX(120deg); }
+    35%  { transform: perspective(375rem) translateX(-50%) translateY(-14rem) scale(2.3) rotateX(720deg); }
+    50%  { transform: perspective(375rem) translateX(-50%) translateY(-14rem) scale(2.3) rotateX(1080deg); }
+    62%  { transform: perspective(375rem) translateX(-50%) translateY(-7rem) scale(1.7) rotateX(1080deg); }
+    78%  { transform: perspective(375rem) translateX(-50%) translateY(0) scale(1.1) rotateX(1080deg); }
+    88%  { transform: perspective(375rem) translateX(-50%) translateY(0) scale(0.96) rotateX(1080deg); }
+    100% { transform: perspective(375rem) translateX(-50%) translateY(0) scale(1) rotateX(1080deg); }
   }
   /* 淡出进入首页 */
   .splash.done {
