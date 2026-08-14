@@ -963,6 +963,280 @@
     z-index: 4;
   }
   .myhome-nav .sub-title { font-size: 15rem; }
+  /* 我的主页：右上编辑资料按钮 */
+  .myhome-edit-btn {
+    position: absolute;
+    top: 14rem; right: 16rem;
+    width: 36rem; height: 36rem;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(10rem);
+    border: 1rem solid rgba(255, 255, 255, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    z-index: 5;
+    transition: all 0.2s;
+  }
+  .myhome-edit-btn:hover { background: rgba(240, 160, 64, 0.8); border-color: transparent; }
+  .myhome-edit-btn:active { transform: scale(0.92); }
+  .myhome-edit-btn svg { width: 17rem; height: 17rem; }
+
+  /* ========== 编辑资料视图 ========== */
+  .edit-profile-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16rem 16rem 96rem;
+    background: #0a0a0a;
+  }
+  .edit-avatar-row {
+    display: flex;
+    align-items: center;
+    gap: 14rem;
+    margin-bottom: 16rem;
+  }
+  .edit-avatar {
+    width: 64rem; height: 64rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: 3rem solid rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+  }
+  .edit-avatar svg { width: 32rem; height: 32rem; color: white; }
+  .edit-avatar-tip { font-size: 12rem; color: rgba(245, 223, 192, 0.7); line-height: 1.4; }
+  .edit-card { padding: 6rem 16rem; }
+  .edit-field { padding: 12rem 0; }
+  .edit-label {
+    display: block;
+    font-size: 13rem;
+    font-weight: 600;
+    color: rgba(245, 223, 192, 0.85);
+    margin-bottom: 8rem;
+  }
+  .edit-field .input-field {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12rem 14rem;
+    background: rgba(28, 15, 8, 0.55);
+    border: 1.5rem solid rgba(212, 165, 116, 0.35);
+    border-radius: 11rem;
+    color: #F5DFC0;
+    font-size: 14rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .edit-field .input-field::placeholder { color: rgba(245, 223, 192, 0.45); }
+  .edit-field .input-field:focus {
+    border-color: rgba(240, 160, 64, 0.8);
+    box-shadow: 0 0 0 4rem rgba(240, 160, 64, 0.15);
+  }
+  .edit-textarea { min-height: 90rem; resize: none; line-height: 1.5; }
+  .edit-save-btn {
+    width: 100%;
+    height: 46rem;
+    margin-top: 24rem;
+    border: none;
+    border-radius: 14rem;
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    color: white;
+    font-size: 15rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4rem 14rem rgba(240, 160, 64, 0.35);
+    transition: transform 0.2s;
+  }
+  .edit-save-btn:hover { transform: scale(0.98); }
+  .edit-save-btn:active { transform: scale(0.95); }
+
+  /* ========== 关注/粉丝列表视图 ========== */
+  .follow-tab {
+    display: flex;
+    margin: 12rem 16rem 0;
+    padding: 4rem;
+    background: rgba(212, 165, 116, 0.3);
+    border-radius: 10rem;
+    flex-shrink: 0;
+  }
+  .follow-tab-item {
+    flex: 1;
+    text-align: center;
+    padding: 9rem 0;
+    font-size: 13rem;
+    font-weight: 600;
+    color: rgba(245, 223, 192, 0.6);
+    border-radius: 8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .follow-tab-item.active {
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    color: white;
+    box-shadow: 0 2rem 8rem rgba(240, 160, 64, 0.35);
+  }
+  .follow-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8rem 16rem 96rem;
+    background: #0a0a0a;
+  }
+  .follow-scroll::-webkit-scrollbar { width: 3rem; }
+  .follow-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
+  .follow-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12rem;
+    padding: 12rem 8rem;
+    border-bottom: 1rem solid rgba(212, 165, 116, 0.12);
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 10rem;
+  }
+  .follow-list-item:last-child { border-bottom: none; }
+  .follow-list-item:hover { background: rgba(212, 165, 116, 0.06); }
+  .follow-list-avatar {
+    width: 40rem; height: 40rem;
+    border-radius: 50%;
+    border: 2rem solid rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .follow-list-meta { flex: 1; min-width: 0; }
+  .follow-list-name {
+    font-size: 14rem; font-weight: 600;
+    color: #F5DFC0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .follow-list-bio {
+    font-size: 11rem; color: rgba(245, 223, 192, 0.65);
+    margin-top: 3rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .follow-list-btn {
+    display: flex;
+    align-items: center;
+    gap: 5rem;
+    padding: 6rem 13rem;
+    border-radius: 16rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 12rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .follow-list-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.5); }
+  .follow-list-btn:active { transform: scale(0.95); }
+  .follow-list-btn.followed { background: linear-gradient(135deg, #757575 0%, #424242 100%); box-shadow: 0 3rem 10rem rgba(0, 0, 0, 0.3); }
+  .follow-list-empty {
+    text-align: center;
+    padding: 60rem 20rem;
+    color: rgba(245, 223, 192, 0.5);
+    font-size: 13rem;
+  }
+
+  /* ========== 他人主页浮层（关注/粉丝列表进入，与 memo-home 同款暖色系） ========== */
+  .peer-profile {
+    position: absolute;
+    inset: 0;
+    background: #0A0A0A;
+    z-index: 85;
+    display: none;
+    flex-direction: column;
+    border-radius: 30rem;
+    overflow: hidden;
+  }
+  .peer-profile.show { display: flex; }
+  .peer-profile-header {
+    position: relative;
+    padding: 40rem 16rem 16rem;
+    background: linear-gradient(135deg, #2b1508 0%, #1c0f08 100%);
+    flex-shrink: 0;
+  }
+  .peer-profile-close {
+    position: absolute;
+    top: 12rem; right: 12rem;
+    width: 32rem; height: 32rem;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10rem);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s;
+  }
+  .peer-profile-close:hover { background: rgba(0, 0, 0, 0.7); }
+  .peer-profile-close svg { width: 18rem; height: 18rem; color: white; }
+  .peer-profile-info { display: flex; align-items: center; gap: 14rem; }
+  .peer-profile-avatar {
+    width: 60rem; height: 60rem;
+    border-radius: 50%;
+    border: 3rem solid rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .peer-profile-meta { flex: 1; min-width: 0; }
+  .peer-profile-name {
+    font-size: 18rem; font-weight: 700; color: #F5DFC0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .peer-profile-bio {
+    font-size: 12rem; color: rgba(245, 223, 192, 0.75);
+    margin-top: 4rem; line-height: 1.4;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .peer-profile-stats {
+    display: flex;
+    gap: 24rem;
+    margin-top: 14rem;
+    padding-top: 14rem;
+    border-top: 1rem solid rgba(212, 165, 116, 0.2);
+  }
+  .peer-profile-stat { text-align: center; }
+  .peer-profile-stat-value {
+    font-size: 16rem; font-weight: 700; color: #F5DFC0;
+  }
+  .peer-profile-stat-label {
+    font-size: 11rem; color: rgba(245, 223, 192, 0.65); margin-top: 2rem;
+  }
+  .peer-profile-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12rem 16rem;
+  }
+  .peer-profile-btn {
+    display: flex;
+    align-items: center;
+    gap: 5rem;
+    padding: 7rem 14rem;
+    border-radius: 18rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 12rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .peer-profile-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.5); }
+  .peer-profile-btn:active { transform: scale(0.95); }
+  .peer-profile-btn svg { width: 14rem; height: 14rem; }
+  .peer-profile-btn.followed { background: linear-gradient(135deg, #757575 0%, #424242 100%); box-shadow: 0 3rem 10rem rgba(0, 0, 0, 0.3); }
+  .peer-profile-empty { text-align: center; padding: 60rem 20rem; color: rgba(245, 223, 192, 0.65); font-size: 13rem; }
   .myhome-hero {
     position: relative;
     height: 240rem;
@@ -1520,6 +1794,38 @@
                     </svg>
                   </div>
                 </div>
+                <div class="menu-item" id="myFollowingEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">我的关注</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <span class="menu-badge" id="myFollowingBadge">0</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="menu-item" id="myFollowersEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">我的粉丝</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <span class="menu-badge" id="myFollowersBadge">0</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1658,6 +1964,11 @@
                 </div>
                 <div class="sub-title">我的主页</div>
               </div>
+              <button class="myhome-edit-btn" id="myHomeEditBtn" title="编辑资料">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
               <div class="myhome-content">
               <div class="myhome-avatar" id="myHomeAvatar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1721,6 +2032,116 @@
                 <!-- 由JS动态生成 -->
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- 编辑资料视图 -->
+        <div class="view" id="viewEditProfile">
+          <div class="sub-header">
+            <div class="sub-back" id="editProfileBack">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </div>
+            <div class="sub-title">编辑资料</div>
+            <div style="width: 32rem;"></div>
+          </div>
+          <div class="edit-profile-scroll">
+            <div class="edit-avatar-row">
+              <div class="edit-avatar" id="editAvatarPreview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <div class="edit-avatar-tip">头像显示为图片链接，留空则保持当前头像</div>
+            </div>
+            <div class="menu-card edit-card">
+              <div class="edit-field">
+                <label class="edit-label">昵称</label>
+                <input class="input-field" id="editNickname" maxlength="20" placeholder="请输入昵称（20 字以内）" />
+              </div>
+              <div class="edit-field">
+                <label class="edit-label">简介</label>
+                <textarea class="input-field edit-textarea" id="editBio" maxlength="200" placeholder="介绍一下自己（200 字以内）"></textarea>
+              </div>
+              <div class="edit-field">
+                <label class="edit-label">头像</label>
+                <input class="input-field" id="editAvatarUrl" placeholder="粘贴图片链接，留空保持当前" />
+              </div>
+            </div>
+            <button class="edit-save-btn" id="editSaveBtn">保存</button>
+          </div>
+        </div>
+
+        <!-- 关注/粉丝列表视图 -->
+        <div class="view" id="viewFollowList">
+          <div class="sub-header">
+            <div class="sub-back" id="followListBack">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </div>
+            <div class="sub-title">我的关注</div>
+            <div style="width: 32rem;"></div>
+          </div>
+          <div class="follow-tab">
+            <div class="follow-tab-item active" id="followTabFollowing">关注</div>
+            <div class="follow-tab-item" id="followTabFollowers">粉丝</div>
+          </div>
+          <div class="follow-scroll" id="followListItems">
+            <!-- 列表项由JS动态生成 -->
+          </div>
+        </div>
+
+        <!-- 他人主页浮层（关注/粉丝列表点击进入） -->
+        <div class="peer-profile" id="peerProfile">
+          <div class="peer-profile-header">
+            <div class="peer-profile-close" id="peerProfileClose">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </div>
+            <div class="peer-profile-info">
+              <div class="peer-profile-avatar" id="peerProfileAvatar"></div>
+              <div class="peer-profile-meta">
+                <div class="peer-profile-name" id="peerProfileName">加载中...</div>
+                <div class="peer-profile-bio" id="peerProfileBio">加载中...</div>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                  <div class="peer-profile-btn" id="peerProfileFollowBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+                    </svg>
+                    <span id="peerProfileFollowText">关注</span>
+                  </div>
+                  <div class="peer-profile-btn" id="peerProfileMessageBtn" title="私信">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>私信</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="peer-profile-stats" style="justify-content: space-around;">
+              <div class="peer-profile-stat">
+                <div class="peer-profile-stat-value" id="peerProfileCoordCount">0</div>
+                <div class="peer-profile-stat-label">坐标点</div>
+              </div>
+              <div class="peer-profile-stat">
+                <div class="peer-profile-stat-value" id="peerProfilePhotoCount">0</div>
+                <div class="peer-profile-stat-label">照片</div>
+              </div>
+              <div class="peer-profile-stat">
+                <div class="peer-profile-stat-value" id="peerProfileLikeCount">0</div>
+                <div class="peer-profile-stat-label">获赞</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 20rem; margin-top: 12rem; padding-top: 12rem; border-top: 1rem solid rgba(212,165,116,0.2);">
+              <span style="font-size:12rem; color:rgba(245,223,192,0.6);">粉丝 <b id="peerProfileFollowerCount" style="color:#F5DFC0;">0</b></span>
+            </div>
+          </div>
+          <div class="peer-profile-list" id="peerProfileCoords">
+            <!-- 作品卡片由JS动态生成 -->
           </div>
         </div>
 
@@ -1933,12 +2354,16 @@
   const viewDeleted = document.getElementById('viewDeleted');
   const viewMember = document.getElementById('viewMember');
   const viewMyHome = document.getElementById('viewMyHome');
+  const viewEditProfile = document.getElementById('viewEditProfile');
+  const viewFollowList = document.getElementById('viewFollowList');
 
   function showView(view) {
     viewProfile.classList.toggle('active', view === 'profile');
     viewDeleted.classList.toggle('active', view === 'deleted');
     viewMember.classList.toggle('active', view === 'member');
     viewMyHome.classList.toggle('active', view === 'myhome');
+    viewEditProfile.classList.toggle('active', view === 'editprofile');
+    viewFollowList.classList.toggle('active', view === 'followlist');
   }
 
   // 删除的坐标点数据
@@ -2253,6 +2678,291 @@
     showView('profile');
   });
 
+  // ========== 编辑资料（我的主页右上「编辑」→ PUT /users/me） ==========
+  const editProfileBack = document.getElementById('editProfileBack');
+  const editNickname = document.getElementById('editNickname');
+  const editBio = document.getElementById('editBio');
+  const editAvatarUrl = document.getElementById('editAvatarUrl');
+  const editAvatarPreview = document.getElementById('editAvatarPreview');
+
+  document.getElementById('myHomeEditBtn').addEventListener('click', () => {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
+      showToast('⚠️ 请先登录');
+      return;
+    }
+    const me = serverProfile || {};
+    editNickname.value = me.nickname || '';
+    editBio.value = me.bio || '';
+    editAvatarUrl.value = me.avatar || '';
+    editAvatarPreview.style.background = me.avatar ? 'url("' + me.avatar + '") center/cover no-repeat' : '';
+    showView('editprofile');
+  });
+
+  editProfileBack.addEventListener('click', () => showView('myhome'));
+
+  // 头像预览：粘贴链接即时预览
+  editAvatarUrl.addEventListener('input', () => {
+    const url = editAvatarUrl.value.trim();
+    editAvatarPreview.style.background = url ? 'url("' + url + '") center/cover no-repeat' : '';
+  });
+
+  document.getElementById('editSaveBtn').addEventListener('click', () => {
+    const nickname = editNickname.value.trim();
+    if (!nickname) {
+      showToast('⚠️ 昵称不能为空');
+      return;
+    }
+    const payload = { nickname, bio: editBio.value.trim() };
+    if (editAvatarUrl.value.trim() !== ((serverProfile || {}).avatar || '')) {
+      payload.avatar = editAvatarUrl.value.trim();
+    }
+    const btn = document.getElementById('editSaveBtn');
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    MemoAPI.put('/users/me', payload).then(function () {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      showToast('资料已保存');
+      loadUserProfile(); // 重新拉取，刷新主页/头部全部展示
+      showView('myhome');
+    }).catch(function () {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      showToast('⚠️ 保存失败，请重试');
+    });
+  });
+
+  // ========== 关注/粉丝列表（菜单入口 → GET /users/me/following|followers） ==========
+  const followListBack = document.getElementById('followListBack');
+  const followTabFollowing = document.getElementById('followTabFollowing');
+  const followTabFollowers = document.getElementById('followTabFollowers');
+  const followListItems = document.getElementById('followListItems');
+  let followListMode = 'following';
+  let followListUsers = null;
+  let followListMyFollowIds = null;
+
+  document.getElementById('myFollowingEntry').addEventListener('click', () => {
+    openFollowView('following');
+  });
+  document.getElementById('myFollowersEntry').addEventListener('click', () => {
+    openFollowView('followers');
+  });
+  followListBack.addEventListener('click', () => showView('profile'));
+  followTabFollowing.addEventListener('click', () => openFollowView('following'));
+  followTabFollowers.addEventListener('click', () => openFollowView('followers'));
+
+  function openFollowView(mode) {
+    followListMode = mode;
+    followTabFollowing.classList.toggle('active', mode === 'following');
+    followTabFollowers.classList.toggle('active', mode === 'followers');
+    document.querySelector('#viewFollowList .sub-title').textContent = mode === 'following' ? '我的关注' : '我的粉丝';
+    followListUsers = null;
+    followListItems.innerHTML = '<div class="follow-list-empty">加载中...</div>';
+    showView('followlist');
+    refreshFollowBadges();
+    const me = (typeof MemoAPI !== 'undefined' && MemoAPI.isLoggedIn()) ? MemoAPI.getUser() : null;
+    if (!me || !me.id) {
+      followListItems.innerHTML = '<div class="follow-list-empty">请先登录</div>';
+      return;
+    }
+    // 我的关注集合（渲染每个按钮的真实状态）
+    followListMyFollowIds = null;
+    MemoAPI.get('/users/me/following?page=1&pageSize=100').then(function (d) {
+      followListMyFollowIds = new Set((d && d.list || []).map(u => u.id));
+      renderFollowItems();
+    }).catch(function () {
+      followListMyFollowIds = new Set();
+      renderFollowItems();
+    });
+    MemoAPI.get('/users/me/' + mode + '?page=1&pageSize=50').then(function (data) {
+      followListUsers = (data && data.list) || [];
+      renderFollowItems();
+    }).catch(function () {
+      followListUsers = [];
+      renderFollowItems();
+    });
+  }
+
+  function renderFollowItems() {
+    if (!followListUsers) return;
+    if (!followListUsers.length) {
+      followListItems.innerHTML = '<div class="follow-list-empty">' + (followListMode === 'following' ? '还没有关注任何人' : '还没有粉丝') + '</div>';
+      return;
+    }
+    followListItems.innerHTML = followListUsers.map(function (u) {
+      const avatarStyle = u.avatar
+        ? 'background:url(\'' + u.avatar + '\') center/cover no-repeat'
+        : 'background:' + hashColor(u.nickname);
+      const followed = followListMyFollowIds && followListMyFollowIds.has(u.id);
+      return `
+        <div class="follow-list-item" data-uid="${u.id}" data-nick="${u.nickname}" data-avatar="${u.avatar || ''}">
+          <div class="follow-list-avatar" style="${avatarStyle}"></div>
+          <div class="follow-list-meta">
+            <div class="follow-list-name">${u.nickname}${u.isPhotographer ? ' <span style="color:#E89020; font-size:11rem;">摄影师</span>' : ''}</div>
+            <div class="follow-list-bio">${u.bio || '这个人很懒，还没有写简介'}</div>
+          </div>
+          <div class="follow-list-btn${followed ? ' followed' : ''}">
+            <span>${followed ? '已关注' : '关注'}</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    followListItems.querySelectorAll('.follow-list-item').forEach(function (el) {
+      const uid = el.dataset.uid, nick = el.dataset.nick, avatar = el.dataset.avatar;
+      // 点击条目 → 他人主页浮层
+      el.addEventListener('click', function (ev) {
+        if (ev.target.closest('.follow-list-btn')) return;
+        openPeerProfile(uid, nick, avatar);
+      });
+      // 关注按钮：乐观更新 → 后端确认/回滚
+      const btn = el.querySelector('.follow-list-btn');
+      btn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        const was = btn.classList.contains('followed');
+        btn.classList.toggle('followed', !was);
+        btn.querySelector('span').textContent = was ? '关注' : '已关注';
+        (was ? MemoAPI.del('/users/' + uid + '/follow') : MemoAPI.post('/users/' + uid + '/follow', {}))
+          .then(function (res) {
+            if (res && res.isFollowed !== undefined) {
+              const real = res.isFollowed;
+              btn.classList.toggle('followed', real);
+              btn.querySelector('span').textContent = real ? '已关注' : '关注';
+              if (followListMyFollowIds) {
+                if (real) followListMyFollowIds.add(uid); else followListMyFollowIds.delete(uid);
+              }
+              showToast(real ? '已关注' : '已取消关注');
+              refreshFollowBadges();
+            }
+          })
+          .catch(function () {
+            btn.classList.toggle('followed', was);
+            btn.querySelector('span').textContent = was ? '已关注' : '关注';
+            showToast('⚠️ 操作失败，请重试');
+          });
+      });
+    });
+  }
+
+  // 徽章数字（菜单「我的关注/我的粉丝」右侧）
+  function refreshFollowBadges() {
+    const fEl = document.getElementById('myFollowingBadge');
+    const rEl = document.getElementById('myFollowersBadge');
+    if (serverProfile && serverProfile.stats) {
+      if (fEl) fEl.textContent = serverProfile.stats.followingCount || 0;
+      if (rEl) rEl.textContent = serverProfile.stats.followerCount || 0;
+    }
+  }
+
+  // 名字 → 固定配色（无头像兜底色块，全暖色系与暗金体系一致，Kimi 审核后暖化）
+  function hashColor(str) {
+    const palette = ['#B06A4A', '#8B5E3C', '#A98A5F', '#7C5A3A', '#C0824E', '#95613F'];
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 997;
+    return palette[h % palette.length];
+  }
+
+  // ========== 他人主页浮层（关注/粉丝列表点击进入，与 memo-home 同款暖色系） ==========
+  const peerProfile = document.getElementById('peerProfile');
+  const peerProfileAvatar = document.getElementById('peerProfileAvatar');
+  const peerProfileName = document.getElementById('peerProfileName');
+  const peerProfileBio = document.getElementById('peerProfileBio');
+  const peerProfileCoordCount = document.getElementById('peerProfileCoordCount');
+  const peerProfilePhotoCount = document.getElementById('peerProfilePhotoCount');
+  const peerProfileLikeCount = document.getElementById('peerProfileLikeCount');
+  const peerProfileFollowerCount = document.getElementById('peerProfileFollowerCount');
+  const peerProfileCoords = document.getElementById('peerProfileCoords');
+  let currentPeer = null;
+
+  document.getElementById('peerProfileClose').addEventListener('click', () => {
+    peerProfile.classList.remove('show');
+  });
+
+  function openPeerProfile(uid, nickname, avatar) {
+    currentPeer = { id: uid, name: nickname };
+    peerProfileAvatar.style.background = avatar ? 'url("' + avatar + '") center/cover no-repeat' : hashColor(nickname);
+    peerProfileName.textContent = nickname;
+    peerProfileBio.textContent = '加载中...';
+    peerProfileCoordCount.textContent = '0';
+    peerProfilePhotoCount.textContent = '0';
+    peerProfileLikeCount.textContent = '0';
+    peerProfileFollowerCount.textContent = '0';
+    peerProfileCoords.innerHTML = '<div class="peer-profile-empty">加载中...</div>';
+    setPeerFollowBtn(false);
+    peerProfile.classList.add('show');
+
+    MemoAPI.get('/users/' + uid + '/profile').then(function (p) {
+      if (!p || !p.id) return;
+      currentPeer.name = p.nickname;
+      peerProfileName.textContent = p.nickname;
+      peerProfileBio.textContent = p.bio || '这个人很懒，还没有写简介';
+      if (p.avatar) peerProfileAvatar.style.background = 'url("' + p.avatar + '") center/cover no-repeat';
+      setPeerFollowBtn(!!p.isFollowed);
+      if (p.stats) {
+        peerProfileCoordCount.textContent = p.stats.coordCount || 0;
+        peerProfilePhotoCount.textContent = p.stats.photoCount || 0;
+        peerProfileLikeCount.textContent = p.stats.likeCount || 0;
+        peerProfileFollowerCount.textContent = p.stats.followerCount || 0;
+      }
+    }).catch(function () { /* 失败保留骨架 */ });
+
+    MemoAPI.get('/users/' + uid + '/coords?page=1&pageSize=30').then(function (data) {
+      const list = (data && data.list) || [];
+      if (!list.length) {
+        peerProfileCoords.innerHTML = '<div class="peer-profile-empty">TA 还没有发布作品</div>';
+        return;
+      }
+      let html = '';
+      list.forEach(function (c) {
+        const thumbs = (c.thumbnails || []).map(function (t) {
+          return '<div style="flex:1; height:80rem; background:url(\'' + t + '\') center/cover no-repeat; border-radius:8rem;"></div>';
+        }).join('');
+        html += `
+          <div style="background: rgba(28,15,8,0.5); border: 1rem solid rgba(212,165,116,0.3); border-radius: 14rem; padding: 12rem; margin-bottom: 12rem;">
+            <div style="display:flex; gap:8rem;">${thumbs || '<div style="flex:1; height:80rem; background:rgba(212,165,116,0.15); border-radius:8rem; display:flex; align-items:center; justify-content:center; color:rgba(245,223,192,0.5); font-size:12rem;">暂无照片</div>'}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10rem;">
+              <div style="color:#F5DFC0; font-size:13rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.title || '未命名坐标'}</div>
+              <div style="color:rgba(245,223,192,0.6); font-size:11rem; flex-shrink:0; margin-left:8rem;">❤️ ${c.likeCount || 0}</div>
+            </div>
+          </div>`;
+      });
+      peerProfileCoords.innerHTML = html;
+    }).catch(function () {
+      peerProfileCoords.innerHTML = '<div class="peer-profile-empty">加载失败，请稍后重试</div>';
+    });
+  }
+
+  function setPeerFollowBtn(followed) {
+    const btn = document.getElementById('peerProfileFollowBtn');
+    const txt = document.getElementById('peerProfileFollowText');
+    btn.classList.toggle('followed', followed);
+    txt.textContent = followed ? '已关注' : '关注';
+  }
+
+  document.getElementById('peerProfileFollowBtn').addEventListener('click', () => {
+    if (!currentPeer) return;
+    const was = document.getElementById('peerProfileFollowBtn').classList.contains('followed');
+    setPeerFollowBtn(!was);
+    const cur = parseInt(peerProfileFollowerCount.textContent, 10);
+    if (!isNaN(cur)) peerProfileFollowerCount.textContent = Math.max(0, cur + (was ? -1 : 1));
+    (was ? MemoAPI.del('/users/' + currentPeer.id + '/follow') : MemoAPI.post('/users/' + currentPeer.id + '/follow', {}))
+      .then(function (res) {
+        if (res && res.isFollowed !== undefined) {
+          setPeerFollowBtn(res.isFollowed);
+          refreshFollowBadges();
+        }
+      })
+      .catch(function () {
+        setPeerFollowBtn(was);
+        showToast('⚠️ 操作失败，请重试');
+      });
+  });
+
+  // 私信 → 消息页发起
+  document.getElementById('peerProfileMessageBtn').addEventListener('click', () => {
+    showToast('前往消息页发起私信');
+    setTimeout(() => { window.location.href = 'message-prototype.html'; }, 600);
+  });
+
   // 菜单入口
   document.getElementById('deletedMarkersEntry').addEventListener('click', () => {
     showView('deleted');
@@ -2490,6 +3200,10 @@
       if (photoEl && d.stats.photoCount != null) photoEl.textContent = d.stats.photoCount;
       const likeEl = document.getElementById('myHomeLikeCount');
       if (likeEl && d.stats.likeCount != null) likeEl.textContent = d.stats.likeCount;
+      const fEl = document.getElementById('myFollowingBadge');
+      if (fEl) fEl.textContent = d.stats.followingCount || 0;
+      const rEl = document.getElementById('myFollowersBadge');
+      if (rEl) rEl.textContent = d.stats.followerCount || 0;
     }
     // 2026-08-14：模式以真实后端为准（登录后覆盖本地，保证多设备一致）
     if (d.mode === 'life' || d.mode === 'work') {
@@ -3391,6 +4105,5 @@
   });
 })();
 </script>
-
 </body>
 </html>
