@@ -1383,6 +1383,46 @@
     font-weight: 700;
     color: #F5DFC0;
   }
+  /* 真实照片大图预览 */
+  .pp-preview {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.94);
+    z-index: 120;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14rem;
+  }
+  .pp-preview.show { display: flex; }
+  .pp-preview-close {
+    position: absolute;
+    top: 12rem; right: 12rem;
+    width: 32rem; height: 32rem;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+  }
+  .pp-preview-close svg { width: 18rem; height: 18rem; color: white; }
+  .pp-preview-img {
+    width: 90%;
+    height: 70%;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 10rem;
+  }
+  .pp-preview-title {
+    font-size: 14rem;
+    color: #F5DFC0;
+    font-weight: 600;
+  }
+
   .pp-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -2378,6 +2418,17 @@
           </div>
         </div>
 
+        <!-- 真实照片大图预览（王总 2026-08-14：他人主页卡片可点开） -->
+        <div class="pp-preview" id="ppPreview">
+          <div class="pp-preview-close" id="ppPreviewClose">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+          <div class="pp-preview-img" id="ppPreviewImg"></div>
+          <div class="pp-preview-title" id="ppPreviewTitle"></div>
+        </div>
+
         <!-- 照片展开查看器（我的主页：点击照片展开，下方透明定位键跳转该坐标点） -->
         <div class="myhome-viewer" id="myHomeViewer">
           <div class="myhome-viewer-backdrop"></div>
@@ -3259,7 +3310,7 @@
         if (thumbs.length) {
           thumbs.forEach(function (t) {
             html += `
-              <div class="pp-card">
+              <div class="pp-card" data-img="${t}" data-title="${c.title || '未命名'}">
                 <div class="pp-card-cover" style="background-image:url('${t}');"></div>
                 <div class="pp-card-mask"></div>
                 <div class="pp-card-title">${c.title || '未命名'}</div>
@@ -3277,10 +3328,29 @@
         }
       });
       peerProfileCoords.innerHTML = html;
+      // 真实照片卡片点击 → 全屏大图预览(王总 2026-08-14: 卡片要能点开)
+      peerProfileCoords.querySelectorAll('.pp-card[data-img]').forEach(function (el) {
+        el.addEventListener('click', function () {
+          openPpPreview(el.dataset.img, el.dataset.title);
+        });
+      });
     }).catch(function () {
       peerProfileCoords.innerHTML = '<div class="peer-profile-empty">加载失败，请稍后重试</div>';
     });
   }
+
+  // 真实照片大图预览
+  const ppPreview = document.getElementById('ppPreview');
+  const ppPreviewImg = document.getElementById('ppPreviewImg');
+  const ppPreviewTitle = document.getElementById('ppPreviewTitle');
+  function openPpPreview(imgUrl, title) {
+    ppPreviewImg.style.backgroundImage = "url('" + imgUrl + "')";
+    ppPreviewTitle.textContent = title || '';
+    ppPreview.classList.add('show');
+  }
+  document.getElementById('ppPreviewClose').addEventListener('click', function () {
+    ppPreview.classList.remove('show');
+  });
 
   function setPeerFollowBtn(followed) {
     const btn = document.getElementById('peerProfileFollowBtn');

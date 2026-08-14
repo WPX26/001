@@ -2777,6 +2777,46 @@
   .user-profile-list::-webkit-scrollbar { width: 3rem; }
   .user-profile-list::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
 
+  /* 真实照片大图预览 */
+  .photo-preview {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.94);
+    z-index: 120;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14rem;
+  }
+  .photo-preview.show { display: flex; }
+  .photo-preview-close {
+    position: absolute;
+    top: 12rem; right: 12rem;
+    width: 32rem; height: 32rem;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+  }
+  .photo-preview-close svg { width: 18rem; height: 18rem; color: white; }
+  .photo-preview-img {
+    width: 90%;
+    height: 70%;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 10rem;
+  }
+  .photo-preview-title {
+    font-size: 14rem;
+    color: #F5DFC0;
+    font-weight: 600;
+  }
+
   /* 他人主页作品：三列网格（抖音式） */
   .up-grid {
     display: grid;
@@ -3976,6 +4016,17 @@
               <!-- 作品卡片由JS动态生成（三列网格） -->
             </div>
           </div>
+        </div>
+
+        <!-- 真实照片大图预览（王总 2026-08-14：他人主页卡片可点开） -->
+        <div class="photo-preview" id="photoPreview">
+          <div class="photo-preview-close" id="photoPreviewClose">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+          <div class="photo-preview-img" id="photoPreviewImg"></div>
+          <div class="photo-preview-title" id="photoPreviewTitle"></div>
         </div>
 
         <!-- 关注/粉丝列表 -->
@@ -8755,7 +8806,7 @@
     });
     userProfileCoords.innerHTML = html;
 
-    userProfileCoords.querySelectorAll('.user-profile-photo').forEach(photoEl => {
+    userProfileCoords.querySelectorAll('.up-card').forEach(photoEl => {
       photoEl.addEventListener('click', () => {
         const photoId = photoEl.dataset.photoId;
         const coordId = photoEl.dataset.coordId;
@@ -8768,8 +8819,8 @@
         if (coord) {
           const photo = coord.photos.find(p => p.id === photoId);
           if (photo) {
-            // 直接打开照片详情
-            openPhotoDetail(photo, coord);
+            // 直接打开照片详情（签名: openPhotoDetail(photoId, coord)）
+            openPhotoDetail(photoId, coord);
           }
         }
       });
@@ -8835,7 +8886,7 @@
         if (thumbs.length) {
           thumbs.forEach(function (t) {
             html += `
-              <div class="up-card">
+              <div class="up-card" data-img="${t}" data-title="${c.title || '未命名'}">
                 <div class="up-card-cover" style="background-image:url('${t}');"></div>
                 <div class="up-card-mask"></div>
                 <div class="up-card-title">${c.title || '未命名'}</div>
@@ -8853,8 +8904,27 @@
         }
       });
       userProfileCoords.innerHTML = html;
+      // 真实照片卡片点击 → 全屏大图预览(王总 2026-08-14: 卡片要能点开)
+      userProfileCoords.querySelectorAll('.up-card[data-img]').forEach(function (el) {
+        el.addEventListener('click', function () {
+          openPhotoPreview(el.dataset.img, el.dataset.title);
+        });
+      });
     }).catch(function () { /* 失败保持本地演示 */ });
   }
+
+  // 真实照片大图预览
+  const photoPreview = document.getElementById('photoPreview');
+  const photoPreviewImg = document.getElementById('photoPreviewImg');
+  const photoPreviewTitle = document.getElementById('photoPreviewTitle');
+  function openPhotoPreview(imgUrl, title) {
+    photoPreviewImg.style.backgroundImage = "url('" + imgUrl + "')";
+    photoPreviewTitle.textContent = title || '';
+    photoPreview.classList.add('show');
+  }
+  document.getElementById('photoPreviewClose').addEventListener('click', function () {
+    photoPreview.classList.remove('show');
+  });
 
   // 从关注/粉丝列表直接打开他人主页（真实数据驱动，空作品显示空态）
   function openUserProfileById(userId, nickname, avatar) {
