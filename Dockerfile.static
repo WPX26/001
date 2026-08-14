@@ -27,7 +27,7 @@ COPY api.js /usr/share/nginx/html/
 # 本地化依赖库（leaflet/dexie/images）——页面按 lib/ 相对路径引用，缺失会 404
 COPY lib /usr/share/nginx/html/lib/
 
-# 本地化字体（行楷 LiyuShoushu 漓雨手书 OFL 子集 + woff2 兜底；楷体 LXGW WenKai OFL 子集）——品牌字引用 fonts/，缺失会回退系统字体
+# 本地化字体（行书 ZhiMangXing 钟齐志莽行书 OFL 子集+全量；行楷 LiyuShoushu 漓雨手书 OFL 子集+woff2）——品牌字引用 fonts/，缺失会回退系统字体
 COPY fonts /usr/share/nginx/html/fonts/
 
 # PWA 手机网站（manifest + 应用图标）
