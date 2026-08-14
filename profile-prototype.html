@@ -963,16 +963,39 @@
     z-index: 4;
   }
   .myhome-nav .sub-title { font-size: 15rem; }
+  .myprofile-scroll {
+    flex: 1;
+    overflow-y: auto;
+    background: #0a0a0a;
+  }
+  .myprofile-scroll::-webkit-scrollbar { width: 3rem; }
+  .myprofile-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
+  #myProfileHero > .myhome-nav {
+    position: absolute;
+    top: 18rem; left: 16rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    z-index: 4;
+  }
+  #myProfileHero > .myhome-nav .sub-title { font-size: 15rem; }
+
+  .myprofile-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 12rem;
+    padding: 14rem 16rem 14rem;
+    background: #0a0a0a;
+  }
   .myprofile-stats {
+    flex: 1;
     display: flex;
     justify-content: space-around;
-    padding: 14rem 20rem 8rem;
-    background: #0a0a0a;
   }
   .myprofile-stat { text-align: center; cursor: pointer; transition: opacity 0.2s; }
   .myprofile-stat:hover { opacity: 0.85; }
   .myprofile-stat-num {
-    font-size: 20rem;
+    font-size: 18rem;
     font-weight: 800;
     color: #F5DFC0;
   }
@@ -981,36 +1004,20 @@
     color: rgba(245, 223, 192, 0.85);
     margin-top: 2rem;
   }
-  .myprofile-btns {
-    display: flex;
-    gap: 10rem;
-    padding: 10rem 16rem 14rem;
-    background: #0a0a0a;
-  }
-  .myprofile-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5rem;
-    padding: 10rem 0;
-    border-radius: 18rem;
-    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
-    color: white;
-    font-size: 14rem;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.4);
-    transition: transform 0.2s;
-  }
-  .myprofile-btn:hover { transform: translateY(-1rem); }
-  .myprofile-btn:active { transform: scale(0.96); }
-  .myprofile-btn.ghost {
+  .myprofile-edit-btn {
+    flex-shrink: 0;
+    padding: 8rem 18rem;
+    border-radius: 16rem;
     background: rgba(212, 165, 116, 0.15);
     border: 1.5rem solid rgba(212, 165, 116, 0.4);
-    box-shadow: none;
     color: #F5DFC0;
+    font-size: 13rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
   }
+  .myprofile-edit-btn:hover { background: rgba(212, 165, 116, 0.25); }
+  .myprofile-edit-btn:active { transform: scale(0.96); }
   .myprofile-section-title {
     padding: 10rem 16rem 8rem;
     font-size: 14rem;
@@ -2142,23 +2149,26 @@
                 </div>
               </div>
             </div>
-            <div class="myprofile-stats">
-              <div class="myprofile-stat">
-                <div class="myprofile-stat-num" id="myProfileLikeCount">0</div>
-                <div class="myprofile-stat-label">获赞</div>
+            <div class="myprofile-stats-row">
+              <div class="myprofile-stats">
+                <div class="myprofile-stat">
+                  <div class="myprofile-stat-num" id="myProfileLikeCount">0</div>
+                  <div class="myprofile-stat-label">获赞</div>
+                </div>
+                <div class="myprofile-stat">
+                  <div class="myprofile-stat-num" id="myProfileMutualCount">0</div>
+                  <div class="myprofile-stat-label">互关</div>
+                </div>
+                <div class="myprofile-stat" id="myProfileFollowingStat">
+                  <div class="myprofile-stat-num" id="myProfileFollowingCount">0</div>
+                  <div class="myprofile-stat-label">关注</div>
+                </div>
+                <div class="myprofile-stat" id="myProfileFollowersStat">
+                  <div class="myprofile-stat-num" id="myProfileFollowerCount">0</div>
+                  <div class="myprofile-stat-label">粉丝</div>
+                </div>
               </div>
-              <div class="myprofile-stat" id="myProfileFollowingStat">
-                <div class="myprofile-stat-num" id="myProfileFollowingCount">0</div>
-                <div class="myprofile-stat-label">关注</div>
-              </div>
-              <div class="myprofile-stat" id="myProfileFollowersStat">
-                <div class="myprofile-stat-num" id="myProfileFollowerCount">0</div>
-                <div class="myprofile-stat-label">粉丝</div>
-              </div>
-            </div>
-            <div class="myprofile-btns">
-              <div class="myprofile-btn" id="myProfileFollowersBtn">粉丝</div>
-              <div class="myprofile-btn ghost" id="myProfileEditBtn">编辑主页</div>
+              <div class="myprofile-edit-btn" id="myProfileEditBtn">编辑主页</div>
             </div>
             <div class="myprofile-section-title">作品</div>
             <div class="myprofile-grid" id="myProfileGrid">
@@ -2866,6 +2876,21 @@
    * 根据当前摄影师状态刷新徽章显示
    */
   // ========== 我的主页（抖音式）渲染：头图+统计三列+按钮行+三列作品网格 ==========
+  // 互关数 = 我的关注 ∩ 我的粉丝(前端算交集,王总 2026-08-14 新图要求 4 项统计)
+  function loadMutualCount() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    Promise.all([
+      MemoAPI.get('/users/me/following?page=1&pageSize=100').catch(function () { return { list: [] }; }),
+      MemoAPI.get('/users/me/followers?page=1&pageSize=100').catch(function () { return { list: [] }; })
+    ]).then(function (results) {
+      const following = new Set((results[0] && results[0].list || []).map(function (u) { return u.id; }));
+      const followers = new Set((results[1] && results[1].list || []).map(function (u) { return u.id; }));
+      let n = 0;
+      following.forEach(function (id) { if (followers.has(id)) n++; });
+      document.getElementById('myProfileMutualCount').textContent = n;
+    }).catch(function () {});
+  }
+
   function renderMyProfile() {
     if (serverProfile) {
       const d = serverProfile;
@@ -2890,6 +2915,7 @@
         document.getElementById('myProfileFollowingCount').textContent = d.stats.followingCount || 0;
         document.getElementById('myProfileFollowerCount').textContent = d.stats.followerCount || 0;
       }
+      loadMutualCount();
     }
     renderMyProfileGrid();
   }
@@ -2999,7 +3025,6 @@
   // 我的主页（抖音式）：统计列即入口——关注列→关注列表、粉丝列/粉丝键→粉丝列表（王总 2026-08-14：不做 tab 切换）
   document.getElementById('myProfileFollowingStat').addEventListener('click', () => openFollowView('following'));
   document.getElementById('myProfileFollowersStat').addEventListener('click', () => openFollowView('followers'));
-  document.getElementById('myProfileFollowersBtn').addEventListener('click', () => openFollowView('followers'));
 
   editProfileBack.addEventListener('click', () => showView('myhome'));
 
