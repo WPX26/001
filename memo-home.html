@@ -3095,21 +3095,12 @@
   body.full-embed.mobile-browser .phone-frame { height: var(--app-h, 100vh); }
 
   /* ===== 开场动画（落日 splash，王总 2026-08-13）：太阳出现→缩小→落地→依次弹出工一堂/欢迎您回来 → 淡出进入登录页 ===== */
-  /* 行书字体本地化（王总 2026-08-14 定稿：工一堂用可商用行书——钟齐志莽行书 ZhiMangXing，SIL OFL 1.1（Google Fonts 收录）；原 Windows 华文行楷 STXINGKA 系统字体商用授权不清晰已移除；子集仅工一堂三字，全量 4MB 兜底，随镜像打包 fonts/） */
+  /* 行书字体本地化（王总 2026-08-14 定稿：工一堂用可商用行书——玄宗体 XuanZongTi，SIL OFL 1.1（kaonashi-tyc/Zi-XuanZongTi 官方 GitHub，唐玄宗《鹡鸰颂》行书，行书流畅且辨识度高）；原 Windows 华文行楷 STXINGKA 系统字体商用授权不清晰已移除；子集仅工一堂三字，全量 woff2 兜底，随镜像打包 fonts/） */
   @font-face {
-    font-family: 'ZhiMangXingLocal';
-    src: url('./fonts/ZhiMangXing-subset.ttf') format('truetype'),
-         url('./fonts/ZhiMangXing-Regular.ttf') format('truetype');
+    font-family: 'XuanZongTiLocal';
+    src: url('./fonts/XuanZongTi-subset.otf') format('opentype'),
+         url('./fonts/XuanZongTi.woff2') format('woff2');
     /* 行书单字重：声明覆盖 400-700，避免浏览器对 700 做假粗体合成糊掉笔画 */
-    font-weight: 400 700;
-    font-display: swap;
-  }
-  /* 行楷字体本地化（王总 2026-08-14 定稿：欢迎您回来用可商用行楷——漓雨手书 Liyu Shoushu，SIL OFL 1.1（InkPantherType 官方 GitHub，楷书端正骨架+行书笔意）；子集仅欢迎您回来五字，全量 woff2 兜底，随镜像打包 fonts/） */
-  @font-face {
-    font-family: 'LiyuShoushuLocal';
-    src: url('./fonts/LiyuShoushu-subset.ttf') format('truetype'),
-         url('./fonts/LiyuShoushu.woff2') format('woff2');
-    /* 行楷单字重：声明覆盖 400-700，避免浏览器对 700 做假粗体合成糊掉笔画 */
     font-weight: 400 700;
     font-display: swap;
   }
@@ -3136,7 +3127,7 @@
     position: absolute;
     left: 50%; top: 46.5%;
     transform: translateX(-50%);
-    font-family: 'ZhiMangXingLocal', KaiTi, 楷体, serif;
+    font-family: 'XuanZongTiLocal', KaiTi, 楷体, serif;
     font-size: 24rem;
     font-weight: 800;
     /* 单字重字体 font-weight 不改变字形，用描边模拟加粗（王总 2026-08-14：所有字体加粗 1 号） */
@@ -3146,21 +3137,6 @@
     text-shadow: 0 0 22rem rgba(255, 184, 77, 0.35);
     /* opacity 基础 1：动画失败（如 WebView 兼容）时文字仍可见，不永远隐形 */
     animation: splashPopFlip 1s 1.23s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
-  }
-  .splash-welcome {
-    position: absolute;
-    left: 50%; top: 54%;
-    transform: translateX(-50%);
-    font-family: 'LiyuShoushuLocal', KaiTi, 楷体, serif;
-    font-size: 30rem;
-    font-weight: 700;
-    /* 加粗 1 号：描边模拟（单字重字体） */
-    -webkit-text-stroke: 1px rgba(245, 223, 192, 0.5);
-    color: rgba(245, 223, 192, 0.85);
-    white-space: nowrap;
-    letter-spacing: 4rem;
-    /* 翻转动画完成后（工一堂 2.23s 结束）再弹出（王总 2026-08-14） */
-    animation: splashPop 1.6s 2.23s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
   body.splash-active .interaction-hint { display: none; }
   /* 王总 2026-08-14：触地缩到 1.2s（57%），末段下降 37→33% 提速约 2.8 倍（0.30s→0.11s） */
@@ -3180,11 +3156,6 @@
     63%     { transform: scale(0.97, 1.05); }
     69%     { transform: scale(1.02, 0.98); }
     100%    { transform: scale(1); }
-  }
-  @keyframes splashPop {
-    0%   { opacity: 0; transform: translateX(-50%) scale(0.3); }
-    60%  { opacity: 1; transform: translateX(-50%) scale(1.08); }
-    100% { opacity: 1; transform: translateX(-50%) scale(1); }
   }
   /* 工一堂被棋子震出：0.3s 内抽陀螺式疯狂翻滚 18 圈（微颤脉冲+光带拖影）→ 落下由大变小 → 落定回弹（王总 2026-08-13） */
   @keyframes splashPopFlip {
@@ -3296,7 +3267,6 @@
             </svg>
           </div>
           <div class="splash-brand">工一堂</div>
-          <div class="splash-welcome">欢迎您回来</div>
         </div>
 
 
