@@ -1262,19 +1262,18 @@
     height: 200rem;
     padding: 20rem;
     display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
     align-items: center;
-    gap: 6rem;
+    gap: 14rem;
     overflow: hidden;
     flex-shrink: 0;
-    background: linear-gradient(160deg, #2b1508 0%, #1c0f08 55%, #0a0a0a 100%);
+    background: var(--card-bg, url('card-bg.jpg')) center/cover no-repeat;
   }
-  .peer-profile-hero::after {
+  .peer-profile-hero::before {
     content: '';
     position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(10,10,10,0) 45%, rgba(10,10,10,0.9) 100%);
+    background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(10,10,10,0) 40%, rgba(10,10,10,0.85) 100%);
   }
+
   .peer-profile-close {
     position: absolute;
     top: 12rem; right: 12rem;
@@ -1295,11 +1294,11 @@
     position: relative;
     z-index: 2;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 6rem;
+    gap: 14rem;
     width: 100%;
   }
+  .pp-hero-meta { flex: 1; min-width: 0; }
   .peer-profile-avatar {
     width: 56rem; height: 56rem;
     border-radius: 50%;
@@ -1309,7 +1308,7 @@
     background-position: center;
   }
   .peer-profile-name {
-    font-size: 19rem; font-weight: 700; color: #F5DFC0;
+    font-size: 19rem; font-weight: 700; color: white;
     text-shadow: 0 2rem 8rem rgba(0, 0, 0, 0.6);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     max-width: 100%;
@@ -2337,8 +2336,10 @@
             </div>
             <div class="pp-hero-content">
               <div class="peer-profile-avatar" id="peerProfileAvatar"></div>
-              <div class="peer-profile-name" id="peerProfileName">加载中...</div>
-              <div class="peer-profile-bio" id="peerProfileBio">加载中...</div>
+              <div class="pp-hero-meta">
+                <div class="peer-profile-name" id="peerProfileName">加载中...</div>
+                <div class="peer-profile-bio" id="peerProfileBio">加载中...</div>
+              </div>
             </div>
           </div>
           <div class="peer-profile-stats">

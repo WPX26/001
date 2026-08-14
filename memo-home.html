@@ -2650,19 +2650,18 @@
     height: 200rem;
     padding: 20rem;
     display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
     align-items: center;
-    gap: 6rem;
+    gap: 14rem;
     overflow: hidden;
     flex-shrink: 0;
-    background: linear-gradient(160deg, #2b1508 0%, #1c0f08 55%, #0a0a0a 100%);
+    background: var(--card-bg, url('card-bg.jpg')) center/cover no-repeat;
   }
-  .user-profile-hero::after {
+  .user-profile-hero::before {
     content: '';
     position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(10,10,10,0) 45%, rgba(10,10,10,0.9) 100%);
+    background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(10,10,10,0) 40%, rgba(10,10,10,0.85) 100%);
   }
+
   .user-profile-close {
     position: absolute;
     top: 12rem; right: 12rem;
@@ -2683,11 +2682,11 @@
     position: relative;
     z-index: 2;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 6rem;
+    gap: 14rem;
     width: 100%;
   }
+  .up-hero-meta { flex: 1; min-width: 0; }
   .user-profile-avatar {
     width: 56rem; height: 56rem;
     border-radius: 50%;
@@ -2699,7 +2698,7 @@
   .user-profile-name {
     font-size: 19rem;
     font-weight: 700;
-    color: #F5DFC0;
+    color: white;
     text-shadow: 0 2rem 8rem rgba(0, 0, 0, 0.6);
     white-space: nowrap;
     overflow: hidden;
@@ -3937,8 +3936,10 @@
             </div>
             <div class="up-hero-content">
               <div class="user-profile-avatar" id="userProfileAvatar"></div>
-              <div class="user-profile-name" id="userProfileName">@摄影师小林</div>
-              <div class="user-profile-bio" id="userProfileBio">探索城市角落的视觉记录者</div>
+              <div class="up-hero-meta">
+                <div class="user-profile-name" id="userProfileName">@摄影师小林</div>
+                <div class="user-profile-bio" id="userProfileBio">探索城市角落的视觉记录者</div>
+              </div>
             </div>
           </div>
           <div class="user-profile-stats">
