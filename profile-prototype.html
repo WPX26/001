@@ -3331,7 +3331,7 @@
       // 真实照片卡片点击 → 全屏大图预览(王总 2026-08-14: 卡片要能点开)
       peerProfileCoords.querySelectorAll('.pp-card[data-img]').forEach(function (el) {
         el.addEventListener('click', function () {
-          openPpPreview(el.dataset.img, el.dataset.title);
+          openPpPreview(el.dataset.img, el.dataset.title, '');
         });
       });
     }).catch(function () {
@@ -3339,18 +3339,44 @@
     });
   }
 
-  // 真实照片大图预览
+  // 照片放大查看器（王总 2026-08-14: 像我的主页一样放大+下拉关闭）
   const ppPreview = document.getElementById('ppPreview');
   const ppPreviewImg = document.getElementById('ppPreviewImg');
   const ppPreviewTitle = document.getElementById('ppPreviewTitle');
-  function openPpPreview(imgUrl, title) {
-    ppPreviewImg.style.backgroundImage = "url('" + imgUrl + "')";
+  function closePpPreview() {
+    ppPreview.classList.remove('show');
+  }
+  function openPpPreview(imgUrl, title, color) {
+    if (imgUrl) {
+      ppPreviewImg.style.backgroundImage = "url('" + imgUrl + "')";
+      ppPreviewImg.style.backgroundSize = 'contain';
+      ppPreviewImg.style.backgroundPosition = 'center';
+      ppPreviewImg.style.backgroundRepeat = 'no-repeat';
+    } else {
+      ppPreviewImg.style.backgroundImage = 'none';
+      ppPreviewImg.style.background = 'linear-gradient(160deg, ' + (color || '#B06A4A') + ' 0%, #1c0f08 100%)';
+    }
     ppPreviewTitle.textContent = title || '';
     ppPreview.classList.add('show');
   }
-  document.getElementById('ppPreviewClose').addEventListener('click', function () {
-    ppPreview.classList.remove('show');
+  document.getElementById('ppPreviewClose').addEventListener('click', closePpPreview);
+  // 背景点击关闭
+  ppPreview.addEventListener('click', function (e) {
+    if (e.target === ppPreview) closePpPreview();
   });
+  // 下拉手势关闭（王总: 要能下拉）
+  let ppTouchStart = null;
+  ppPreview.addEventListener('touchstart', function (e) {
+    ppTouchStart = { y: e.touches[0].clientY, t: Date.now() };
+  }, { passive: true });
+  ppPreview.addEventListener('touchmove', function (e) {
+    if (!ppTouchStart) return;
+    const dy = e.touches[0].clientY - ppTouchStart.y;
+    if (dy > 60) {
+      ppTouchStart = null;
+      closePpPreview();
+    }
+  }, { passive: true });
 
   function setPeerFollowBtn(followed) {
     const btn = document.getElementById('peerProfileFollowBtn');
