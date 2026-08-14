@@ -1,0 +1,52 @@
+# 地图相册平台 - 静态前端镜像自动构建
+#
+# 触发：push 到 master 分支且改动涉及前端文件；也可在 GitHub 网页手动触发
+# 产物：ghcr.io/wpx26/001/memomap-frontend:<版本>
+# 流程：GitHub runner 构建镜像 → 推送到 GHCR（GITHUB_TOKEN 自动认证，无需额外凭据）
+# 部署：构建完成后在 Sealos 控制台「应用管理」→ 前端应用 → 更新镜像为 GHCR 地址
+name: build-frontend
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'memo-home.html'
+      - 'api.js'
+      - 'nginx.conf'
+      - 'Dockerfile.static'
+      - 'fonts/**'
+      - 'lib/**'
+      - 'manifest.json'
+      - '*.html'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '镜像版本号（默认 1.2）'
+        required: false
+        default: '1.2'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=1.2" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build frontend image
+        run: docker build -f Dockerfile.static -t ghcr.io/wpx26/001/memomap-frontend:${{ steps.ver.outputs.VERSION }} .
+
+      - name: Push to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push ghcr.io/wpx26/001/memomap-frontend:${{ steps.ver.outputs.VERSION }}
