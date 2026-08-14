@@ -963,89 +963,6 @@
     z-index: 4;
   }
   .myhome-nav .sub-title { font-size: 15rem; }
-  /* ========== 我的主页视图（抖音式，王总 2026-08-14 参考图定稿，暗色暖橙暗金适配） ========== */
-  .myprofile-scroll {
-    flex: 1;
-    overflow-y: auto;
-    background: #0a0a0a;
-  }
-  .myprofile-scroll::-webkit-scrollbar { width: 3rem; }
-  .myprofile-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
-  .myprofile-hero {
-    position: relative;
-    height: 220rem;
-    padding: 20rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 8rem;
-    overflow: hidden;
-  }
-  .myprofile-hero::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: var(--card-bg, url('card-bg.jpg'));
-    background-size: cover;
-    background-position: center;
-    z-index: 0;
-  }
-  .myprofile-hero::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(10,10,10,0) 45%, rgba(10,10,10,0.92) 100%);
-    z-index: 1;
-  }
-  .myprofile-nav {
-    position: absolute;
-    top: 18rem; left: 16rem;
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-    z-index: 4;
-  }
-  .myprofile-nav .sub-title { font-size: 15rem; }
-  .myprofile-content {
-    position: relative;
-    z-index: 3;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6rem;
-    width: 100%;
-  }
-  .myprofile-avatar {
-    width: 64rem; height: 64rem;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    border: 3rem solid rgba(255, 255, 255, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    overflow: hidden;
-    background-size: cover;
-    background-position: center;
-  }
-  .myprofile-avatar svg { width: 32rem; height: 32rem; color: white; }
-  .myprofile-name {
-    font-size: 19rem;
-    font-weight: 700;
-    color: white;
-    text-shadow: 0 2rem 8rem rgba(0, 0, 0, 0.6);
-    max-width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .myprofile-bio {
-    font-size: 12rem;
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow: 0 1rem 4rem rgba(0, 0, 0, 0.6);
-    line-height: 1.4;
-    text-align: center;
-    max-width: 100%;
-  }
   .myprofile-stats {
     display: flex;
     justify-content: space-around;
@@ -2195,10 +2112,11 @@
         <!-- 我的主页视图（抖音式：头图+头像+统计三列+按钮行+作品三列网格，王总 2026-08-14 参考图定稿） -->
         <div class="view" id="viewMyProfile">
           <div class="myprofile-scroll">
-            <div class="myprofile-hero">
+            <div class="myhome-hero" id="myProfileHero">
               <div class="edge-blur top"></div>
               <div class="edge-blur bottom"></div>
-              <div class="myprofile-nav">
+              <button class="card-album-btn" title="更换卡片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+              <div class="myhome-nav">
                 <div class="sub-back" id="myProfileBack">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="15 18 9 12 15 6"/>
@@ -2206,14 +2124,22 @@
                 </div>
                 <div class="sub-title">我的主页</div>
               </div>
-              <div class="myprofile-content">
-                <div class="myprofile-avatar" id="myProfileAvatar">
+              <div class="myhome-content">
+                <div class="myhome-avatar" id="myProfileAvatar">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                   </svg>
                 </div>
-                <div class="myprofile-name" id="myProfileName">旅行者</div>
-                <div class="myprofile-bio" id="myProfileBio">记录旅途的每一个瞬间</div>
+                <div class="myhome-info">
+                  <div class="myhome-name" id="myProfileName">旅行者</div>
+                  <div class="myhome-bio" id="myProfileBio">记录旅途的每一个瞬间</div>
+                  <div class="photographer-badge" id="myProfilePhotographerBadge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    认证摄影师
+                  </div>
+                </div>
               </div>
             </div>
             <div class="myprofile-stats">
@@ -2956,6 +2882,9 @@
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
         av.appendChild(img);
       }
+      // 摄影师徽章（与我的照片同款）
+      const badge = document.getElementById('myProfilePhotographerBadge');
+      if (badge) badge.classList.toggle('show', !!d.isPhotographer);
       if (d.stats) {
         document.getElementById('myProfileLikeCount').textContent = d.stats.likeCount || 0;
         document.getElementById('myProfileFollowingCount').textContent = d.stats.followingCount || 0;
