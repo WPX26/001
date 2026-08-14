@@ -1041,7 +1041,7 @@
     if (typeof MemoAPI !== 'undefined') {
       return MemoAPI.post('/auth/login', { phone: phone, code: code }).then(function(data) {
         if (data && data.token) {
-          MemoAPI.setAuth(data.token, data.user || {});
+          MemoAPI.setAuth(data.token, data.user || {}, data.refreshToken);
           markSessionLoggedIn();
           return { ok: true };
         }
@@ -1091,20 +1091,49 @@
   });
 
   // ========== 密码登录 ==========
+  // 密码登录：优先调真实后端 POST /auth/login（password 模式，2026-08-14 后端已支持）；
+  // 仅后端不可达时回退本地模拟（密码错误等业务失败不回退，直接提示）。
+  function loginByPassword(phone, password) {
+    if (typeof MemoAPI !== 'undefined') {
+      return MemoAPI.post('/auth/login', { phone: phone, password: password }).then(function(data) {
+        if (data && data.token) {
+          MemoAPI.setAuth(data.token, data.user || {}, data.refreshToken);
+          markSessionLoggedIn();
+          return { ok: true };
+        }
+        return { ok: false, msg: '登录失败，请重试' };
+      }).catch(function(e) {
+        if (e && e.business) return { ok: false, msg: e.message };
+        // 后端不可达：本地模拟（保持离线可用，mock_pwd_ 前缀不算真登录）
+        return new Promise(function(resolve) {
+          var token = 'mock_pwd_' + Date.now();
+          if (typeof MemoAPI !== 'undefined') MemoAPI.setAuth(token, { phone: phone });
+          markSessionLoggedIn();
+          resolve({ ok: true });
+        });
+      });
+    }
+    return Promise.resolve({ ok: false, msg: '网络异常，请稍后重试' });
+  }
+
   var loginBtn = document.getElementById('loginBtn');
   loginBtn.addEventListener('click', function(e) {
     ripple(e);
     var username = document.getElementById('username').value.trim();
     var password = pwdInput.value;
     if (!username || !password) { showToast('请输入账号和密码', 'warning'); return; }
-    // 本地模拟密码登录成功同样写入登录态（token+user），
-    // 避免跳回 memo-home.html 后 isLoggedIn() 仍为 false 而再次弹出"提示登录"
-    if (typeof MemoAPI !== 'undefined') {
-      MemoAPI.setAuth('mock_pwd_' + Date.now(), { username: username });
-    }
-    markSessionLoggedIn();
-    showToast('✅ 登录成功!');
-    setTimeout(function() { window.location.href = 'memo-home.html'; }, 1200);
+    loginByPassword(username, password).then(function(r) {
+      if (r.ok) {
+        showToast('✅ 登录成功!');
+        // App 内嵌（web-view）：通知 App 同步登录态并切换首页，不执行 H5 跳转
+        if (window.uni && uni.postMessage) {
+          uni.postMessage({ data: { type: 'memo_login', token: localStorage.getItem('memo_token') || '', user: localStorage.getItem('memo_user') || '' } });
+          return;
+        }
+        setTimeout(function() { window.location.href = 'memo-home.html'; }, 1200);
+      }
+      else { showToast(r.msg || '手机号或密码错误', 'warning'); }
+    });
   });
 
   // 回车提交

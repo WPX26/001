@@ -1022,7 +1022,7 @@
         ...(payload.password ? { password: payload.password } : {})
       };
       return MemoAPI.post('/auth/register', reqBody).then(function(data) {
-        if (data && data.token) MemoAPI.setAuth(data.token, data.user || {});
+        if (data && data.token) MemoAPI.setAuth(data.token, data.user || {}, data.refreshToken);
         return { ok: true, msg: '注册成功' };
       }).catch(function(e) {
         if (e && e.business) return { ok: false, msg: e.message };

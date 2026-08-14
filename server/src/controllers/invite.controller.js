@@ -38,6 +38,55 @@ function genCode() {
   return `VIP${s}`;
 }
 
+/** 生成普通邀请码：8 位纯字符（与原型「我的邀请码」格式一致，输入框 maxlength=8） */
+function genNormalCode() {
+  let s = '';
+  for (let i = 0; i < 8; i += 1) {
+    s += CODE_CHARSET[Math.floor(Math.random() * CODE_CHARSET.length)];
+  }
+  return s;
+}
+
+/**
+ * POST /invite/my-code 用户自助生成/获取自己的普通邀请码（每用户唯一）
+ * - 已有码：直接返回（含使用状态）
+ * - 无码：生成 kind=normal、ownerId=本人，兑换时双方各得 rewardDays 天
+ */
+export const generateMyCode = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const existing = await InviteCode.findOne({ kind: 'normal', ownerId: userId }).lean();
+  if (existing) {
+    return ok(res, {
+      code: existing.code,
+      used: Boolean(existing.usedBy),
+      usedAt: existing.usedAt || null,
+      rewardDays: existing.rewardDays,
+    }, '已获取邀请码');
+  }
+
+  // 撞库重试（唯一索引兜底）
+  let code = null;
+  for (let attempt = 0; attempt < 10 && !code; attempt += 1) {
+    const candidate = genNormalCode();
+    try {
+      const doc = await InviteCode.create({
+        code: candidate,
+        kind: 'normal',
+        createdBy: String(userId),
+        ownerId: userId,
+        rewardDays: MEMBER_PLAN.days,
+      });
+      code = doc.code;
+    } catch (e) {
+      if (e && e.code !== 11000) throw e; // 仅唯一索引冲突重试
+    }
+  }
+  if (!code) throw new AppError(ERR.SERVER, '邀请码生成失败，请重试', 500);
+
+  ok(res, { code, used: false, usedAt: null, rewardDays: MEMBER_PLAN.days }, '邀请码已生成');
+});
+
 /**
  * POST /admin/invite-codes/generate 生成 count 个一次性邀请码
  * 唯一性：批次内 Set 去重 + 入库唯一索引冲突重试（撞库中已有码时换码）
@@ -106,18 +155,34 @@ export const redeemInviteCode = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const code = String(req.body.code || '').trim().toUpperCase();
 
+  // 预检查（原子抢占在 claim 时兜底并发；这里给出更明确的业务错误）
+  const existing = await InviteCode.findOne({ code }).lean();
+  if (!existing) throw new AppError(ERR.NOT_FOUND, '邀请码不存在', 404);
+  if (existing.usedBy) throw new AppError(ERR.DUPLICATE, '邀请码已被使用', 409);
+  if (existing.kind === 'normal' && existing.ownerId && String(existing.ownerId) === String(userId)) {
+    throw new AppError(ERR.VALIDATE, '不能使用自己的邀请码', 400);
+  }
+  if (existing.kind === 'normal') {
+    const already = await InviteCode.findOne({ kind: 'normal', usedBy: userId }).lean();
+    if (already) throw new AppError(ERR.DUPLICATE, '每人限兑换一个普通邀请码', 409);
+  }
+
   const claimed = await InviteCode.findOneAndUpdate(
     { code, usedBy: null },
     { $set: { usedBy: userId, usedAt: new Date() } },
     { returnDocument: 'after' }
   );
   if (!claimed) {
-    const exists = await InviteCode.findOne({ code }).lean();
-    if (!exists) throw new AppError(ERR.NOT_FOUND, '邀请码不存在', 404);
+    // 并发兜底：预检查通过但抢占失败（他人已抢先）
     throw new AppError(ERR.DUPLICATE, '邀请码已被使用', 409);
   }
 
   const user = await extendMembershipByDays(userId, claimed.rewardDays || MEMBER_PLAN.days);
+
+  // 普通邀请码：邀请者（码归属者）同得 rewardDays 天（双方各得 1 个月）
+  if (claimed.kind === 'normal' && claimed.ownerId && String(claimed.ownerId) !== String(userId)) {
+    await extendMembershipByDays(claimed.ownerId, claimed.rewardDays || MEMBER_PLAN.days);
+  }
 
   // 落账留痕（先激活会员再落单：若落单失败会员仍生效，管理员可事后查码补录，不阻断兑换）
   const now = new Date();

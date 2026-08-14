@@ -29,6 +29,7 @@
   })();
 
   var TOKEN_KEY = 'memo_token';       // Bearer token
+  var REFRESH_TOKEN_KEY = 'memo_refresh_token'; // refresh token（token 过期时换取新 token）
   var USER_KEY = 'memo_user';         // 登录用户信息（JSON）
   var PHOTO_ID_MAP_KEY = 'memo_photo_id_map'; // 本地照片 id → 后端照片 id（上传回调后登记）
   var USER_ID_MAP_KEY = 'memo_user_id_map';   // 作者名 → 后端用户 id（关注用）
@@ -39,6 +40,10 @@
     try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
   }
 
+  function getRefreshToken() {
+    try { return localStorage.getItem(REFRESH_TOKEN_KEY) || ''; } catch (e) { return ''; }
+  }
+
   function getUser() {
     try {
       var raw = localStorage.getItem(USER_KEY);
@@ -46,10 +51,11 @@
     } catch (e) { return null; }
   }
 
-  /** 登录/注册成功后保存 token + user */
-  function setAuth(token, user) {
+  /** 登录/注册成功后保存 token + refreshToken + user */
+  function setAuth(token, user, refreshToken) {
     try {
       localStorage.setItem(TOKEN_KEY, token || '');
+      if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
       if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
     } catch (e) { /* 忽略存储异常 */ }
   }
@@ -58,6 +64,7 @@
   function clearAuth() {
     try {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     } catch (e) { /* 忽略 */ }
   }
@@ -71,7 +78,43 @@
 
   /* ---------------- 请求核心 ---------------- */
 
-  function request(method, path, body) {
+  // token 过期（1002）时用 refreshToken 换取新 token（并发去重，一次只刷一次）
+  var refreshing = null;
+  function refreshTokens() {
+    var rt = getRefreshToken();
+    if (!rt || rt.indexOf('mock_') === 0) {
+      clearAuth();
+      var err0 = new Error('登录已过期，请重新登录');
+      err0.business = true;
+      err0.code = 1002;
+      return Promise.reject(err0);
+    }
+    if (!refreshing) {
+      refreshing = fetch(BASE_URL + '/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+        mode: 'cors'
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (json) {
+          if (json && json.code === 0 && json.data && json.data.token) {
+            // 轮换：refresh token 也换新（后端吊销旧的）
+            setAuth(json.data.token, json.data.user || getUser(), json.data.refreshToken);
+            return json.data.token;
+          }
+          clearAuth();
+          var err = new Error((json && json.message) || '登录已过期，请重新登录');
+          err.business = true;
+          err.code = 1002;
+          throw err;
+        })
+        .then(function (t) { refreshing = null; return t; }, function (e) { refreshing = null; throw e; });
+    }
+    return refreshing;
+  }
+
+  function doRequest(method, path, body, retried) {
     var headers = { 'Content-Type': 'application/json' };
     var token = getToken();
     if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -89,6 +132,15 @@
       })
       .then(function (json) {
         if (json && json.code === 0) return json.data;
+        // token 过期：刷新后重试一次（已重试过则不再刷）
+        if (!retried && json && json.code === 1002) {
+          return refreshTokens().then(function () {
+            return doRequest(method, path, body, true);
+          }).catch(function (e) {
+            if (e && e.code === 1002) throw e;
+            throw e;
+          });
+        }
         var msg = (json && json.message) || ('请求失败（code=' + (json && json.code) + '）');
         console.warn('[MemoAPI]', method, path, '→', msg);
         var err = new Error(msg);
@@ -104,6 +156,24 @@
         }
         throw e;
       });
+  }
+
+  function request(method, path, body) {
+    return doRequest(method, path, body, false);
+  }
+
+  /** 退出登录：调后端吊销 refresh token + 清本地登录态（后端不可达也清本地） */
+  function logout() {
+    var token = getToken();
+    if (!token || token.indexOf('mock_') === 0) {
+      clearAuth();
+      return Promise.resolve();
+    }
+    var headers = { 'Content-Type': 'application/json' };
+    headers['Authorization'] = 'Bearer ' + token;
+    return fetch(BASE_URL + '/auth/logout', { method: 'POST', headers: headers, mode: 'cors' })
+      .catch(function () { /* 网络失败也继续清本地 */ })
+      .then(function () { clearAuth(); });
   }
 
   /* ---------------- id 映射（本地演示数据 ↔ 后端资源） ---------------- */
@@ -147,9 +217,11 @@
     baseUrl: BASE_URL,
     // 认证
     getToken: getToken,
+    getRefreshToken: getRefreshToken,
     getUser: getUser,
     setAuth: setAuth,
     clearAuth: clearAuth,
+    logout: logout,
     isLoggedIn: isLoggedIn,
     // 请求
     request: request,

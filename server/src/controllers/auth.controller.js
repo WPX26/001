@@ -13,6 +13,7 @@ import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { User, VerificationCode } from '../models/index.js';
+import logger from '../utils/logger.js';
 import * as smsService from '../services/sms.service.js';
 import * as tokenService from '../services/token.service.js';
 import { recordVerifyFailure, clearVerifyFailures } from '../middleware/rateLimit.js';
@@ -49,7 +50,7 @@ export const sendCode = asyncHandler(async (req, res) => {
   // 配置缺失优先报错（避免未配置时静默失败，密钥到位即生效）
   // 开发模式（SMS_DEV_MODE=true）跳过密钥检查，验证码直接返回，便于本地联调
   if (!smsService.isConfigured() && !env.SMS_DEV_MODE) {
-    console.warn('[短信] 请在 .env 配置 ALIYUN_SMS_* 密钥后重启服务');
+    logger.warn('[短信] 请在 .env 配置 ALIYUN_SMS_* 密钥后重启服务');
     throw new AppError(ERR.SERVICE_CONFIG, '短信服务未配置，请联系管理员', 503);
   }
 
@@ -69,8 +70,8 @@ export const sendCode = asyncHandler(async (req, res) => {
 
   try {
     if (env.SMS_DEV_MODE) {
-      // 开发模式：不调用真实短信，验证码在响应中返回（联调用）
-      console.log(`[短信-开发模式] ${phone} ${scene} 验证码: ${code}`);
+      // 开发模式：不调用真实短信，验证码在响应中返回（联调用；写库与现状一致）
+      logger.info(`[短信-开发模式] ${phone} ${scene} 验证码: ${code}`);
     } else {
       await smsService.sendCode(phone, scene, code);
     }
@@ -83,9 +84,32 @@ export const sendCode = asyncHandler(async (req, res) => {
   ok(res, { expireSeconds: env.SMS_CODE_EXPIRE_SECONDS, ...(env.SMS_DEV_MODE ? { devCode: code } : {}) }, '验证码已发送');
 });
 
-/** 1.2 手机号登录 */
+/** 1.2 手机号登录（验证码登录 / 密码登录双模式，2026-08-14 补密码分支） */
 export const login = asyncHandler(async (req, res) => {
-  const { phone, code } = req.body;
+  const { phone, code, password } = req.body;
+
+  // 两种凭证都缺失时明确报错（避免落入验证码分支产生误导性提示）
+  if (!code && !password) {
+    throw new AppError(ERR.VALIDATE, '请提供验证码或密码', 400);
+  }
+
+  // 密码登录分支：不校验短信验证码（不依赖短信服务）
+  if (password) {
+    const user = await User.findOne({ phone });
+    if (!user) {
+      throw new AppError(ERR.NOT_FOUND, '该手机号尚未注册，请先注册', 404);
+    }
+    if (!user.passwordHash) {
+      throw new AppError(ERR.VALIDATE, '该账号未设置密码，请用验证码登录', 400);
+    }
+    if (!bcrypt.compareSync(password, user.passwordHash)) {
+      throw new AppError(ERR.AUTH, '手机号或密码错误', 401);
+    }
+    const data = await tokenService.issueTokens(user);
+    return ok(res, data, '登录成功');
+  }
+
+  // 验证码登录分支
   await verifySmsCode(phone, 'login', code);
 
   const user = await User.findOne({ phone });
