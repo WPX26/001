@@ -3136,7 +3136,9 @@
     transform: translateX(-50%);
     font-family: 'STXingkaiLocal', STXingkai, 华文行楷, KaiTi, 楷体, serif;
     font-size: 24rem;
-    font-weight: 700;
+    font-weight: 800;
+    /* 单字重字体 font-weight 不改变字形，用描边模拟加粗（王总 2026-08-14：所有字体加粗 1 号） */
+    -webkit-text-stroke: 1px rgba(245, 223, 192, 0.55);
     color: #F5DFC0;
     letter-spacing: 2.5rem;
     text-shadow: 0 0 22rem rgba(255, 184, 77, 0.35);
@@ -3149,11 +3151,14 @@
     transform: translateX(-50%);
     font-family: 'LXGWWenKaiLocal', KaiTi, 楷体, serif;
     font-size: 30rem;
-    font-weight: 600;
+    font-weight: 700;
+    /* 加粗 1 号：描边模拟（单字重字体） */
+    -webkit-text-stroke: 1px rgba(245, 223, 192, 0.5);
     color: rgba(245, 223, 192, 0.85);
     white-space: nowrap;
     letter-spacing: 4rem;
-    animation: splashPop 1.6s 1.23s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+    /* 翻转动画完成后（工一堂 2.23s 结束）再弹出（王总 2026-08-14） */
+    animation: splashPop 1.6s 2.23s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
   }
   body.splash-active .interaction-hint { display: none; }
   /* 王总 2026-08-14：触地缩到 1.2s（57%），末段下降 37→33% 提速约 2.8 倍（0.30s→0.11s） */
@@ -9737,8 +9742,8 @@
     splash.dataset.played = '1';
     try { sessionStorage.setItem('app_splash_played', '1'); } catch (e) {}
     document.body.classList.add('splash-active');
-    setTimeout(function () { splash.classList.add('done'); }, 3800);
-    setTimeout(function () { splash.style.display = 'none'; document.body.classList.remove('splash-active'); }, 4600);
+    setTimeout(function () { splash.classList.add('done'); }, 4600);
+    setTimeout(function () { splash.style.display = 'none'; document.body.classList.remove('splash-active'); }, 5400);
   })();
 </script>
 
