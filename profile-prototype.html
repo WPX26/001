@@ -963,6 +963,16 @@
     z-index: 4;
   }
   .myhome-nav .sub-title { font-size: 15rem; }
+  #myHomeHero > .myhome-nav {
+    position: absolute;
+    top: 18rem; left: 16rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    z-index: 4;
+  }
+  #myHomeHero > .myhome-nav .sub-title { font-size: 15rem; }
+
   .myprofile-scroll {
     flex: 1;
     overflow-y: auto;
@@ -1985,10 +1995,10 @@
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
                       </svg>
                     </div>
-                    <span class="menu-label">我的照片</span>
+                    <span class="menu-label">我的主页</span>
                   </div>
                   <div class="menu-item-right">
-                    <span class="menu-badge" id="myPhotosBadge">坐标点·照片·获赞</span>
+                    <span class="menu-badge" id="myPhotosBadge">坐标点·作品</span>
                     <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
@@ -2137,7 +2147,7 @@
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                   </svg>
                 </div>
-                <div class="myhome-info">
+                <div class="profile-info">
                   <div class="myhome-name" id="myProfileName">旅行者</div>
                   <div class="myhome-bio" id="myProfileBio">记录旅途的每一个瞬间</div>
                   <div class="photographer-badge" id="myProfilePhotographerBadge">
@@ -2181,7 +2191,7 @@
         <div class="view" id="viewMyHome">
           <div class="myhome-scroll">
             <!-- 头部信息 -->
-            <div class="myhome-hero">
+            <div class="profile-header" id="myHomeHero">
               <div class="edge-blur top"></div>
               <div class="edge-blur bottom"></div>
               <button class="card-album-btn" title="更换卡片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
@@ -2191,18 +2201,18 @@
                     <polyline points="15 18 9 12 15 6"/>
                   </svg>
                 </div>
-                <div class="sub-title">我的照片</div>
+                <div class="sub-title">我的主页</div>
               </div>
               
               <div class="myhome-content">
-              <div class="myhome-avatar" id="myHomeAvatar">
+              <div class="profile-avatar" id="myHomeAvatar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                 </svg>
               </div>
               <div class="myhome-info">
-                <div class="myhome-name" id="myHomeName">旅行者</div>
-                <div class="myhome-bio" id="myHomeBio">记录旅途的每一个瞬间</div>
+                <div class="profile-name" id="myHomeName">旅行者</div>
+                <div class="profile-desc" id="myHomeBio">记录旅途的每一个瞬间</div>
                 <div class="photographer-badge" id="myHomePhotographerBadge">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
@@ -2213,7 +2223,7 @@
             </div>
 </div>
 
-            <!-- 统计栏（三 tab 交互键：点击该项文字+数字泛起光晕，下方切换视图） -->
+            <!-- 统计栏（两 tab 交互键：坐标点/作品，王总 2026-08-14 去掉获赞） -->
             <div class="myhome-stats">
               <div class="myhome-stat clickable active" data-tab="coord">
                 <div class="myhome-stat-num" id="myHomeCoordCount">8</div>
@@ -2221,11 +2231,7 @@
               </div>
               <div class="myhome-stat clickable" data-tab="photo">
                 <div class="myhome-stat-num" id="myHomePhotoCount">86</div>
-                <div class="myhome-stat-label">照片</div>
-              </div>
-              <div class="myhome-stat clickable" data-tab="like">
-                <div class="myhome-stat-num" id="myHomeLikeCount">342</div>
-                <div class="myhome-stat-label">获赞</div>
+                <div class="myhome-stat-label">作品</div>
               </div>
             </div>
 
@@ -2244,7 +2250,7 @@
               </div>
             </div>
 
-            <!-- 视图二：照片（按时间顺序，越早越靠前） -->
+            <!-- 视图二：作品（按时间顺序，越早越靠前，王总 2026-08-14 照片改作品） -->
             <div class="myhome-tabview" id="myHomeTabPhoto" style="display:none;">
               <div class="myhome-photo-grid" id="myHomePhotoGrid">
                 <!-- 由JS动态生成 -->
