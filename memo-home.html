@@ -3946,7 +3946,7 @@
               <div class="user-profile-stat-value" id="userProfileLikeCount">0</div>
               <div class="user-profile-stat-label">获赞</div>
             </div>
-            <div class="user-profile-stat">
+            <div class="user-profile-stat" id="userProfileFollowingStat">
               <div class="user-profile-stat-value" id="userProfileFollowingCount">0</div>
               <div class="user-profile-stat-label">关注</div>
             </div>
@@ -8679,6 +8679,7 @@
   const userProfileBio = document.getElementById('userProfileBio');
   const userProfileLikeCount = document.getElementById('userProfileLikeCount');
   const userProfileFollowingCount = document.getElementById('userProfileFollowingCount');
+  const userProfileFollowingStat = document.getElementById('userProfileFollowingStat');
   const userProfileFollowerCount = document.getElementById('userProfileFollowerCount');
   const userProfileFollowersStat = document.getElementById('userProfileFollowersStat');
   const userProfileCoords = document.getElementById('userProfileCoords');
@@ -8910,6 +8911,12 @@
     showToast(isNowFollowed ? `已关注 ${currentProfileAuthor.name}` : `已取消关注 ${currentProfileAuthor.name}`);
     // 登录态：同步到后端（乐观更新，失败回滚，交互动画不变）
     syncUserFollow(currentProfileAuthor.name, isNowFollowed);
+  });
+
+  // 他人主页：统计列即入口——关注列→关注列表、粉丝列→粉丝列表（王总 2026-08-14：不做 tab 切换）
+  userProfileFollowingStat.addEventListener('click', () => {
+    if (!currentProfileAuthor || !currentProfileAuthor._backendId) return;
+    openFollowList(currentProfileAuthor._backendId, 'following', 'TA 的关注');
   });
 
   // 他人主页：粉丝统计 → 粉丝列表

@@ -963,26 +963,6 @@
     z-index: 4;
   }
   .myhome-nav .sub-title { font-size: 15rem; }
-  /* 我的主页：右上编辑资料按钮 */
-  .myhome-edit-btn {
-    position: absolute;
-    top: 14rem; right: 16rem;
-    width: 36rem; height: 36rem;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(10rem);
-    border: 1rem solid rgba(255, 255, 255, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    cursor: pointer;
-    z-index: 5;
-    transition: all 0.2s;
-  }
-  .myhome-edit-btn:hover { background: rgba(240, 160, 64, 0.8); border-color: transparent; }
-  .myhome-edit-btn:active { transform: scale(0.92); }
-  .myhome-edit-btn svg { width: 17rem; height: 17rem; }
   /* ========== 我的主页视图（抖音式，王总 2026-08-14 参考图定稿，暗色暖橙暗金适配） ========== */
   .myprofile-scroll {
     flex: 1;
@@ -1005,7 +985,7 @@
   .myprofile-hero::before {
     content: '';
     position: absolute; inset: 0;
-    background: var(--card-bg, linear-gradient(160deg, #2b1508 0%, #1c0f08 55%, #0a0a0a 100%));
+    background: var(--card-bg, url('card-bg.jpg'));
     background-size: cover;
     background-position: center;
     z-index: 0;
@@ -2090,39 +2070,7 @@
                     </svg>
                   </div>
                 </div>
-                <div class="menu-item" id="myFollowingEntry">
-                  <div class="menu-item-left">
-                    <div class="menu-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                      </svg>
-                    </div>
-                    <span class="menu-label">我的关注</span>
-                  </div>
-                  <div class="menu-item-right">
-                    <span class="menu-badge" id="myFollowingBadge">0</span>
-                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="9 18 15 12 9 6"/>
-                    </svg>
-                  </div>
-                </div>
-                <div class="menu-item" id="myFollowersEntry">
-                  <div class="menu-item-left">
-                    <div class="menu-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                      </svg>
-                    </div>
-                    <span class="menu-label">我的粉丝</span>
-                  </div>
-                  <div class="menu-item-right">
-                    <span class="menu-badge" id="myFollowersBadge">0</span>
-                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="9 18 15 12 9 6"/>
-                    </svg>
-                  </div>
-                </div>
-              </div>
+            </div>
             </div>
 
             <div class="menu-section">
@@ -2273,7 +2221,7 @@
                 <div class="myprofile-stat-num" id="myProfileLikeCount">0</div>
                 <div class="myprofile-stat-label">获赞</div>
               </div>
-              <div class="myprofile-stat">
+              <div class="myprofile-stat" id="myProfileFollowingStat">
                 <div class="myprofile-stat-num" id="myProfileFollowingCount">0</div>
                 <div class="myprofile-stat-label">关注</div>
               </div>
@@ -2309,11 +2257,7 @@
                 </div>
                 <div class="sub-title">我的照片</div>
               </div>
-              <button class="myhome-edit-btn" id="myHomeEditBtn" title="编辑资料">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
+              
               <div class="myhome-content">
               <div class="myhome-avatar" id="myHomeAvatar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2428,10 +2372,6 @@
             </div>
             <div class="sub-title">我的关注</div>
             <div style="width: 32rem;"></div>
-          </div>
-          <div class="follow-tab">
-            <div class="follow-tab-item active" id="followTabFollowing">关注</div>
-            <div class="follow-tab-item" id="followTabFollowers">粉丝</div>
           </div>
           <div class="follow-scroll" id="followListItems">
             <!-- 列表项由JS动态生成 -->
@@ -3125,12 +3065,12 @@
     showView('editprofile');
   }
 
-  document.getElementById('myHomeEditBtn').addEventListener('click', openEditProfile);
   document.getElementById('myProfileEditBtn').addEventListener('click', openEditProfile);
 
-  // 我的主页（抖音式）粉丝键/粉丝统计 → 粉丝列表
-  document.getElementById('myProfileFollowersBtn').addEventListener('click', () => openFollowView('followers'));
+  // 我的主页（抖音式）：统计列即入口——关注列→关注列表、粉丝列/粉丝键→粉丝列表（王总 2026-08-14：不做 tab 切换）
+  document.getElementById('myProfileFollowingStat').addEventListener('click', () => openFollowView('following'));
   document.getElementById('myProfileFollowersStat').addEventListener('click', () => openFollowView('followers'));
+  document.getElementById('myProfileFollowersBtn').addEventListener('click', () => openFollowView('followers'));
 
   editProfileBack.addEventListener('click', () => showView('myhome'));
 
@@ -3168,27 +3108,16 @@
 
   // ========== 关注/粉丝列表（菜单入口 → GET /users/me/following|followers） ==========
   const followListBack = document.getElementById('followListBack');
-  const followTabFollowing = document.getElementById('followTabFollowing');
-  const followTabFollowers = document.getElementById('followTabFollowers');
   const followListItems = document.getElementById('followListItems');
   let followListMode = 'following';
   let followListUsers = null;
   let followListMyFollowIds = null;
 
-  document.getElementById('myFollowingEntry').addEventListener('click', () => {
-    openFollowView('following');
-  });
-  document.getElementById('myFollowersEntry').addEventListener('click', () => {
-    openFollowView('followers');
-  });
   followListBack.addEventListener('click', () => showView('profile'));
-  followTabFollowing.addEventListener('click', () => openFollowView('following'));
-  followTabFollowers.addEventListener('click', () => openFollowView('followers'));
 
+  // 王总 2026-08-14: 点开是关注就是关注、点开是粉丝就是粉丝，不做 tab 切换
   function openFollowView(mode) {
     followListMode = mode;
-    followTabFollowing.classList.toggle('active', mode === 'following');
-    followTabFollowers.classList.toggle('active', mode === 'followers');
     document.querySelector('#viewFollowList .sub-title').textContent = mode === 'following' ? '我的关注' : '我的粉丝';
     followListUsers = null;
     followListItems.innerHTML = '<div class="follow-list-empty">加载中...</div>';
@@ -3279,12 +3208,7 @@
 
   // 徽章数字（菜单「我的关注/我的粉丝」右侧）
   function refreshFollowBadges() {
-    const fEl = document.getElementById('myFollowingBadge');
-    const rEl = document.getElementById('myFollowersBadge');
-    if (serverProfile && serverProfile.stats) {
-      if (fEl) fEl.textContent = serverProfile.stats.followingCount || 0;
-      if (rEl) rEl.textContent = serverProfile.stats.followerCount || 0;
-    }
+    // 王总 2026-08-14: 菜单关注/粉丝入口已删，徽章不再需要
   }
 
   // 名字 → 固定配色（无头像兜底色块，全暖色系与暗金体系一致，Kimi 审核后暖化）
@@ -3643,10 +3567,6 @@
       if (photoEl && d.stats.photoCount != null) photoEl.textContent = d.stats.photoCount;
       const likeEl = document.getElementById('myHomeLikeCount');
       if (likeEl && d.stats.likeCount != null) likeEl.textContent = d.stats.likeCount;
-      const fEl = document.getElementById('myFollowingBadge');
-      if (fEl) fEl.textContent = d.stats.followingCount || 0;
-      const rEl = document.getElementById('myFollowersBadge');
-      if (rEl) rEl.textContent = d.stats.followerCount || 0;
     }
     // 2026-08-14：模式以真实后端为准（登录后覆盖本地，保证多设备一致）
     if (d.mode === 'life' || d.mode === 'work') {
