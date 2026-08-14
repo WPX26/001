@@ -1,9 +1,12 @@
 # 地图相册平台 - 静态前端镜像自动构建
 #
 # 触发：push 到 master 分支且改动涉及前端文件；也可在 GitHub 网页手动触发
-# 产物：ghcr.io/wpx26/001/memomap-frontend:<版本>
-# 流程：GitHub runner 构建镜像 → 推送到 GHCR（GITHUB_TOKEN 自动认证，无需额外凭据）
-# 部署：构建完成后在 Sealos 控制台「应用管理」→ 前端应用 → 更新镜像为 GHCR 地址
+# 产物：
+#   - ghcr.io/wpx26/001/memomap-frontend:<版本>（GHCR，GITHUB_TOKEN 自动认证）
+#   - registry.cn-hangzhou.aliyuncs.com/memomap/memomap-frontend:<版本>
+#     （阿里云 ACR，需配置 secrets：ALIYUN_ACR_USERNAME / ALIYUN_ACR_PASSWORD）
+# 流程：GitHub runner 构建镜像 → 按可用凭据推送 GHCR + ACR
+# 部署：构建完成后在 Sealos 控制台「应用管理」→ 前端应用 → 更新镜像为对应地址
 name: build-frontend
 
 on:
@@ -50,3 +53,13 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker push ghcr.io/wpx26/001/memomap-frontend:${{ steps.ver.outputs.VERSION }}
+
+      # 阿里云 ACR 推送（配置 secrets 后自动生效，Sealos 现有应用已配 ACR 认证）
+      - name: Push to Aliyun ACR
+        if: ${{ secrets.ALIYUN_ACR_USERNAME != '' }}
+        run: |
+          docker tag ghcr.io/wpx26/001/memomap-frontend:${{ steps.ver.outputs.VERSION }} \
+            registry.cn-hangzhou.aliyuncs.com/memomap/memomap-frontend:${{ steps.ver.outputs.VERSION }}
+          echo "${{ secrets.ALIYUN_ACR_PASSWORD }}" | docker login registry.cn-hangzhou.aliyuncs.com \
+            -u ${{ secrets.ALIYUN_ACR_USERNAME }} --password-stdin
+          docker push registry.cn-hangzhou.aliyuncs.com/memomap/memomap-frontend:${{ steps.ver.outputs.VERSION }}
