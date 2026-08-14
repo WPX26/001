@@ -2633,7 +2633,7 @@
   }
   .photo-detail-comment-input button:hover { transform: scale(0.97); }
 
-  /* ========== 用户个人主页 ========== */
+  /* ========== 用户个人主页（抖音式，王总 2026-08-14 参考图定稿） ========== */
   .user-profile {
     position: absolute;
     inset: 0;
@@ -2645,11 +2645,23 @@
     overflow: hidden;
   }
   .user-profile.show { display: flex; }
-  .user-profile-header {
+  .user-profile-hero {
     position: relative;
-    padding: 40rem 16rem 16rem;
-    background: linear-gradient(135deg, #2b1508 0%, #1c0f08 100%);
+    height: 200rem;
+    padding: 20rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6rem;
+    overflow: hidden;
     flex-shrink: 0;
+    background: linear-gradient(160deg, #2b1508 0%, #1c0f08 55%, #0a0a0a 100%);
+  }
+  .user-profile-hero::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(10,10,10,0) 45%, rgba(10,10,10,0.9) 100%);
   }
   .user-profile-close {
     position: absolute;
@@ -2667,43 +2679,52 @@
   }
   .user-profile-close:hover { background: rgba(0, 0, 0, 0.7); }
   .user-profile-close svg { width: 18rem; height: 18rem; color: white; }
-  .user-profile-info {
+  .up-hero-content {
+    position: relative;
+    z-index: 2;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 14rem;
+    gap: 6rem;
+    width: 100%;
   }
   .user-profile-avatar {
-    width: 60rem; height: 60rem;
+    width: 56rem; height: 56rem;
     border-radius: 50%;
-    border: 3rem solid rgba(255, 255, 255, 0.3);
+    border: 3rem solid rgba(255, 255, 255, 0.5);
     flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
   }
-  .user-profile-meta { flex: 1; min-width: 0; }
   .user-profile-name {
-    font-size: 18rem;
+    font-size: 19rem;
     font-weight: 700;
     color: #F5DFC0;
+    text-shadow: 0 2rem 8rem rgba(0, 0, 0, 0.6);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
   }
   .user-profile-bio {
     font-size: 12rem;
-    color: rgba(245, 223, 192, 0.75);
-    margin-top: 4rem;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1rem 4rem rgba(0, 0, 0, 0.6);
     line-height: 1.4;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
   }
   .user-profile-stats {
     display: flex;
-    gap: 24rem;
-    margin-top: 14rem;
-    padding-top: 14rem;
-    border-top: 1rem solid rgba(212, 165, 116, 0.2);
+    justify-content: space-around;
+    padding: 12rem 20rem 6rem;
+    background: #0a0a0a;
+    flex-shrink: 0;
   }
-  .user-profile-stat { text-align: center; }
+  .user-profile-stat { text-align: center; cursor: pointer; transition: opacity 0.2s; }
+  .user-profile-stat:hover { opacity: 0.85; }
   .user-profile-stat-value {
     font-size: 16rem;
     font-weight: 700;
@@ -2714,33 +2735,97 @@
     color: rgba(245, 223, 192, 0.65);
     margin-top: 2rem;
   }
+  .user-profile-actions {
+    display: flex;
+    gap: 10rem;
+    padding: 8rem 16rem 14rem;
+    background: #0a0a0a;
+    flex-shrink: 0;
+  }
+  .user-profile-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5rem;
+    padding: 10rem 0;
+    border-radius: 18rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 13rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .user-profile-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.5); }
+  .user-profile-btn:active { transform: scale(0.95); }
+  .user-profile-btn svg { width: 14rem; height: 14rem; }
+  .user-profile-btn.ghost {
+    background: rgba(212, 165, 116, 0.15);
+    border: 1.5rem solid rgba(212, 165, 116, 0.4);
+    box-shadow: none;
+    color: #F5DFC0;
+  }
+  .user-profile-btn.ghost:hover { box-shadow: none; background: rgba(212, 165, 116, 0.25); }
+  .user-profile-btn.followed { background: linear-gradient(135deg, #757575 0%, #424242 100%); box-shadow: 0 3rem 10rem rgba(0, 0, 0, 0.3); }
   .user-profile-list {
     flex: 1;
     overflow-y: auto;
     padding: 12rem 16rem;
+    background: #0a0a0a;
   }
   .user-profile-list::-webkit-scrollbar { width: 3rem; }
   .user-profile-list::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
 
-  /* 他人主页：关注/粉丝入口 */
-  .user-profile-followlinks {
-    display: flex;
-    gap: 20rem;
-    margin-top: 12rem;
-    padding-top: 12rem;
-    border-top: 1rem solid rgba(212, 165, 116, 0.2);
+  /* 他人主页作品：三列网格（抖音式） */
+  .up-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6rem;
   }
-  .user-profile-followlink {
-    font-size: 12rem;
-    color: rgba(245, 223, 192, 0.6);
+  .up-card {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    border-radius: 10rem;
+    overflow: hidden;
+    background: rgba(28, 15, 8, 0.5);
+    border: 1rem solid rgba(212, 165, 116, 0.2);
     cursor: pointer;
-    transition: color 0.2s;
+    transition: transform 0.2s;
   }
-  .user-profile-followlink b { color: #F5DFC0; font-weight: 700; margin: 0 3rem; }
-  .user-profile-followlink:hover { color: #E89020; }
-  .user-profile-followlink:hover b { color: #E89020; }
+  .up-card:hover { transform: scale(0.98); }
+  .up-card-cover {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .up-card-mask {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 45%;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%);
+  }
+  .up-card-title {
+    position: absolute;
+    left: 6rem; right: 6rem; bottom: 18rem;
+    font-size: 11rem;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .up-card-likes {
+    position: absolute;
+    left: 6rem; bottom: 5rem;
+    font-size: 10rem;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+  }
 
-  /* 关注/粉丝列表 */
+  /* 关注/粉丝列表（浮层，与暖橙暗金体系一致） */
   .follow-list-item {
     display: flex;
     align-items: center;
@@ -2772,34 +2857,13 @@
     margin-top: 3rem;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .follow-list-btn { padding: 6rem 13rem; font-size: 12rem; border-radius: 16rem; }
+  .follow-list-btn { padding: 6rem 13rem; font-size: 12rem; border-radius: 16rem; flex: 0 0 auto; }
   .follow-list-empty {
     text-align: center;
     padding: 60rem 20rem;
-    color: rgba(245, 223, 192, 0.5);
+    color: rgba(245, 223, 192, 0.65);
     font-size: 13rem;
   }
-
-  /* 私信/关注按钮 */
-  .user-profile-btn {
-    display: flex;
-    align-items: center;
-    gap: 5rem;
-    padding: 7rem 14rem;
-    border-radius: 18rem;
-    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
-    color: white;
-    font-size: 12rem;
-    font-weight: 600;
-    cursor: pointer;
-    flex-shrink: 0;
-    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.4);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-  .user-profile-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.5); }
-  .user-profile-btn:active { transform: scale(0.95); }
-  .user-profile-btn svg { width: 14rem; height: 14rem; }
-  .user-profile-btn.followed { background: linear-gradient(135deg, #757575 0%, #424242 100%); box-shadow: 0 3rem 10rem rgba(0, 0, 0, 0.3); }
 
   /* 私信聊天面板 */
   .chat-panel {
@@ -3863,57 +3927,52 @@
           </div>
         </div>
 
-        <!-- 用户个人主页 -->
+        <!-- 用户个人主页（抖音式：头图+头像+统计三列+按钮行+作品三列网格，王总 2026-08-14 参考图定稿） -->
         <div class="user-profile" id="userProfile">
-          <div class="user-profile-header">
+          <div class="user-profile-hero">
             <div class="user-profile-close" id="userProfileClose">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </div>
-            <div class="user-profile-info">
+            <div class="up-hero-content">
               <div class="user-profile-avatar" id="userProfileAvatar"></div>
-              <div class="user-profile-meta">
-                <div class="user-profile-name" id="userProfileName">@摄影师小林</div>
-                <div class="user-profile-bio" id="userProfileBio">探索城市角落的视觉记录者</div>
-                <div class="user-profile-actions" style="display: flex; gap: 8px; margin-top: 8px;">
-                  <div class="user-profile-btn" id="userProfileFollowBtn" title="关注">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
-                    </svg>
-                    <span id="userProfileFollowText">关注</span>
-                  </div>
-                  <div class="user-profile-btn" id="userProfileMessageBtn" title="私信">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    <span>私信</span>
-                  </div>
-                </div>
-              </div>
+              <div class="user-profile-name" id="userProfileName">@摄影师小林</div>
+              <div class="user-profile-bio" id="userProfileBio">探索城市角落的视觉记录者</div>
             </div>
-            <div class="user-profile-stats" style="justify-content: space-around;">
-              <div class="user-profile-stat">
-                <div class="user-profile-stat-value" id="userProfileCoordCount">5</div>
-                <div class="user-profile-stat-label">坐标点</div>
-              </div>
-              <div class="user-profile-stat">
-                <div class="user-profile-stat-value" id="userProfilePhotoCount">12</div>
-                <div class="user-profile-stat-label">照片</div>
-              </div>
-              <div class="user-profile-stat">
-                <div class="user-profile-stat-value" id="userProfileLikeCount">342</div>
-                <div class="user-profile-stat-label">获赞</div>
-              </div>
+          </div>
+          <div class="user-profile-stats">
+            <div class="user-profile-stat">
+              <div class="user-profile-stat-value" id="userProfileLikeCount">0</div>
+              <div class="user-profile-stat-label">获赞</div>
             </div>
-            <div class="user-profile-followlinks">
-              <span class="user-profile-followlink" id="userProfileFollowersLink">粉丝 <b id="userProfileFollowerCount">0</b></span>
+            <div class="user-profile-stat">
+              <div class="user-profile-stat-value" id="userProfileFollowingCount">0</div>
+              <div class="user-profile-stat-label">关注</div>
+            </div>
+            <div class="user-profile-stat" id="userProfileFollowersStat">
+              <div class="user-profile-stat-value" id="userProfileFollowerCount">0</div>
+              <div class="user-profile-stat-label">粉丝</div>
+            </div>
+          </div>
+          <div class="user-profile-actions">
+            <div class="user-profile-btn" id="userProfileFollowBtn" title="关注">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+              </svg>
+              <span id="userProfileFollowText">关注</span>
+            </div>
+            <div class="user-profile-btn ghost" id="userProfileMessageBtn" title="私信">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span>私信</span>
             </div>
           </div>
           <div class="user-profile-list">
             <div class="user-profile-section-title">Ta 发布的作品</div>
-            <div id="userProfileCoords">
-              <!-- 坐标卡片由JS动态生成 -->
+            <div id="userProfileCoords" class="up-grid">
+              <!-- 作品卡片由JS动态生成（三列网格） -->
             </div>
           </div>
         </div>
@@ -8618,14 +8677,13 @@
   const userProfileAvatar = document.getElementById('userProfileAvatar');
   const userProfileName = document.getElementById('userProfileName');
   const userProfileBio = document.getElementById('userProfileBio');
-  const userProfileCoordCount = document.getElementById('userProfileCoordCount');
-  const userProfilePhotoCount = document.getElementById('userProfilePhotoCount');
   const userProfileLikeCount = document.getElementById('userProfileLikeCount');
+  const userProfileFollowingCount = document.getElementById('userProfileFollowingCount');
+  const userProfileFollowerCount = document.getElementById('userProfileFollowerCount');
+  const userProfileFollowersStat = document.getElementById('userProfileFollowersStat');
   const userProfileCoords = document.getElementById('userProfileCoords');
   const userProfileFollowBtn = document.getElementById('userProfileFollowBtn');
   const userProfileFollowText = document.getElementById('userProfileFollowText');
-  const userProfileFollowersLink = document.getElementById('userProfileFollowersLink');
-  const userProfileFollowerCount = document.getElementById('userProfileFollowerCount');
 
   let currentProfileAuthor = null;
 
@@ -8664,12 +8722,11 @@
     // 刷新关注按钮状态
     setFollowBtnUI(getFollowedUsers().includes(authorName));
 
-    const totalPhotos = authorCoords.reduce((sum, c) => sum + (authorPhotosByCoord[c.id] || []).length, 0);
     const totalLikes = authorCoords.reduce((sum, c) =>
       sum + (authorPhotosByCoord[c.id] || []).reduce((s, p) => s + p.likes, 0), 0);
-    userProfileCoordCount.textContent = authorCoords.length;
-    userProfilePhotoCount.textContent = totalPhotos;
     userProfileLikeCount.textContent = totalLikes;
+    userProfileFollowingCount.textContent = '0';
+    userProfileFollowerCount.textContent = '0';
 
     let allPhotos = [];
     authorCoords.forEach(coord => {
@@ -8682,20 +8739,18 @@
     // 按照关注优先、热度（点赞+打赏）及发布时间排序
     allPhotos = sortPhotos(allPhotos);
 
-    let html = '<div class="author-group-photos" style="padding: 0 20px 20px;">';
+    // 三列网格作品（抖音式）
+    let html = '';
     allPhotos.forEach(p => {
-      // 采用类似探索模式弹窗中的作品大图样式
       html += `
-        <div class="tg-photo user-profile-photo" data-photo-id="${p.id}" data-coord-id="${p._coord.id}" data-source="${p._coord._source}">
-          <div style="width:100%; height:100%; background: linear-gradient(135deg, ${p.color}, ${adjustColor(p.color, -20)}); display:block;"></div>
-          <div class="tg-photo-overlay">
-            <div class="tg-photo-stat">❤️ ${p.likes}</div>
-            <div class="tg-photo-stat">🎁 ${p.tips}</div>
-          </div>
+        <div class="up-card" data-photo-id="${p.id}" data-coord-id="${p._coord.id}" data-source="${p._coord._source}">
+          <div class="up-card-cover" style="background:linear-gradient(160deg, ${p.color} 0%, ${adjustColor(p.color, -40)} 100%);"></div>
+          <div class="up-card-mask"></div>
+          <div class="up-card-title">${p.title || '未命名'}</div>
+          <div class="up-card-likes">♡ ${p.likes}</div>
         </div>
       `;
     });
-    html += '</div>';
     userProfileCoords.innerHTML = html;
 
     userProfileCoords.querySelectorAll('.user-profile-photo').forEach(photoEl => {
@@ -8760,11 +8815,13 @@
       userProfileBio.textContent = profile.bio || '这个人很懒，还没有写简介';
       setFollowBtnUI(!!profile.isFollowed);
       if (profile.stats) {
-        userProfileCoordCount.textContent = profile.stats.coordCount || 0;
-        userProfilePhotoCount.textContent = profile.stats.photoCount || 0;
         userProfileLikeCount.textContent = profile.stats.likeCount || 0;
         userProfileFollowerCount.textContent = profile.stats.followerCount || 0;
       }
+      // 关注数：他人主页后端隐藏 followingCount，从关注列表接口取 total（失败保持 0）
+      MemoAPI.get('/users/' + userId + '/following?page=1&pageSize=1').then(function (d) {
+        if (d && typeof d.total === 'number') userProfileFollowingCount.textContent = d.total;
+      }).catch(function () {});
     }).catch(function () { /* 失败保持本地演示 */ });
 
     MemoAPI.get('/users/' + userId + '/coords?page=1&pageSize=30').then(function (data) {
@@ -8772,17 +8829,26 @@
       if (!list.length) return;
       let html = '';
       list.forEach(function (c) {
-        const thumbs = (c.thumbnails || []).map(function (t) {
-          return '<div style="flex:1; height:80rem; background:url(\'' + t + '\') center/cover no-repeat; border-radius:8rem;"></div>';
-        }).join('');
-        html += `
-          <div style="background: rgba(28,15,8,0.5); border: 1rem solid rgba(212,165,116,0.3); border-radius: 14rem; padding: 12rem; margin-bottom: 12rem;">
-            <div style="display:flex; gap:8rem;">${thumbs || '<div style="flex:1; height:80rem; background:rgba(212,165,116,0.15); border-radius:8rem; display:flex; align-items:center; justify-content:center; color:rgba(245,223,192,0.5); font-size:12rem;">暂无照片</div>'}</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10rem;">
-              <div style="color:#F5DFC0; font-size:13rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.title || '未命名坐标'}</div>
-              <div style="color:rgba(245,223,192,0.6); font-size:11rem; flex-shrink:0; margin-left:8rem;">❤️ ${c.likeCount || 0}</div>
-            </div>
-          </div>`;
+        const thumbs = (c.thumbnails || []);
+        if (thumbs.length) {
+          thumbs.forEach(function (t) {
+            html += `
+              <div class="up-card">
+                <div class="up-card-cover" style="background-image:url('${t}');"></div>
+                <div class="up-card-mask"></div>
+                <div class="up-card-title">${c.title || '未命名'}</div>
+                <div class="up-card-likes">♡ ${c.likeCount || 0}</div>
+              </div>`;
+          });
+        } else {
+          html += `
+            <div class="up-card">
+              <div class="up-card-cover" style="background:linear-gradient(160deg, #B06A4A 0%, #1c0f08 100%);"></div>
+              <div class="up-card-mask"></div>
+              <div class="up-card-title">${c.title || '未命名'}</div>
+              <div class="up-card-likes">♡ ${c.likeCount || 0}</div>
+            </div>`;
+        }
       });
       userProfileCoords.innerHTML = html;
     }).catch(function () { /* 失败保持本地演示 */ });
@@ -8799,9 +8865,8 @@
     else userProfileAvatar.style.background = hashColor(nickname);
     userProfileName.textContent = nickname;
     userProfileBio.textContent = '加载中...';
-    userProfileCoordCount.textContent = '0';
-    userProfilePhotoCount.textContent = '0';
     userProfileLikeCount.textContent = '0';
+    userProfileFollowingCount.textContent = '0';
     userProfileFollowerCount.textContent = '0';
     userProfileCoords.innerHTML = '<div class="follow-list-empty">加载中...</div>';
     setFollowBtnUI(false);
@@ -8847,8 +8912,8 @@
     syncUserFollow(currentProfileAuthor.name, isNowFollowed);
   });
 
-  // 他人主页：粉丝入口 → 粉丝列表
-  userProfileFollowersLink.addEventListener('click', () => {
+  // 他人主页：粉丝统计 → 粉丝列表
+  userProfileFollowersStat.addEventListener('click', () => {
     if (!currentProfileAuthor || !currentProfileAuthor._backendId) return;
     openFollowList(currentProfileAuthor._backendId, 'followers', 'TA 的粉丝');
   });
@@ -9983,4 +10048,3 @@
   })();
 </script>
 </body>
-</html>

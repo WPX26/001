@@ -983,6 +983,192 @@
   .myhome-edit-btn:hover { background: rgba(240, 160, 64, 0.8); border-color: transparent; }
   .myhome-edit-btn:active { transform: scale(0.92); }
   .myhome-edit-btn svg { width: 17rem; height: 17rem; }
+  /* ========== 我的主页视图（抖音式，王总 2026-08-14 参考图定稿，暗色暖橙暗金适配） ========== */
+  .myprofile-scroll {
+    flex: 1;
+    overflow-y: auto;
+    background: #0a0a0a;
+  }
+  .myprofile-scroll::-webkit-scrollbar { width: 3rem; }
+  .myprofile-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
+  .myprofile-hero {
+    position: relative;
+    height: 220rem;
+    padding: 20rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8rem;
+    overflow: hidden;
+  }
+  .myprofile-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--card-bg, linear-gradient(160deg, #2b1508 0%, #1c0f08 55%, #0a0a0a 100%));
+    background-size: cover;
+    background-position: center;
+    z-index: 0;
+  }
+  .myprofile-hero::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(10,10,10,0) 45%, rgba(10,10,10,0.92) 100%);
+    z-index: 1;
+  }
+  .myprofile-nav {
+    position: absolute;
+    top: 18rem; left: 16rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    z-index: 4;
+  }
+  .myprofile-nav .sub-title { font-size: 15rem; }
+  .myprofile-content {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6rem;
+    width: 100%;
+  }
+  .myprofile-avatar {
+    width: 64rem; height: 64rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: 3rem solid rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+  }
+  .myprofile-avatar svg { width: 32rem; height: 32rem; color: white; }
+  .myprofile-name {
+    font-size: 19rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 2rem 8rem rgba(0, 0, 0, 0.6);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .myprofile-bio {
+    font-size: 12rem;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1rem 4rem rgba(0, 0, 0, 0.6);
+    line-height: 1.4;
+    text-align: center;
+    max-width: 100%;
+  }
+  .myprofile-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 14rem 20rem 8rem;
+    background: #0a0a0a;
+  }
+  .myprofile-stat { text-align: center; cursor: pointer; transition: opacity 0.2s; }
+  .myprofile-stat:hover { opacity: 0.85; }
+  .myprofile-stat-num {
+    font-size: 20rem;
+    font-weight: 800;
+    color: #F5DFC0;
+  }
+  .myprofile-stat-label {
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.85);
+    margin-top: 2rem;
+  }
+  .myprofile-btns {
+    display: flex;
+    gap: 10rem;
+    padding: 10rem 16rem 14rem;
+    background: #0a0a0a;
+  }
+  .myprofile-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5rem;
+    padding: 10rem 0;
+    border-radius: 18rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 14rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.4);
+    transition: transform 0.2s;
+  }
+  .myprofile-btn:hover { transform: translateY(-1rem); }
+  .myprofile-btn:active { transform: scale(0.96); }
+  .myprofile-btn.ghost {
+    background: rgba(212, 165, 116, 0.15);
+    border: 1.5rem solid rgba(212, 165, 116, 0.4);
+    box-shadow: none;
+    color: #F5DFC0;
+  }
+  .myprofile-section-title {
+    padding: 10rem 16rem 8rem;
+    font-size: 14rem;
+    font-weight: 700;
+    color: #F5DFC0;
+    background: #0a0a0a;
+  }
+  .myprofile-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6rem;
+    padding: 0 16rem 96rem;
+    background: #0a0a0a;
+  }
+  .myprofile-card {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    border-radius: 10rem;
+    overflow: hidden;
+    background: rgba(28, 15, 8, 0.5);
+    border: 1rem solid rgba(212, 165, 116, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .myprofile-card:hover { transform: scale(0.98); }
+  .myprofile-card-cover {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .myprofile-card-mask {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 45%;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%);
+  }
+  .myprofile-card-title {
+    position: absolute;
+    left: 6rem; right: 6rem; bottom: 18rem;
+    font-size: 11rem;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .myprofile-card-likes {
+    position: absolute;
+    left: 6rem; bottom: 5rem;
+    font-size: 10rem;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+  }
+
 
   /* ========== 编辑资料视图 ========== */
   .edit-profile-scroll {
@@ -1145,7 +1331,7 @@
     font-size: 13rem;
   }
 
-  /* ========== 他人主页浮层（关注/粉丝列表进入，与 memo-home 同款暖色系） ========== */
+  /* ========== 他人主页浮层（抖音式，王总 2026-08-14 参考图定稿） ========== */
   .peer-profile {
     position: absolute;
     inset: 0;
@@ -1157,11 +1343,23 @@
     overflow: hidden;
   }
   .peer-profile.show { display: flex; }
-  .peer-profile-header {
+  .peer-profile-hero {
     position: relative;
-    padding: 40rem 16rem 16rem;
-    background: linear-gradient(135deg, #2b1508 0%, #1c0f08 100%);
+    height: 200rem;
+    padding: 20rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6rem;
+    overflow: hidden;
     flex-shrink: 0;
+    background: linear-gradient(160deg, #2b1508 0%, #1c0f08 55%, #0a0a0a 100%);
+  }
+  .peer-profile-hero::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(10,10,10,0) 45%, rgba(10,10,10,0.9) 100%);
   }
   .peer-profile-close {
     position: absolute;
@@ -1179,64 +1377,146 @@
   }
   .peer-profile-close:hover { background: rgba(0, 0, 0, 0.7); }
   .peer-profile-close svg { width: 18rem; height: 18rem; color: white; }
-  .peer-profile-info { display: flex; align-items: center; gap: 14rem; }
+  .pp-hero-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6rem;
+    width: 100%;
+  }
   .peer-profile-avatar {
-    width: 60rem; height: 60rem;
+    width: 56rem; height: 56rem;
     border-radius: 50%;
-    border: 3rem solid rgba(255, 255, 255, 0.3);
+    border: 3rem solid rgba(255, 255, 255, 0.5);
     flex-shrink: 0;
     background-size: cover;
     background-position: center;
   }
-  .peer-profile-meta { flex: 1; min-width: 0; }
   .peer-profile-name {
-    font-size: 18rem; font-weight: 700; color: #F5DFC0;
+    font-size: 19rem; font-weight: 700; color: #F5DFC0;
+    text-shadow: 0 2rem 8rem rgba(0, 0, 0, 0.6);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%;
   }
   .peer-profile-bio {
-    font-size: 12rem; color: rgba(245, 223, 192, 0.75);
-    margin-top: 4rem; line-height: 1.4;
+    font-size: 12rem; color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1rem 4rem rgba(0, 0, 0, 0.6);
+    line-height: 1.4;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%;
   }
   .peer-profile-stats {
     display: flex;
-    gap: 24rem;
-    margin-top: 14rem;
-    padding-top: 14rem;
-    border-top: 1rem solid rgba(212, 165, 116, 0.2);
+    justify-content: space-around;
+    padding: 12rem 20rem 6rem;
+    background: #0a0a0a;
+    flex-shrink: 0;
   }
-  .peer-profile-stat { text-align: center; }
+  .peer-profile-stat { text-align: center; cursor: pointer; transition: opacity 0.2s; }
+  .peer-profile-stat:hover { opacity: 0.85; }
   .peer-profile-stat-value {
     font-size: 16rem; font-weight: 700; color: #F5DFC0;
   }
   .peer-profile-stat-label {
     font-size: 11rem; color: rgba(245, 223, 192, 0.65); margin-top: 2rem;
   }
-  .peer-profile-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12rem 16rem;
+  .peer-profile-actions {
+    display: flex;
+    gap: 10rem;
+    padding: 8rem 16rem 14rem;
+    background: #0a0a0a;
+    flex-shrink: 0;
   }
   .peer-profile-btn {
+    flex: 1;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 5rem;
-    padding: 7rem 14rem;
+    padding: 10rem 0;
     border-radius: 18rem;
     background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
     color: white;
-    font-size: 12rem;
+    font-size: 13rem;
     font-weight: 600;
     cursor: pointer;
-    flex-shrink: 0;
     box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.4);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
   .peer-profile-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.5); }
   .peer-profile-btn:active { transform: scale(0.95); }
   .peer-profile-btn svg { width: 14rem; height: 14rem; }
+  .peer-profile-btn.ghost {
+    background: rgba(212, 165, 116, 0.15);
+    border: 1.5rem solid rgba(212, 165, 116, 0.4);
+    box-shadow: none;
+    color: #F5DFC0;
+  }
+  .peer-profile-btn.ghost:hover { box-shadow: none; background: rgba(212, 165, 116, 0.25); }
   .peer-profile-btn.followed { background: linear-gradient(135deg, #757575 0%, #424242 100%); box-shadow: 0 3rem 10rem rgba(0, 0, 0, 0.3); }
+  .peer-profile-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12rem 16rem;
+    background: #0a0a0a;
+  }
+  .peer-profile-list::-webkit-scrollbar { width: 3rem; }
+  .peer-profile-list::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
+  .peer-profile-section-title {
+    padding: 4rem 0 10rem;
+    font-size: 14rem;
+    font-weight: 700;
+    color: #F5DFC0;
+  }
+  .pp-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6rem;
+  }
+  .pp-card {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    border-radius: 10rem;
+    overflow: hidden;
+    background: rgba(28, 15, 8, 0.5);
+    border: 1rem solid rgba(212, 165, 116, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .pp-card:hover { transform: scale(0.98); }
+  .pp-card-cover {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .pp-card-mask {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 45%;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%);
+  }
+  .pp-card-title {
+    position: absolute;
+    left: 6rem; right: 6rem; bottom: 18rem;
+    font-size: 11rem;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pp-card-likes {
+    position: absolute;
+    left: 6rem; bottom: 5rem;
+    font-size: 10rem;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+  }
   .peer-profile-empty { text-align: center; padding: 60rem 20rem; color: rgba(245, 223, 192, 0.65); font-size: 13rem; }
+
   .myhome-hero {
     position: relative;
     height: 240rem;
@@ -1785,10 +2065,26 @@
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
                       </svg>
                     </div>
-                    <span class="menu-label">查看我的主页</span>
+                    <span class="menu-label">我的主页</span>
                   </div>
                   <div class="menu-item-right">
                     <span class="menu-badge" id="myHomeBadge">公开</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="menu-item" id="myPhotosEntry">
+                  <div class="menu-item-left">
+                    <div class="menu-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    </div>
+                    <span class="menu-label">我的照片</span>
+                  </div>
+                  <div class="menu-item-right">
+                    <span class="menu-badge" id="myPhotosBadge">坐标点·照片·获赞</span>
                     <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
@@ -1948,7 +2244,56 @@
           </div>
         </div>
 
-        <!-- 我的主页视图（公开展示页） -->
+        <!-- 我的主页视图（抖音式：头图+头像+统计三列+按钮行+作品三列网格，王总 2026-08-14 参考图定稿） -->
+        <div class="view" id="viewMyProfile">
+          <div class="myprofile-scroll">
+            <div class="myprofile-hero">
+              <div class="edge-blur top"></div>
+              <div class="edge-blur bottom"></div>
+              <div class="myprofile-nav">
+                <div class="sub-back" id="myProfileBack">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </div>
+                <div class="sub-title">我的主页</div>
+              </div>
+              <div class="myprofile-content">
+                <div class="myprofile-avatar" id="myProfileAvatar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+                <div class="myprofile-name" id="myProfileName">旅行者</div>
+                <div class="myprofile-bio" id="myProfileBio">记录旅途的每一个瞬间</div>
+              </div>
+            </div>
+            <div class="myprofile-stats">
+              <div class="myprofile-stat">
+                <div class="myprofile-stat-num" id="myProfileLikeCount">0</div>
+                <div class="myprofile-stat-label">获赞</div>
+              </div>
+              <div class="myprofile-stat">
+                <div class="myprofile-stat-num" id="myProfileFollowingCount">0</div>
+                <div class="myprofile-stat-label">关注</div>
+              </div>
+              <div class="myprofile-stat" id="myProfileFollowersStat">
+                <div class="myprofile-stat-num" id="myProfileFollowerCount">0</div>
+                <div class="myprofile-stat-label">粉丝</div>
+              </div>
+            </div>
+            <div class="myprofile-btns">
+              <div class="myprofile-btn" id="myProfileFollowersBtn">粉丝</div>
+              <div class="myprofile-btn ghost" id="myProfileEditBtn">编辑主页</div>
+            </div>
+            <div class="myprofile-section-title">作品</div>
+            <div class="myprofile-grid" id="myProfileGrid">
+              <!-- 作品卡片由JS动态生成（三列网格） -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 我的照片视图（原名"我的主页"，2026-08-14 更名） -->
         <div class="view" id="viewMyHome">
           <div class="myhome-scroll">
             <!-- 头部信息 -->
@@ -1962,7 +2307,7 @@
                     <polyline points="15 18 9 12 15 6"/>
                   </svg>
                 </div>
-                <div class="sub-title">我的主页</div>
+                <div class="sub-title">我的照片</div>
               </div>
               <button class="myhome-edit-btn" id="myHomeEditBtn" title="编辑资料">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2093,55 +2438,53 @@
           </div>
         </div>
 
-        <!-- 他人主页浮层（关注/粉丝列表点击进入） -->
+        <!-- 他人主页浮层（抖音式：头图+头像+统计三列+按钮行+作品三列网格，王总 2026-08-14 参考图定稿） -->
         <div class="peer-profile" id="peerProfile">
-          <div class="peer-profile-header">
+          <div class="peer-profile-hero">
             <div class="peer-profile-close" id="peerProfileClose">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </div>
-            <div class="peer-profile-info">
+            <div class="pp-hero-content">
               <div class="peer-profile-avatar" id="peerProfileAvatar"></div>
-              <div class="peer-profile-meta">
-                <div class="peer-profile-name" id="peerProfileName">加载中...</div>
-                <div class="peer-profile-bio" id="peerProfileBio">加载中...</div>
-                <div style="display: flex; gap: 8px; margin-top: 8px;">
-                  <div class="peer-profile-btn" id="peerProfileFollowBtn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
-                    </svg>
-                    <span id="peerProfileFollowText">关注</span>
-                  </div>
-                  <div class="peer-profile-btn" id="peerProfileMessageBtn" title="私信">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    <span>私信</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="peer-profile-stats" style="justify-content: space-around;">
-              <div class="peer-profile-stat">
-                <div class="peer-profile-stat-value" id="peerProfileCoordCount">0</div>
-                <div class="peer-profile-stat-label">坐标点</div>
-              </div>
-              <div class="peer-profile-stat">
-                <div class="peer-profile-stat-value" id="peerProfilePhotoCount">0</div>
-                <div class="peer-profile-stat-label">照片</div>
-              </div>
-              <div class="peer-profile-stat">
-                <div class="peer-profile-stat-value" id="peerProfileLikeCount">0</div>
-                <div class="peer-profile-stat-label">获赞</div>
-              </div>
-            </div>
-            <div style="display: flex; gap: 20rem; margin-top: 12rem; padding-top: 12rem; border-top: 1rem solid rgba(212,165,116,0.2);">
-              <span style="font-size:12rem; color:rgba(245,223,192,0.6);">粉丝 <b id="peerProfileFollowerCount" style="color:#F5DFC0;">0</b></span>
+              <div class="peer-profile-name" id="peerProfileName">加载中...</div>
+              <div class="peer-profile-bio" id="peerProfileBio">加载中...</div>
             </div>
           </div>
-          <div class="peer-profile-list" id="peerProfileCoords">
-            <!-- 作品卡片由JS动态生成 -->
+          <div class="peer-profile-stats">
+            <div class="peer-profile-stat">
+              <div class="peer-profile-stat-value" id="peerProfileLikeCount">0</div>
+              <div class="peer-profile-stat-label">获赞</div>
+            </div>
+            <div class="peer-profile-stat">
+              <div class="peer-profile-stat-value" id="peerProfileFollowingCount">0</div>
+              <div class="peer-profile-stat-label">关注</div>
+            </div>
+            <div class="peer-profile-stat">
+              <div class="peer-profile-stat-value" id="peerProfileFollowerCount">0</div>
+              <div class="peer-profile-stat-label">粉丝</div>
+            </div>
+          </div>
+          <div class="peer-profile-actions">
+            <div class="peer-profile-btn" id="peerProfileFollowBtn" title="关注">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+              </svg>
+              <span id="peerProfileFollowText">关注</span>
+            </div>
+            <div class="peer-profile-btn ghost" id="peerProfileMessageBtn" title="私信">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span>私信</span>
+            </div>
+          </div>
+          <div class="peer-profile-list">
+            <div class="peer-profile-section-title">TA 发布的作品</div>
+            <div id="peerProfileCoords" class="pp-grid">
+              <!-- 作品卡片由JS动态生成（三列网格） -->
+            </div>
           </div>
         </div>
 
@@ -2354,6 +2697,7 @@
   const viewDeleted = document.getElementById('viewDeleted');
   const viewMember = document.getElementById('viewMember');
   const viewMyHome = document.getElementById('viewMyHome');
+  const viewMyProfile = document.getElementById('viewMyProfile');
   const viewEditProfile = document.getElementById('viewEditProfile');
   const viewFollowList = document.getElementById('viewFollowList');
 
@@ -2362,6 +2706,7 @@
     viewDeleted.classList.toggle('active', view === 'deleted');
     viewMember.classList.toggle('active', view === 'member');
     viewMyHome.classList.toggle('active', view === 'myhome');
+    viewMyProfile.classList.toggle('active', view === 'myprofile');
     viewEditProfile.classList.toggle('active', view === 'editprofile');
     viewFollowList.classList.toggle('active', view === 'followlist');
   }
@@ -2654,6 +2999,76 @@
    * 渲染我的主页 — 使用与探索模式一致的大图网格布局
    * 根据当前摄影师状态刷新徽章显示
    */
+  // ========== 我的主页（抖音式）渲染：头图+统计三列+按钮行+三列作品网格 ==========
+  function renderMyProfile() {
+    if (serverProfile) {
+      const d = serverProfile;
+      const name = d.nickname || '旅行者';
+      const bio = d.bio || '记录旅途的每一个瞬间';
+      document.getElementById('myProfileName').textContent = name;
+      document.getElementById('myProfileBio').textContent = bio;
+      const av = document.getElementById('myProfileAvatar');
+      if (d.avatar && av) {
+        av.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = d.avatar;
+        img.alt = '';
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        av.appendChild(img);
+      }
+      if (d.stats) {
+        document.getElementById('myProfileLikeCount').textContent = d.stats.likeCount || 0;
+        document.getElementById('myProfileFollowingCount').textContent = d.stats.followingCount || 0;
+        document.getElementById('myProfileFollowerCount').textContent = d.stats.followerCount || 0;
+      }
+    }
+    renderMyProfileGrid();
+  }
+
+  // 三列网格作品：真实照片优先（serverCoordPhotos），失败回退演示色块
+  function renderMyProfileGrid() {
+    const grid = document.getElementById('myProfileGrid');
+    if (!grid) return;
+    let items = [];
+    if (serverCoordPhotos && serverCoordPhotos.length) {
+      serverCoordPhotos.forEach(function (photo) {
+        const url = photo.thumbnailUrl || photo.imageUrl || '';
+        items.push({
+          title: photo.title || '未命名',
+          likes: photo.likes || 0,
+          url: url,
+          color: photo.color || '#B06A4A',
+          time: photo.takenAt || photo.createdAt || '',
+          lng: photo.lng, lat: photo.lat
+        });
+      });
+    }
+    if (!items.length) {
+      const demoColors = ['#B06A4A', '#8B5E3C', '#A98A5F', '#7C5A3A', '#C0824E', '#95613F'];
+      items = demoColors.map(function (c, i) {
+        return { title: '示例作品 ' + (i + 1), likes: [85, 342, 126, 58, 240, 73][i], url: '', color: c, time: '', lng: NaN, lat: NaN };
+      });
+    }
+    grid.innerHTML = items.map(function (it, idx) {
+      const cover = it.url
+        ? "background-image:url('" + it.url + "');"
+        : 'background:linear-gradient(160deg, ' + it.color + ' 0%, #1c0f08 100%);';
+      return `
+        <div class="myprofile-card" data-idx="${idx}">
+          <div class="myprofile-card-cover" style="${cover}"></div>
+          <div class="myprofile-card-mask"></div>
+          <div class="myprofile-card-title">${it.title}</div>
+          <div class="myprofile-card-likes">♡ ${it.likes}</div>
+        </div>`;
+    }).join('');
+    grid.querySelectorAll('.myprofile-card').forEach(function (card) {
+      card.addEventListener('click', function () {
+        const it = items[parseInt(card.dataset.idx, 10)];
+        if (it) showMyHomeViewer({ title: it.title, time: it.time, imageUrl: it.url, color1: it.color, color2: it.color, lng: it.lng, lat: it.lat });
+      });
+    });
+  }
+
   function renderMyHomeCoords() {
     // 使用统一的照片网格渲染（与探索模式他人主页布局一致）
     renderMyHomeCoordsList();
@@ -2667,14 +3082,25 @@
     }
   }
 
-  // 我的主页入口 → 切换视图并渲染
+  // 我的主页入口（抖音式）→ 切换视图并渲染
   document.getElementById('myHomeEntry').addEventListener('click', () => {
+    showView('myprofile');
+    renderMyProfile();
+  });
+
+  // 我的照片入口（原名"我的主页"内容）→ 切换视图并渲染
+  document.getElementById('myPhotosEntry').addEventListener('click', () => {
     showView('myhome');
     renderMyHomeCoords();
   });
 
   // 我的主页返回按钮
   document.getElementById('myHomeBack').addEventListener('click', () => {
+    showView('profile');
+  });
+
+  // 我的主页（抖音式）返回
+  document.getElementById('myProfileBack').addEventListener('click', () => {
     showView('profile');
   });
 
@@ -2685,7 +3111,8 @@
   const editAvatarUrl = document.getElementById('editAvatarUrl');
   const editAvatarPreview = document.getElementById('editAvatarPreview');
 
-  document.getElementById('myHomeEditBtn').addEventListener('click', () => {
+  // 打开编辑资料（我的照片右上编辑钮 + 我的主页「编辑主页」钮共用）
+  function openEditProfile() {
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
       showToast('⚠️ 请先登录');
       return;
@@ -2696,7 +3123,14 @@
     editAvatarUrl.value = me.avatar || '';
     editAvatarPreview.style.background = me.avatar ? 'url("' + me.avatar + '") center/cover no-repeat' : '';
     showView('editprofile');
-  });
+  }
+
+  document.getElementById('myHomeEditBtn').addEventListener('click', openEditProfile);
+  document.getElementById('myProfileEditBtn').addEventListener('click', openEditProfile);
+
+  // 我的主页（抖音式）粉丝键/粉丝统计 → 粉丝列表
+  document.getElementById('myProfileFollowersBtn').addEventListener('click', () => openFollowView('followers'));
+  document.getElementById('myProfileFollowersStat').addEventListener('click', () => openFollowView('followers'));
 
   editProfileBack.addEventListener('click', () => showView('myhome'));
 
@@ -2866,9 +3300,8 @@
   const peerProfileAvatar = document.getElementById('peerProfileAvatar');
   const peerProfileName = document.getElementById('peerProfileName');
   const peerProfileBio = document.getElementById('peerProfileBio');
-  const peerProfileCoordCount = document.getElementById('peerProfileCoordCount');
-  const peerProfilePhotoCount = document.getElementById('peerProfilePhotoCount');
   const peerProfileLikeCount = document.getElementById('peerProfileLikeCount');
+  const peerProfileFollowingCount = document.getElementById('peerProfileFollowingCount');
   const peerProfileFollowerCount = document.getElementById('peerProfileFollowerCount');
   const peerProfileCoords = document.getElementById('peerProfileCoords');
   let currentPeer = null;
@@ -2882,9 +3315,8 @@
     peerProfileAvatar.style.background = avatar ? 'url("' + avatar + '") center/cover no-repeat' : hashColor(nickname);
     peerProfileName.textContent = nickname;
     peerProfileBio.textContent = '加载中...';
-    peerProfileCoordCount.textContent = '0';
-    peerProfilePhotoCount.textContent = '0';
     peerProfileLikeCount.textContent = '0';
+    peerProfileFollowingCount.textContent = '0';
     peerProfileFollowerCount.textContent = '0';
     peerProfileCoords.innerHTML = '<div class="peer-profile-empty">加载中...</div>';
     setPeerFollowBtn(false);
@@ -2898,11 +3330,13 @@
       if (p.avatar) peerProfileAvatar.style.background = 'url("' + p.avatar + '") center/cover no-repeat';
       setPeerFollowBtn(!!p.isFollowed);
       if (p.stats) {
-        peerProfileCoordCount.textContent = p.stats.coordCount || 0;
-        peerProfilePhotoCount.textContent = p.stats.photoCount || 0;
         peerProfileLikeCount.textContent = p.stats.likeCount || 0;
         peerProfileFollowerCount.textContent = p.stats.followerCount || 0;
       }
+      // 关注数：他人主页后端隐藏 followingCount，从关注列表接口取 total（失败保持 0）
+      MemoAPI.get('/users/' + uid + '/following?page=1&pageSize=1').then(function (d) {
+        if (d && typeof d.total === 'number') peerProfileFollowingCount.textContent = d.total;
+      }).catch(function () {});
     }).catch(function () { /* 失败保留骨架 */ });
 
     MemoAPI.get('/users/' + uid + '/coords?page=1&pageSize=30').then(function (data) {
@@ -2913,17 +3347,26 @@
       }
       let html = '';
       list.forEach(function (c) {
-        const thumbs = (c.thumbnails || []).map(function (t) {
-          return '<div style="flex:1; height:80rem; background:url(\'' + t + '\') center/cover no-repeat; border-radius:8rem;"></div>';
-        }).join('');
-        html += `
-          <div style="background: rgba(28,15,8,0.5); border: 1rem solid rgba(212,165,116,0.3); border-radius: 14rem; padding: 12rem; margin-bottom: 12rem;">
-            <div style="display:flex; gap:8rem;">${thumbs || '<div style="flex:1; height:80rem; background:rgba(212,165,116,0.15); border-radius:8rem; display:flex; align-items:center; justify-content:center; color:rgba(245,223,192,0.5); font-size:12rem;">暂无照片</div>'}</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10rem;">
-              <div style="color:#F5DFC0; font-size:13rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.title || '未命名坐标'}</div>
-              <div style="color:rgba(245,223,192,0.6); font-size:11rem; flex-shrink:0; margin-left:8rem;">❤️ ${c.likeCount || 0}</div>
-            </div>
-          </div>`;
+        const thumbs = (c.thumbnails || []);
+        if (thumbs.length) {
+          thumbs.forEach(function (t) {
+            html += `
+              <div class="pp-card">
+                <div class="pp-card-cover" style="background-image:url('${t}');"></div>
+                <div class="pp-card-mask"></div>
+                <div class="pp-card-title">${c.title || '未命名'}</div>
+                <div class="pp-card-likes">♡ ${c.likeCount || 0}</div>
+              </div>`;
+          });
+        } else {
+          html += `
+            <div class="pp-card">
+              <div class="pp-card-cover" style="background:linear-gradient(160deg, #B06A4A 0%, #1c0f08 100%);"></div>
+              <div class="pp-card-mask"></div>
+              <div class="pp-card-title">${c.title || '未命名'}</div>
+              <div class="pp-card-likes">♡ ${c.likeCount || 0}</div>
+            </div>`;
+        }
       });
       peerProfileCoords.innerHTML = html;
     }).catch(function () {
@@ -4106,4 +4549,3 @@
 })();
 </script>
 </body>
-</html>
