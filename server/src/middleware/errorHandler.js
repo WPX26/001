@@ -7,6 +7,7 @@
  */
 import { ERR } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
+import logger from '../utils/logger.js';
 
 export function errorHandler(err, req, res, next) {
   // 业务错误
@@ -41,7 +42,7 @@ export function errorHandler(err, req, res, next) {
     return res.status(400).json({ code: ERR.VALIDATE, data: null, message: msg });
   }
 
-  // 兜底：服务器内部错误（打印堆栈供排查）
-  console.error('[Error]', err);
+  // 兜底：服务器内部错误（消息进 console 与 SQLite，完整堆栈放 context 供排查）
+  logger.error(`[Error] ${err.message || err.name || '未知错误'}`, err.stack);
   return res.status(500).json({ code: ERR.SERVER, data: null, message: '服务器内部错误' });
 }

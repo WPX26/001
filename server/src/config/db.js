@@ -4,6 +4,7 @@
  */
 import mongoose from 'mongoose';
 import env from './env.js';
+import logger from '../utils/logger.js';
 
 export async function connectDB() {
   mongoose.set('strictQuery', true);
@@ -11,7 +12,7 @@ export async function connectDB() {
     serverSelectionTimeoutMS: 5000, // 5 秒内找不到服务即失败
     connectTimeoutMS: 5000,
   });
-  console.log(`[DB] MongoDB 已连接：${env.MONGODB_URI}`);
+  logger.info(`[DB] MongoDB 已连接：${env.MONGODB_URI}`);
   return mongoose.connection;
 }
 
@@ -22,5 +23,5 @@ export function isDBConnected() {
 
 export async function disconnectDB() {
   await mongoose.disconnect();
-  console.log('[DB] MongoDB 已断开');
+  logger.info('[DB] MongoDB 已断开');
 }

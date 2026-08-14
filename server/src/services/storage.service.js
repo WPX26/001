@@ -12,6 +12,7 @@ import crypto from 'node:crypto';
 import env from '../config/env.js';
 import { ERR } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
+import logger from '../utils/logger.js';
 import { Photo } from '../models/index.js';
 
 /** OSS 配置是否齐备 */
@@ -21,7 +22,7 @@ export function isOSSConfigured() {
 }
 
 function ossConfigMissingError() {
-  console.warn('[OSS] 请在 .env 配置 OSS_REGION / OSS_BUCKET / OSS_ROLE_ARN / OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET（STORAGE_MODE=oss）');
+  logger.warn('[OSS] 请在 .env 配置 OSS_REGION / OSS_BUCKET / OSS_ROLE_ARN / OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET（STORAGE_MODE=oss）');
   return new AppError(ERR.SERVICE_CONFIG, '存储服务未配置，请联系管理员配置 OSS 密钥', 503);
 }
 

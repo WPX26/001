@@ -9,6 +9,7 @@
  *   await notify(photo.authorId, NOTIFICATION_TYPE.COMMENT, { actorId: meId, photoId, commentId });
  */
 import { Notification } from '../models/index.js';
+import logger from '../utils/logger.js';
 
 /**
  * @param {ObjectId|string} userId 接收人
@@ -33,6 +34,6 @@ export function notify(userId, type, { actorId = null, photoId = null, commentId
     commentId: commentId || null,
     content: content || '',
   }).catch((e) => {
-    console.error('[notify] 通知写入失败（静默忽略）:', e.message);
+    logger.error(`[notify] 通知写入失败（静默忽略）: ${e.message}`);
   });
 }

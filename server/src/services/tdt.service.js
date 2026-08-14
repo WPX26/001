@@ -11,6 +11,7 @@
  * 由调用方以空列表兜底，绝不向客户端抛 500。
  */
 import env from '../config/env.js';
+import logger from '../utils/logger.js';
 
 const TDT_BASE = 'https://api.tianditu.gov.cn/geocoder';
 // 必须用浏览器 UA：Key 权限类型为"浏览器端"，天地图按 UA 鉴权，非浏览器 UA 会返回 403 权限类型错误
@@ -30,7 +31,7 @@ async function fetchTdt(url) {
     return data?.status === '0' ? data : null;
   } catch (err) {
     // 网络/超时/解析失败统一降级（不抛异常，避免接口 500）
-    console.warn(`[TDT] 请求失败已降级: ${err.message}`);
+    logger.warn(`[TDT] 请求失败已降级: ${err.message}`);
     return null;
   }
 }

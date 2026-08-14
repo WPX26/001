@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "description": "地图相册平台后端 P0（Node.js + Express + MongoDB）",
+  "//": "engines.node >=22.13：内置 node:sqlite 免 flag 可用（日志系统依赖，生产镜像 node:24-alpine）",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "main": "src/server.js",
   "scripts": {

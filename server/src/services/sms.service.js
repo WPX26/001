@@ -11,6 +11,7 @@
 import env from '../config/env.js';
 import { ERR } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
+import logger from '../utils/logger.js';
 
 /** 短信配置是否齐备 */
 export function isConfigured() {
@@ -19,7 +20,7 @@ export function isConfigured() {
 }
 
 function configMissingError() {
-  console.warn('[短信] 请在 .env 配置 ALIYUN_SMS_ACCESS_KEY_ID / ALIYUN_SMS_ACCESS_KEY_SECRET / ALIYUN_SMS_SIGN_NAME / ALIYUN_SMS_TEMPLATE_CODE');
+  logger.warn('[短信] 请在 .env 配置 ALIYUN_SMS_ACCESS_KEY_ID / ALIYUN_SMS_ACCESS_KEY_SECRET / ALIYUN_SMS_SIGN_NAME / ALIYUN_SMS_TEMPLATE_CODE');
   return new AppError(ERR.SERVICE_CONFIG, '短信服务未配置，请联系管理员配置短信密钥', 503);
 }
 

@@ -4,6 +4,7 @@
  */
 import app from './app.js';
 import env from './config/env.js';
+import logger from './utils/logger.js';
 import { connectDB, disconnectDB } from './config/db.js';
 import { expireMembership } from './services/membership.service.js';
 import { attachChatWS, CHAT_WS_PATH } from './services/chat.ws.js';
@@ -15,17 +16,18 @@ async function main() {
   try {
     await connectDB();
   } catch (err) {
-    console.error('\n[MongoDB] 连接失败：', err.message);
-    console.error('提示：请先启动 MongoDB（mongod 或 docker）或检查 .env 中的 MONGODB_URI 配置。');
-    console.error('参考：MONGODB_URI=' + env.MONGODB_URI);
+    logger.error(`\n[MongoDB] 连接失败：${err.message}`);
+    logger.error('提示：请先启动 MongoDB（mongod 或 docker）或检查 .env 中的 MONGODB_URI 配置。');
+    logger.error(`参考：MONGODB_URI=${env.MONGODB_URI}`);
+    logger.flushSync(); // 连接失败即退出，先把错误落库
     process.exit(1);
   }
 
   const server = app.listen(env.PORT, () => {
-    console.log(`[Server] 地图相册平台后端已启动：http://localhost:${env.PORT}`);
-    console.log(`[Server] 存储模式：${env.STORAGE_MODE === 'oss' ? '阿里云 OSS' : '本地磁盘'}`);
-    console.log(`[Server] 健康检查：http://localhost:${env.PORT}/health`);
-    console.log(`[Server] 私信 WebSocket：ws://localhost:${env.PORT}${CHAT_WS_PATH}`);
+    logger.info(`[Server] 地图相册平台后端已启动：http://localhost:${env.PORT}`);
+    logger.info(`[Server] 存储模式：${env.STORAGE_MODE === 'oss' ? '阿里云 OSS' : '本地磁盘'}`);
+    logger.info(`[Server] 健康检查：http://localhost:${env.PORT}/health`);
+    logger.info(`[Server] 私信 WebSocket：ws://localhost:${env.PORT}${CHAT_WS_PATH}`);
   });
 
   // 私信 WebSocket 实时推送（HTTP 升级接管）
@@ -39,11 +41,11 @@ async function main() {
     scanRunning = true;
     try {
       const r = await expireMembership();
-      console.log(
+      logger.info(
         `[Member] 每日扫描完成：到期收回认证 ${r.revoked} 人，超时订单过期 ${r.staleOrders} 笔`
       );
     } catch (err) {
-      console.error('[Member] 每日扫描失败：', err.message);
+      logger.error(`[Member] 每日扫描失败：${err.message}`);
     } finally {
       scanRunning = false;
     }
@@ -53,9 +55,10 @@ async function main() {
 
   // 优雅退出
   const shutdown = async (signal) => {
-    console.log(`\n[Server] 收到 ${signal}，正在关闭...`);
+    logger.info(`\n[Server] 收到 ${signal}，正在关闭...`);
     server.close(async () => {
       await disconnectDB().catch(() => {});
+      logger.flushSync(); // 退出前把队列中的日志落库（兜底）
       process.exit(0);
     });
   };

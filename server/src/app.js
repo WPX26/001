@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import env, { UPLOAD_DIR } from './config/env.js';
 import { isDBConnected } from './config/db.js';
+import logger from './utils/logger.js';
 import { ok } from './utils/response.js';
 import routes from './routes/index.js';
 import { notFound } from './middleware/notFound.js';
@@ -19,8 +20,13 @@ const app = express();
 // 跨域（开发期全放行，上线前收敛为白名单）
 app.use(cors());
 
-// 请求日志
-app.use(morgan(env.isProd ? 'combined' : 'dev'));
+// 请求日志：写入统一日志模块（info 级入库 SQLite + console 镜像，格式保持现状）
+// stream.write 收到的是带 \n 的行，trim 后入库
+app.use(
+  morgan(env.isProd ? 'combined' : 'dev', {
+    stream: { write: (line) => logger.info(line.trim(), { source: 'http' }) },
+  })
+);
 
 // JSON 解析；rawBody 供 OSS 回调签名验签使用
 app.use(
