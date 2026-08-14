@@ -3095,12 +3095,12 @@
   body.full-embed.mobile-browser .phone-frame { height: var(--app-h, 100vh); }
 
   /* ===== 开场动画（落日 splash，王总 2026-08-13）：太阳出现→缩小→落地→依次弹出工一堂/欢迎您回来 → 淡出进入登录页 ===== */
-  /* 行书字体本地化（王总 2026-08-14：工一堂替换为可商用行书——钟齐志莽行书 ZhiMangXing，SIL OFL 1.1 开源协议（Google Fonts 收录，嵌入/商用零风险），原 Windows 华文行楷 STXINGKA 系统字体商用授权不清晰已移除；子集仅工一堂三字，随镜像打包 fonts/） */
+  /* 行书字体本地化（王总 2026-08-14：工一堂替换为可商用行楷——漓雨手书 Liyu Shoushu，SIL OFL 1.1 开源协议（InkPantherType 官方 GitHub，楷书端正骨架+行书笔意，嵌入/商用零风险），原 Windows 华文行楷 STXINGKA 系统字体商用授权不清晰已移除；子集仅工一堂三字，全量 woff2 兜底，随镜像打包 fonts/） */
   @font-face {
-    font-family: 'ZhiMangXingLocal';
-    src: url('./fonts/ZhiMangXing-subset.ttf') format('truetype'),
-         url('./fonts/ZhiMangXing-Regular.ttf') format('truetype');
-    /* 行书单字重：声明覆盖 400-700，避免浏览器对 700 做假粗体合成糊掉笔画 */
+    font-family: 'LiyuShoushuLocal';
+    src: url('./fonts/LiyuShoushu-subset.ttf') format('truetype'),
+         url('./fonts/LiyuShoushu.woff2') format('woff2');
+    /* 行楷单字重：声明覆盖 400-700，避免浏览器对 700 做假粗体合成糊掉笔画 */
     font-weight: 400 700;
     font-display: swap;
   }
@@ -3134,7 +3134,7 @@
     position: absolute;
     left: 50%; top: 46.5%;
     transform: translateX(-50%);
-    font-family: 'ZhiMangXingLocal', KaiTi, 楷体, serif;
+    font-family: 'LiyuShoushuLocal', KaiTi, 楷体, serif;
     font-size: 24rem;
     font-weight: 800;
     /* 单字重字体 font-weight 不改变字形，用描边模拟加粗（王总 2026-08-14：所有字体加粗 1 号） */
