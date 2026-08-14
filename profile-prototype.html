@@ -2207,6 +2207,29 @@
             </div>
 </div>
 
+            <!-- 统计栏上层（王总 2026-08-14 合并抖音式页：获赞/互关/关注/粉丝 + 编辑主页） -->
+            <div class="myprofile-stats-row">
+              <div class="myprofile-stats">
+                <div class="myprofile-stat">
+                  <div class="myprofile-stat-num" id="myHomeLikeCount">0</div>
+                  <div class="myprofile-stat-label">获赞</div>
+                </div>
+                <div class="myprofile-stat">
+                  <div class="myprofile-stat-num" id="myHomeMutualCount">0</div>
+                  <div class="myprofile-stat-label">互关</div>
+                </div>
+                <div class="myprofile-stat" id="myHomeFollowingStat">
+                  <div class="myprofile-stat-num" id="myHomeFollowingCount">0</div>
+                  <div class="myprofile-stat-label">关注</div>
+                </div>
+                <div class="myprofile-stat" id="myHomeFollowersStat">
+                  <div class="myprofile-stat-num" id="myHomeFollowerCount">0</div>
+                  <div class="myprofile-stat-label">粉丝</div>
+                </div>
+              </div>
+              <div class="myprofile-edit-btn" id="myHomeEditBtn">编辑主页</div>
+            </div>
+
             <!-- 统计栏（两 tab 交互键：坐标点/作品，王总 2026-08-14 去掉获赞） -->
             <div class="myhome-stats">
               <div class="myhome-stat clickable active" data-tab="coord">
@@ -2877,7 +2900,10 @@
       const followers = new Set((results[1] && results[1].list || []).map(function (u) { return u.id; }));
       let n = 0;
       following.forEach(function (id) { if (followers.has(id)) n++; });
-      document.getElementById('myProfileMutualCount').textContent = n;
+      const mEl = document.getElementById('myProfileMutualCount');
+      if (mEl) mEl.textContent = n;
+      const hEl = document.getElementById('myHomeMutualCount');
+      if (hEl) hEl.textContent = n;
     }).catch(function () {});
   }
 
@@ -2957,6 +2983,17 @@
   function renderMyHomeCoords() {
     // 使用统一的照片网格渲染（与探索模式他人主页布局一致）
     renderMyHomeCoordsList();
+    // 上层统计栏（王总 2026-08-14 合并：获赞/互关/关注/粉丝）
+    if (serverProfile && serverProfile.stats) {
+      const st = serverProfile.stats;
+      const likeEl = document.getElementById('myHomeLikeCount');
+      if (likeEl) likeEl.textContent = st.likeCount || 0;
+      const folEl = document.getElementById('myHomeFollowingCount');
+      if (folEl) folEl.textContent = st.followingCount || 0;
+      const fanEl = document.getElementById('myHomeFollowerCount');
+      if (fanEl) fanEl.textContent = st.followerCount || 0;
+    }
+    loadMutualCount();
 
     // 联动摄影师徽章（与我的界面保持一致）
     const badge = document.getElementById('myHomePhotographerBadge');
@@ -2977,6 +3014,14 @@
   document.getElementById('myHomeBack').addEventListener('click', () => {
     showView('profile');
   });
+
+  // 上层统计栏交互（王总 2026-08-14 合并）：关注列→关注列表、粉丝列→粉丝列表、编辑主页→编辑资料
+  const mhFolStat = document.getElementById('myHomeFollowingStat');
+  if (mhFolStat) mhFolStat.addEventListener('click', () => openFollowView('following'));
+  const mhFanStat = document.getElementById('myHomeFollowersStat');
+  if (mhFanStat) mhFanStat.addEventListener('click', () => openFollowView('followers'));
+  const mhEditBtn = document.getElementById('myHomeEditBtn');
+  if (mhEditBtn) mhEditBtn.addEventListener('click', openEditProfile);
 
   // 我的主页（抖音式）返回
   document.getElementById('myProfileBack').addEventListener('click', () => {
