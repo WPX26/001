@@ -1267,11 +1267,23 @@
     overflow: hidden;
     flex-shrink: 0;
     background: var(--card-bg, url('card-bg.jpg')) center/cover no-repeat;
+    --tint-light: #F2B85C;
+    --tint-dark: #A85628;
   }
   .peer-profile-hero::before {
     content: '';
     position: absolute; inset: 0;
+    z-index: 1;
     background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(10,10,10,0) 40%, rgba(10,10,10,0.85) 100%);
+  }
+  /* 卡片染色层：插画底图 + 头像色（mix-blend-mode:color 保留太阳/云/山峰明暗，色相饱和度取头像色；王总 2026-08-14） */
+  .peer-profile-hero::after {
+    content: '';
+    position: absolute; inset: 0;
+    z-index: 2;
+    background: linear-gradient(160deg, var(--tint-light) 0%, var(--tint-dark) 100%);
+    mix-blend-mode: color;
+    pointer-events: none;
   }
 
   .peer-profile-close {
@@ -2368,7 +2380,7 @@
 
         <!-- 他人主页浮层（抖音式：头图+头像+统计三列+按钮行+作品三列网格，王总 2026-08-14 参考图定稿） -->
         <div class="peer-profile" id="peerProfile">
-          <div class="peer-profile-hero">
+          <div class="peer-profile-hero" id="peerProfileHero">
             <div class="peer-profile-close" id="peerProfileClose">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -3254,9 +3266,52 @@
     return palette[h % palette.length];
   }
 
+  // 卡片染色：从头像色派生浅/深变体（HSL 调亮度），用于插画染色层 --tint-light/--tint-dark
+  function cardTintColors(hex) {
+    const m = String(hex).match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return null;
+    let r = parseInt(m[1].slice(0, 2), 16) / 255;
+    let g = parseInt(m[1].slice(2, 4), 16) / 255;
+    let b = parseInt(m[1].slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h /= 6;
+    }
+    const toHex = (ll) => {
+      const c = (1 - Math.abs(2 * ll - 1)) * s;
+      const x = c * (1 - Math.abs((h * 6) % 2 - 1));
+      const mm = ll - c / 2;
+      let rr = 0, gg = 0, bb = 0;
+      const hi = Math.floor(h * 6);
+      if (hi === 0) { rr = c; gg = x; }
+      else if (hi === 1) { rr = x; gg = c; }
+      else if (hi === 2) { gg = c; bb = x; }
+      else if (hi === 3) { gg = x; bb = c; }
+      else if (hi === 4) { rr = x; bb = c; }
+      else { rr = c; bb = x; }
+      const f = v => Math.round(Math.min(255, Math.max(0, (v + mm) * 255))).toString(16).padStart(2, '0');
+      return '#' + f(rr) + f(gg) + f(bb);
+    };
+    return { light: toHex(Math.min(0.95, l + 0.18)), dark: toHex(Math.max(0.10, l - 0.22)) };
+  }
+  // 应用染色（非 hex 颜色如图片 URL 时回退默认橙，保持参考图原色）
+  function applyHeroTint(heroEl, color) {
+    if (!heroEl) return;
+    const c = cardTintColors(color);
+    heroEl.style.setProperty('--tint-light', c ? c.light : '#F2B85C');
+    heroEl.style.setProperty('--tint-dark', c ? c.dark : '#A85628');
+  }
+
   // ========== 他人主页浮层（关注/粉丝列表点击进入，与 memo-home 同款暖色系） ==========
   const peerProfile = document.getElementById('peerProfile');
   const peerProfileAvatar = document.getElementById('peerProfileAvatar');
+  const peerProfileHero = document.getElementById('peerProfileHero');
   const peerProfileName = document.getElementById('peerProfileName');
   const peerProfileBio = document.getElementById('peerProfileBio');
   const peerProfileLikeCount = document.getElementById('peerProfileLikeCount');
@@ -3271,7 +3326,9 @@
 
   function openPeerProfile(uid, nickname, avatar) {
     currentPeer = { id: uid, name: nickname };
-    peerProfileAvatar.style.background = avatar ? 'url("' + avatar + '") center/cover no-repeat' : hashColor(nickname);
+    const avatarBg = avatar ? 'url("' + avatar + '") center/cover no-repeat' : hashColor(nickname);
+    peerProfileAvatar.style.background = avatarBg;
+    if (!avatar) applyHeroTint(peerProfileHero, hashColor(nickname)); // 卡片插画染成头像色（王总 2026-08-14）
     peerProfileName.textContent = nickname;
     peerProfileBio.textContent = '加载中...';
     peerProfileLikeCount.textContent = '0';
@@ -3286,7 +3343,10 @@
       currentPeer.name = p.nickname;
       peerProfileName.textContent = p.nickname;
       peerProfileBio.textContent = p.bio || '这个人很懒，还没有写简介';
-      if (p.avatar) peerProfileAvatar.style.background = 'url("' + p.avatar + '") center/cover no-repeat';
+      if (p.avatar) {
+        peerProfileAvatar.style.background = 'url("' + p.avatar + '") center/cover no-repeat';
+        // 头像为图片时无法取色，卡片染色保持默认橙色
+      }
       setPeerFollowBtn(!!p.isFollowed);
       if (p.stats) {
         peerProfileLikeCount.textContent = p.stats.likeCount || 0;
