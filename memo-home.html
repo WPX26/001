@@ -8879,7 +8879,10 @@
 
     MemoAPI.get('/users/' + userId + '/coords?page=1&pageSize=30').then(function (data) {
       const list = (data && data.list) || [];
-      if (!list.length) return;
+      if (!list.length) {
+        userProfileCoords.innerHTML = '<div class="follow-list-empty">TA 还没有发布作品</div>';
+        return;
+      }
       let html = '';
       list.forEach(function (c) {
         const thumbs = (c.thumbnails || []);
@@ -8910,7 +8913,10 @@
           openPhotoPreview(el.dataset.img, el.dataset.title);
         });
       });
-    }).catch(function () { /* 失败保持本地演示 */ });
+    }).catch(function () {
+      // 拉取失败：明确空态而非卡在"加载中"(王总 2026-08-14: 要能看到卡片或明确提示)
+      userProfileCoords.innerHTML = '<div class="follow-list-empty">TA 还没有发布作品</div>';
+    });
   }
 
   // 真实照片大图预览
