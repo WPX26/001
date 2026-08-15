@@ -2778,18 +2778,31 @@
       uaHtml5: /Html5Plus/i.test(navigator.userAgent),
       uaMobile: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),
       full: q.get('full'),
-      usbSupported: typeof UsbTether !== 'undefined' && UsbTether.isSupported()
+      usbSupported: typeof UsbTether !== 'undefined' && !!UsbTether.isSupported()
     };
-    diagBox('USB 诊断（点击已触发）', JSON.stringify(diag, null, 1));
+    diagBox('USB 诊断', JSON.stringify(diag, null, 1));
+  };
+  // 主块正常时（window.db 存在）不拦截有线连接点击，只挂角落诊断按钮；
+  // 主块中断时才兜底绑定拦截（保证点击必有反应）
+  var addDiagBtn = function () {
+    var b = document.createElement('button');
+    b.textContent = 'USB诊断';
+    b.style.cssText = 'position:fixed;right:10rem;bottom:120rem;z-index:9999;background:rgba(232,144,32,0.9);color:#1c0f08;border:none;border-radius:20rem;padding:6rem 14rem;font-size:11rem;font-weight:600;';
+    b.addEventListener('click', window.__usbDiag);
+    document.body.appendChild(b);
   };
   var bind = function () {
-    document.querySelectorAll('.connect-option').forEach(function (opt) {
-      if (opt.__diagBound) return;
-      opt.__diagBound = true;
-      opt.addEventListener('click', function () {
-        if (opt.dataset.type === 'wired') window.__usbDiag();
+    if (!window.db) {
+      // 主块中断：兜底拦截有线连接
+      document.querySelectorAll('.connect-option').forEach(function (opt) {
+        if (opt.__diagBound) return;
+        opt.__diagBound = true;
+        opt.addEventListener('click', function () {
+          if (opt.dataset.type === 'wired') window.__usbDiag();
+        });
       });
-    });
+    }
+    addDiagBtn();
   };
   if (document.body) bind();
   else document.addEventListener('DOMContentLoaded', bind);
