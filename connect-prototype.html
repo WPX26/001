@@ -2506,10 +2506,36 @@
       return typeof UsbTether !== 'undefined' && UsbTether.isSupported();
     }
 
+    // ---------- 环境诊断（2026-08-15 USB 排查用：web-view 里有哪些桥可用）----------
+    function usbEnvDiag() {
+      var q = new URLSearchParams(window.location.search);
+      var diag = {
+        plus: typeof window.plus !== 'undefined',
+        plusAndroid: !!(window.plus && window.plus.android),
+        uni: typeof window.uni !== 'undefined',
+        uniPostMessage: !!(window.uni && window.uni.postMessage),
+        weexPost: typeof window.__dcloud_weex_postMessage !== 'undefined',
+        weex: typeof window.__dcloud_weex_ !== 'undefined',
+        parentIsSelf: window.parent === window,
+        uaHtml5: /Html5Plus/i.test(navigator.userAgent),
+        full: q.get('full')
+      };
+      return JSON.stringify(diag);
+    }
+
     // ---------- 弹层 ----------
     function openConnector() {
       if (!isUsbEnv()) {
-        showToast('⚠️ USB 直连需在 App 内使用');
+        // 诊断模式：显示环境 JSON（USB 排查用，上线后保留无碍）
+        var diag = usbEnvDiag();
+        var box = document.createElement('div');
+        box.style.cssText = 'position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:24px;';
+        box.innerHTML = '<div style="background:#1c0f08;border:1px solid rgba(212,165,116,0.35);border-radius:16px;padding:20px;max-width:92%;max-height:80%;overflow:auto;font-family:monospace;font-size:12px;color:#F5DFC0;white-space:pre-wrap;word-break:break-all;">' +
+          '<div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#E89020;">⚠️ USB 直连需在 App 内使用</div>' +
+          '<div>' + diag.replace(/</g, '&lt;') + '</div>' +
+          '<button id="usbDiagClose" style="margin-top:16px;width:100%;padding:10px;border:none;border-radius:10px;background:#E89020;color:#1c0f08;font-weight:600;cursor:pointer;">关闭</button></div>';
+        document.body.appendChild(box);
+        box.querySelector('#usbDiagClose').addEventListener('click', function () { box.parentNode.removeChild(box); });
         return;
       }
       usbCam.supported = true;
