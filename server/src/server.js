@@ -8,6 +8,7 @@ import logger from './utils/logger.js';
 import { connectDB, disconnectDB } from './config/db.js';
 import { expireMembership } from './services/membership.service.js';
 import { attachChatWS, CHAT_WS_PATH } from './services/chat.ws.js';
+import { attachPhonelinkWS, PHONELINK_WS_PATH } from './services/phonelink.ws.js';
 
 /** 会员到期每日扫描间隔：24 小时 */
 const MEMBER_SCAN_MS = 24 * 3600 * 1000;
@@ -28,10 +29,14 @@ async function main() {
     logger.info(`[Server] 存储模式：${env.STORAGE_MODE === 'oss' ? '阿里云 OSS' : '本地磁盘'}`);
     logger.info(`[Server] 健康检查：http://localhost:${env.PORT}/health`);
     logger.info(`[Server] 私信 WebSocket：ws://localhost:${env.PORT}${CHAT_WS_PATH}`);
+    logger.info(`[Server] 手机互联 WebSocket：ws://localhost:${env.PORT}${PHONELINK_WS_PATH}`);
   });
 
   // 私信 WebSocket 实时推送（HTTP 升级接管）
   attachChatWS(server);
+
+  // 手机互联 WebSocket（配对房间通道：命令/信令转发）
+  attachPhonelinkWS(server);
 
   // 会员到期每日扫描：到期收回认证（方案 B，不自动续费）/ 超时未确认订单过期
   // 幂等：处理完的会员不再命中条件，重复扫描不产生副作用

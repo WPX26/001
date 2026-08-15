@@ -6,7 +6,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>联机界面原型设计</title>
+<title>联机界面原型设计（相机互联 · 手机互联）</title>
 <style>  /* ===== 屏宽等比缩放基准（王总 2026-08-13）：1rem = 屏宽/375 px，元素长宽只与屏宽成比例，与屏高无关 ===== */
   html { font-size: 0.2667vw; }
 
@@ -81,47 +81,46 @@
   .status-icons { display: flex; gap: 5rem; align-items: center; }
   .status-icons svg { width: 14rem; height: 11rem; }
 
-  /* 顶部操作栏 */
+  /* 顶部操作栏：模式切换（相机互联 / 手机互联） */
   .top-bar {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     padding: 4rem 16rem 12rem;
     flex-shrink: 0;
   }
 
-  .top-btn {
+  .mode-switch {
     display: flex;
     align-items: center;
-    gap: 6rem;
-    padding: 7rem 14rem;
-    background: rgba(240, 160, 64, 0.15);
-    border: 1rem solid rgba(240, 160, 64, 0.3);
-    border-radius: 18rem;
-    color: #F0A040;
-    font-size: 12rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
+    background: rgba(28, 15, 8, 0.5);
+    border: 1rem solid rgba(212, 165, 116, 0.15);
+    border-radius: 20rem;
+    padding: 3rem;
+    gap: 2rem;
   }
-  .top-btn:hover { background: rgba(240, 160, 64, 0.25); box-shadow: 0 0 14rem rgba(232, 144, 32, 0.5); }
-  .top-btn:active { transform: scale(0.96); }
-  .top-btn svg { width: 14rem; height: 14rem; }
-
-  .avatar-btn {
-    width: 34rem; height: 34rem;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #F0A040, #D4691C);
+  .mode-btn {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 6rem;
+    padding: 7rem 22rem;
+    border: none;
+    border-radius: 17rem;
+    background: transparent;
+    color: rgba(245, 223, 192, 0.6);
+    font-size: 13rem;
+    font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 2rem 8rem rgba(240, 160, 64, 0.4);
-    transition: transform 0.2s;
+    transition: all 0.25s;
   }
-  .avatar-btn:hover { transform: scale(1.05); }
-  .avatar-btn:active { transform: scale(0.95); }
-  .avatar-btn svg { width: 18rem; height: 18rem; color: white; }
+  .mode-btn svg { width: 14rem; height: 14rem; }
+  .mode-btn.active {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: #fff;
+    box-shadow: 0 4rem 14rem rgba(240, 160, 64, 0.45);
+  }
+  .mode-btn:not(.active):hover { color: #F0A040; }
 
   /* 滚动内容区 */
   .content {
@@ -436,7 +435,8 @@
   @media (max-width: 900rem) {
     .container { flex-direction: column; gap: 30rem; }
   }
-  /* ========== 联机工作台视图 (Tethered Workspace) ========== */
+
+  /* ========== 相机互联工作台 (Tethered Workspace) ========== */
   .workspace {
     position: absolute;
     inset: 0;
@@ -461,7 +461,7 @@
   .ws-cam-info { display: flex; align-items: center; gap: 8rem; }
   .ws-cam-info svg { width: 18rem; height: 18rem; color: #4CAF50; }
   .ws-battery { display: flex; align-items: center; gap: 4rem; font-size: 12rem; color: #888; }
-  
+
   .ws-close { cursor: pointer; padding: 4rem; }
   .ws-close svg { width: 24rem; height: 24rem; color: white; }
 
@@ -541,7 +541,7 @@
   .ws-preset-name { font-size: 11rem; color: #AAA; }
   .ws-preset.active .ws-preset-name { color: #E89020; }
 
-  /* 底部快门区 */
+  /* 底部快门区（相机互联） */
   .ws-bottom {
     display: flex;
     justify-content: space-between;
@@ -549,7 +549,7 @@
     padding: 10rem 30rem 30rem;
     background: #1C1C1E;
   }
-  
+
   .ws-shutter {
     width: 68rem; height: 68rem;
     border-radius: 50%;
@@ -591,42 +591,8 @@
   .ws-flash.active { animation: flashAnim 0.3s ease-out; }
   @keyframes flashAnim { 0% { opacity: 0.8; } 100% { opacity: 0; } }
 
-
-  /* ========== 手机互联（2026-08-15 王总定稿 UI，与相机互联同风格同色系） ========== */
-  /* 顶部模式切换：相机互联 / 手机互联 */
-  .mode-switch {
-    display: flex;
-    align-items: center;
-    background: rgba(28, 15, 8, 0.5);
-    border: 1rem solid rgba(212, 165, 116, 0.15);
-    border-radius: 20rem;
-    padding: 3rem;
-    gap: 2rem;
-  }
-  .mode-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6rem;
-    padding: 7rem 22rem;
-    border: none;
-    border-radius: 17rem;
-    background: transparent;
-    color: rgba(245, 223, 192, 0.6);
-    font-size: 13rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.25s;
-  }
-  .mode-btn svg { width: 14rem; height: 14rem; }
-  .mode-btn.active {
-    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
-    color: #fff;
-    box-shadow: 0 4rem 14rem rgba(240, 160, 64, 0.45);
-  }
-  .mode-btn:not(.active):hover { color: #F0A040; }
-
-  /* 手机互联工作台：屏中屏（模拟被控手机系统相机画面） */
+  /* ========== 手机互联工作台（远程画面 + 快门） ========== */
+  /* 屏中屏：模拟被控手机屏幕画面 */
   .remote-frame {
     width: 60%;
     max-width: 250rem;
@@ -644,6 +610,7 @@
     position: relative;
     overflow: hidden;
   }
+  /* 模拟被控手机的系统相机取景画面 */
   .remote-cam { position: absolute; inset: 0; }
   .remote-cam-scene {
     position: absolute; inset: 0;
@@ -692,6 +659,7 @@
   }
   .remote-cam-modes .active-mode { color: #FFD27A; }
 
+  /* 远程画面角标 */
   .remote-badge {
     position: absolute;
     top: 14rem; left: 14rem;
@@ -750,140 +718,6 @@
     background: #1C1C1E;
   }
   .phone-ws-hint b { color: #AAA; font-weight: 600; }
-
-  /* 手机互联工作台：被控端 host 视图（连接码 + 等待控制端） */
-  .pair-host-view {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 20rem;
-    padding: 0 30rem;
-  }
-  .pair-host-card {
-    text-align: center;
-  }
-  .pair-code {
-    font-size: 58rem;
-    font-weight: 800;
-    letter-spacing: 12rem;
-    color: #F5DFC0;
-    font-variant-numeric: tabular-nums;
-    text-shadow: 0 0 30rem rgba(240, 160, 64, 0.45);
-    margin-bottom: 10rem;
-    padding-left: 12rem; /* 抵消 letter-spacing 末尾间距，保持视觉居中 */
-  }
-  .pair-code-hint {
-    font-size: 12rem;
-    color: rgba(245, 223, 192, 0.6);
-    line-height: 1.8;
-  }
-  .pair-code-hint b { color: #F0A040; font-weight: 600; }
-  .pair-host-status {
-    display: flex;
-    align-items: center;
-    gap: 8rem;
-    font-size: 13rem;
-    color: rgba(245, 223, 192, 0.85);
-    font-weight: 600;
-  }
-  .pair-host-status .dot-green {
-    width: 9rem; height: 9rem;
-    border-radius: 50%;
-    background: #4CAF50;
-    animation: pulse-dot 1.6s infinite;
-  }
-  .pair-host-status .dot-gray {
-    width: 9rem; height: 9rem;
-    border-radius: 50%;
-    background: rgba(245, 223, 192, 0.3);
-    animation: pulse-dot 2s infinite;
-  }
-  .pair-host-expire {
-    font-size: 11rem;
-    color: #888;
-  }
-  .pair-host-expire b { color: #F0A040; font-weight: 600; }
-
-  /* 手机互联工作台：控制端 client 连接码输入弹层 */
-  .pair-input-mask {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.75);
-    z-index: 90;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 30rem;
-  }
-  .pair-input-mask.show { display: flex; }
-  .pair-input-card {
-    width: 100%;
-    max-width: 330rem;
-    background: #1C1C1E;
-    border: 1rem solid rgba(212, 165, 116, 0.2);
-    border-radius: 18rem;
-    padding: 24rem 22rem;
-    text-align: center;
-  }
-  .pair-input-title {
-    font-size: 16rem;
-    font-weight: 700;
-    color: #F5DFC0;
-    margin-bottom: 6rem;
-  }
-  .pair-input-desc {
-    font-size: 12rem;
-    color: rgba(245, 223, 192, 0.6);
-    margin-bottom: 16rem;
-    line-height: 1.6;
-  }
-  .pair-input-box {
-    display: flex;
-    gap: 8rem;
-    justify-content: center;
-    margin-bottom: 16rem;
-  }
-  .pair-input-box input {
-    width: 46rem; height: 56rem;
-    background: rgba(28, 15, 8, 0.7);
-    border: 1rem solid rgba(212, 165, 116, 0.25);
-    border-radius: 10rem;
-    color: #F5DFC0;
-    font-size: 24rem;
-    font-weight: 700;
-    text-align: center;
-    outline: none;
-    font-variant-numeric: tabular-nums;
-  }
-  .pair-input-box input:focus { border-color: #F0A040; box-shadow: 0 0 10rem rgba(240, 160, 64, 0.3); }
-  .pair-input-actions {
-    display: flex;
-    gap: 10rem;
-  }
-  .pair-btn {
-    flex: 1;
-    padding: 11rem;
-    border-radius: 12rem;
-    border: none;
-    font-size: 14rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .pair-btn.primary {
-    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
-    color: white;
-    box-shadow: 0 4rem 14rem rgba(240, 160, 64, 0.35);
-  }
-  .pair-btn.primary:active { transform: scale(0.97); }
-  .pair-btn.ghost {
-    background: transparent;
-    border: 1rem solid rgba(212, 165, 116, 0.3);
-    color: rgba(245, 223, 192, 0.7);
-  }
-  .pair-btn.ghost:active { transform: scale(0.97); }
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
   body.full-embed {
@@ -963,7 +797,7 @@
 <script>
 // 导航 active 兜底：页面加载时强制单一 active（防止任何路径导致多个键亮起）
 (function () {
-  var tabs = { 'memo-home.html': 'home', 'connect-prototype.html': 'market', 'message-prototype.html': 'message', 'profile-prototype.html': 'profile' };
+  var tabs = { 'memo-home.html': 'home', 'connect-prototype.html': 'market', 'phone-link-prototype.html': 'market', 'message-prototype.html': 'message', 'profile-prototype.html': 'profile' };
   var cur = tabs[(location.pathname.split('/').pop() || '')];
   document.querySelectorAll('.nav-item').forEach(function (i) {
     i.classList.toggle('active', !!cur && i.dataset.tab === cur);
@@ -990,7 +824,7 @@
           </div>
         </div>
 
-        <!-- 顶部操作栏：模式切换（相机互联 / 手机互联） -->
+        <!-- 顶部操作栏：模式切换 -->
         <div class="top-bar">
           <div class="mode-switch" id="modeSwitch">
             <button class="mode-btn active" data-mode="camera">
@@ -1019,74 +853,73 @@
         <!-- 滚动内容区 -->
         <div class="content">
 
-          <!-- ========== 相机互联模式（默认） ========== -->
+          <!-- ========== 相机互联模式 ========== -->
           <div id="cameraModeContent">
 
-          <!-- 功能卡片 -->
-          <div class="feature-card">
-            <div class="feature-title">相机直连 极速修图</div>
-            <div class="feature-desc">WiFi或数据线联机，快门一按，照片实时导入修图。</div>
-            <div class="feature-illustration">
-              <div class="illus-phone">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
-                </svg>
-              </div>
-              <div class="illus-wave">
-                <span></span><span></span><span></span><span></span><span></span>
-              </div>
-              <div class="illus-camera">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <!-- 连接选项 -->
-          <div class="connect-options">
-            <div class="connect-option" data-type="wired">
-              <div class="connect-option-left">
-                <div class="connect-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 2v6l-4 4v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8l-4-4V2"/>
-                    <line x1="9" y1="2" x2="15" y2="2"/>
+            <!-- 功能卡片 -->
+            <div class="feature-card">
+              <div class="feature-title">相机直连 极速修图</div>
+              <div class="feature-desc">WiFi或数据线联机，快门一按，照片实时导入修图。</div>
+              <div class="feature-illustration">
+                <div class="illus-phone">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
                   </svg>
                 </div>
-                <span class="connect-label">有线连接</span>
-              </div>
-              <div class="connect-guide">
-                <span>连接引导</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </div>
-            </div>
-            <div class="connect-option" data-type="wireless">
-              <div class="connect-option-left">
-                <div class="connect-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-                    <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-                    <line x1="12" y1="20" x2="12.01" y2="20"/>
+                <div class="illus-wave">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="illus-camera">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
                   </svg>
                 </div>
-                <span class="connect-label">无线连接</span>
-              </div>
-              <div class="connect-guide">
-                <span>连接引导</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
               </div>
             </div>
+
+            <!-- 连接选项 -->
+            <div class="connect-options">
+              <div class="connect-option" data-type="wired">
+                <div class="connect-option-left">
+                  <div class="connect-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 2v6l-4 4v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8l-4-4V2"/>
+                      <line x1="9" y1="2" x2="15" y2="2"/>
+                    </svg>
+                  </div>
+                  <span class="connect-label">有线连接</span>
+                </div>
+                <div class="connect-guide">
+                  <span>连接引导</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="connect-option" data-type="wireless">
+                <div class="connect-option-left">
+                  <div class="connect-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                      <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                      <line x1="12" y1="20" x2="12.01" y2="20"/>
+                    </svg>
+                  </div>
+                  <span class="connect-label">无线连接</span>
+                </div>
+                <div class="connect-guide">
+                  <span>连接引导</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- 检测按钮 -->
+            <button class="detect-btn" id="detectBtn">开始检测相机</button>
           </div>
-
-          <!-- 检测按钮 -->
-          <button class="detect-btn" id="detectBtn">开始检测相机</button>
-
-          </div><!-- /cameraModeContent -->
 
           <!-- ========== 手机互联模式 ========== -->
           <div id="phoneModeContent" style="display:none">
@@ -1112,9 +945,9 @@
               </div>
             </div>
 
-            <!-- 连接选项（控制端 B 入口） -->
+            <!-- 连接选项 -->
             <div class="connect-options">
-              <div class="connect-option" data-type="qr" id="plJoinOption">
+              <div class="connect-option" data-type="qr">
                 <div class="connect-option-left">
                   <div class="connect-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1125,13 +958,13 @@
                   <span class="connect-label">扫码连接</span>
                 </div>
                 <div class="connect-guide">
-                  <span>输入连接码</span>
+                  <span>连接引导</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
                 </div>
               </div>
-              <div class="connect-option" data-type="lan" id="plLanOption">
+              <div class="connect-option" data-type="lan">
                 <div class="connect-option-left">
                   <div class="connect-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1144,7 +977,7 @@
                   <span class="connect-label">局域网直连</span>
                 </div>
                 <div class="connect-guide">
-                  <span>输入连接码</span>
+                  <span>连接引导</span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
@@ -1152,11 +985,11 @@
               </div>
             </div>
 
-            <!-- 检测按钮（被控端 A 入口） -->
+            <!-- 检测按钮 -->
             <button class="detect-btn" id="phoneDetectBtn">开始连接手机</button>
-          </div><!-- /phoneModeContent -->
+          </div>
 
-          <!-- 客服入口 -->
+          <!-- 客服入口（两模式共用） -->
           <div class="service-entry" id="serviceEntry">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -1192,99 +1025,9 @@
           </div>
         </div>
 
-        <!-- 手机互联工作台 (隐藏状态) -->
-        <div class="workspace" id="phoneWorkspace">
-          <div class="ws-header">
-            <div class="ws-cam-info">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-              <span id="phoneDeviceName">被控手机</span>
-              <div class="ws-battery">
-                <span>85%</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;color:#888;"><rect x="2" y="7" width="16" height="10" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
-              </div>
-            </div>
-            <div class="ws-close" id="phoneWsClose">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </div>
-          </div>
-
-          <!-- host 视图：被控端 A（连接码 + 等待控制端） -->
-          <div class="pair-host-view" id="phoneHostView">
-            <div class="pair-host-card">
-              <div class="pair-code" id="pairCodeText">------</div>
-              <div class="pair-code-hint">让控制端输入此连接码<br>或使用 <b>扫码连接</b> 快速配对</div>
-            </div>
-            <div class="pair-host-status">
-              <span class="dot-gray" id="pairHostDot"></span>
-              <span id="pairHostStatusText">等待控制端加入…</span>
-            </div>
-            <div class="pair-host-expire">连接码 <b id="pairExpireText">10:00</b> 后过期</div>
-          </div>
-
-          <!-- client 视图：控制端 B（远程画面 + 快门） -->
-          <div class="ws-viewfinder" id="phoneViewfinder" style="display:none">
-            <div class="remote-frame">
-              <div class="remote-screen">
-                <div class="remote-cam">
-                  <div class="remote-cam-scene"></div>
-                  <div class="remote-cam-ui">
-                    <div class="remote-cam-top">
-                      <span>HDR · 闪光</span>
-                      <span class="cam-dot"></span>
-                    </div>
-                    <div class="remote-cam-shutter"></div>
-                    <div class="remote-cam-modes"><span>照片</span> · <span class="active-mode">视频</span> · <span>人像</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="remote-badge">
-              <span class="dot-green"></span>
-              <span>远程画面 · 实时</span>
-            </div>
-            <div class="ws-grid"></div>
-            <div class="ws-flash" id="phoneFlash"></div>
-          </div>
-
-          <div class="phone-ws-hint" id="phoneWsHint" style="display:none">只能按下快门 · 其余操作请在被控手机上完成</div>
-
-          <!-- 底部控制区 -->
-          <div class="phone-ws-bottom">
-            <div class="ws-gallery" id="phoneGallery" title="查看相册" style="display:none">
-              <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" id="phoneGalleryImg" alt="Gallery">
-              <div class="ws-gallery-badge" id="phoneBadge">0</div>
-            </div>
-            <div class="ws-shutter" id="phoneShutter" title="远程拍摄" style="display:none"></div>
-            <button class="ws-disconnect" id="phoneDisconnect" style="margin:0 auto;">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
-              <span>断开连接</span>
-            </button>
-          </div>
-
-          <!-- 连接码输入弹层（控制端 B 扫码/输码入口） -->
-          <div class="pair-input-mask" id="pairInputMask">
-            <div class="pair-input-card">
-              <div class="pair-input-title">输入连接码</div>
-              <div class="pair-input-desc">输入被控手机屏幕上显示的 <b style="color:#F0A040">6 位连接码</b>，即可远程按下快门</div>
-              <div class="pair-input-box" id="pairInputBox">
-                <input maxlength="1" inputmode="numeric" aria-label="第1位">
-                <input maxlength="1" inputmode="numeric" aria-label="第2位">
-                <input maxlength="1" inputmode="numeric" aria-label="第3位">
-                <input maxlength="1" inputmode="numeric" aria-label="第4位">
-                <input maxlength="1" inputmode="numeric" aria-label="第5位">
-                <input maxlength="1" inputmode="numeric" aria-label="第6位">
-              </div>
-              <div class="pair-input-actions">
-                <button class="pair-btn ghost" id="pairInputCancel">取消</button>
-                <button class="pair-btn primary" id="pairInputOk">开始连接</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div class="home-indicator"></div>
 
-        <!-- 联机工作台 (隐藏状态) -->
+        <!-- 相机互联工作台 (隐藏状态) -->
         <div class="workspace" id="workspace">
           <div class="ws-header">
             <div class="ws-cam-info">
@@ -1299,7 +1042,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </div>
           </div>
-          
+
           <div class="ws-viewfinder">
             <!-- 使用高质量占位图模拟相机取景器画面 -->
             <img src="https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=600&q=80" class="ws-viewfinder-img" id="wsViewfinderImg" alt="Live View">
@@ -1353,6 +1096,63 @@
           </div>
         </div>
 
+        <!-- 手机互联工作台 (隐藏状态) -->
+        <div class="workspace" id="phoneWorkspace">
+          <div class="ws-header">
+            <div class="ws-cam-info">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              <span id="phoneDeviceName">被控手机 · Android</span>
+              <div class="ws-battery">
+                <span>85%</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;color:#888;"><rect x="2" y="7" width="16" height="10" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
+              </div>
+            </div>
+            <div class="ws-close" id="phoneWsClose">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+          </div>
+
+          <div class="ws-viewfinder" id="phoneViewfinder">
+            <!-- 屏中屏：模拟被控手机的屏幕（系统相机画面） -->
+            <div class="remote-frame">
+              <div class="remote-screen">
+                <div class="remote-cam">
+                  <div class="remote-cam-scene"></div>
+                  <div class="remote-cam-ui">
+                    <div class="remote-cam-top">
+                      <span>HDR · 闪光</span>
+                      <span class="cam-dot"></span>
+                    </div>
+                    <div class="remote-cam-shutter"></div>
+                    <div class="remote-cam-modes"><span>照片</span> · <span class="active-mode">视频</span> · <span>人像</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="remote-badge">
+              <span class="dot-green"></span>
+              <span>远程画面 · 实时</span>
+            </div>
+            <div class="ws-grid"></div>
+            <div class="ws-flash" id="phoneFlash"></div>
+          </div>
+
+          <div class="phone-ws-hint">只能按下快门 · 其余操作请在被控手机上完成</div>
+
+          <!-- 底部控制区 -->
+          <div class="phone-ws-bottom">
+            <div class="ws-gallery" id="phoneGallery" title="查看相册">
+              <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" id="phoneGalleryImg" alt="Gallery">
+              <div class="ws-gallery-badge" id="phoneBadge">0</div>
+            </div>
+            <div class="ws-shutter" id="phoneShutter" title="远程拍摄"></div>
+            <button class="ws-disconnect" id="phoneDisconnect">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+              <span>断开连接</span>
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1375,46 +1175,99 @@
     showToast._t = setTimeout(() => toast.classList.remove('show'), 2000);
   };
 
-  // 连接选项
-  document.querySelectorAll('.connect-option').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const type = opt.dataset.type;
-      // 手机互联选项（qr/lan）由手机互联模块处理，此处不拦截
-      if (type === 'qr' || type === 'lan') return;
-      const names = { wired: '有线连接', wireless: '无线连接' };
-      showToast('🔗 ' + names[type] + ' - 连接引导');
+  // ========== 模式切换（相机互联 / 手机互联） ==========
+  var currentMode = 'camera'; // 点击连接界面首先显示的是相机互联
+  var cameraModeContent = document.getElementById('cameraModeContent');
+  var phoneModeContent = document.getElementById('phoneModeContent');
+  var connIconCamera = document.getElementById('connIconCamera');
+  var connIconPhone = document.getElementById('connIconPhone');
+
+  // 演示参数：?mode=phone 初始显示手机互联；&ws=1 直接打开手机互联工作台；&dbg=1 输出断开按钮尺寸到 title（原型预览用）
+  (function () {
+    try {
+      var p = new URLSearchParams(window.location.search);
+      if (p.get('mode') === 'phone') {
+        setTimeout(function () { document.querySelector('.mode-btn[data-mode="phone"]').click(); }, 0);
+      }
+      if (p.get('ws') === '1') {
+        setTimeout(function () { document.getElementById('phoneWorkspace').classList.add('active'); }, 600);
+      }
+      if (p.get('dbg') === '1') {
+        setTimeout(function () {
+          var el = document.getElementById('phoneDisconnect');
+          var t = el.querySelector('span');
+          document.title = 'DBG w=' + el.clientWidth + ' sw=' + el.scrollWidth + ' spanW=' + (t ? t.offsetWidth : -1);
+        }, 1500);
+      }
+    } catch (e) {}
+  })();
+
+  document.querySelectorAll('.mode-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentMode = btn.dataset.mode;
+      var isPhone = currentMode === 'phone';
+      cameraModeContent.style.display = isPhone ? 'none' : '';
+      phoneModeContent.style.display = isPhone ? '' : 'none';
+      connIconCamera.style.display = isPhone ? 'none' : '';
+      connIconPhone.style.display = isPhone ? '' : 'none';
     });
   });
 
-  // 检测按钮 - 模拟成功连接并进入工作台
+  // 连接选项
+  document.querySelectorAll('.connect-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      var names = { wired: '有线连接', wireless: '无线连接', qr: '扫码连接', lan: '局域网直连' };
+      showToast('🔗 ' + names[opt.dataset.type] + ' - 连接引导');
+    });
+  });
+
+  // 相机互联检测按钮 - 模拟成功连接并进入工作台
   document.getElementById('detectBtn').addEventListener('click', () => {
     const btn = document.getElementById('detectBtn');
     const original = btn.textContent;
     btn.textContent = '正在连接 Sony A7M4...';
     btn.style.opacity = '0.7';
-    
+
     setTimeout(() => {
       btn.textContent = original;
       btn.style.opacity = '1';
       showToast('✅ 相机连接成功！');
-      
+
       // 打开联机工作台
       document.getElementById('workspace').classList.add('active');
     }, 1500);
   });
 
-  // ================= 联机工作台逻辑 =================
+  // 手机互联检测按钮 - 模拟连接被控手机并进入手机互联工作台
+  document.getElementById('phoneDetectBtn').addEventListener('click', () => {
+    const btn = document.getElementById('phoneDetectBtn');
+    const original = btn.textContent;
+    btn.textContent = '正在连接被控手机...';
+    btn.style.opacity = '0.7';
+
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.style.opacity = '1';
+      showToast('✅ 已连接被控手机！');
+
+      // 打开手机互联工作台
+      document.getElementById('phoneWorkspace').classList.add('active');
+    }, 1500);
+  });
+
+  // ================= 相机互联工作台逻辑 =================
   const wsClose = document.getElementById('wsClose');
   const workspace = document.getElementById('workspace');
-  const wsPresets = document.querySelectorAll('.ws-preset');
+  const wsPresets = document.querySelectorAll('#workspace .ws-preset');
   const wsViewfinderImg = document.getElementById('wsViewfinderImg');
   const wsShutter = document.getElementById('wsShutter');
   const wsFlash = document.getElementById('wsFlash');
   const wsGalleryImg = document.getElementById('wsGalleryImg');
   const wsBadge = document.getElementById('wsBadge');
-  
+
   let photoCount = 0;
-  var wsLastPhotoFile = null; // 系统相机捕获的真实照片文件缓存，快门管线优先读取
 
   // 关闭工作台
   wsClose.addEventListener('click', () => {
@@ -1428,7 +1281,6 @@
       preset.classList.add('active');
       const filter = preset.dataset.filter;
       wsViewfinderImg.style.filter = filter === 'none' ? '' : filter;
-      showToast('已应用：' + preset.querySelector('.ws-preset-name').textContent);
     });
   });
 
@@ -1447,363 +1299,100 @@
       photoCount++;
       wsBadge.textContent = photoCount;
       wsBadge.classList.add('show');
-      
+
       // 模拟一张新照片飞入图库
       wsGalleryImg.src = 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=150&q=80';
       wsGalleryImg.style.filter = wsViewfinderImg.style.filter; // 保持滤镜效果
     }, 200);
-
-    // 追加：拍摄数据写入待归类管线（pendingPhotos）——EXIF 拍摄时间 + GPS + 缩略图 dataURL
-    // 上方白闪/震动/角标动画保持不动，仅数据侧异步追加
-    wsSaveShotToPending();
   });
 
-  // =====================================================================
-  // 手机互联（2026-08-15 王总定稿 UI + 后端 phonelink 模块落地）
-  // 架构：A（被控，装 APP）创建配对得 6 位码 → B（网页控制端）输码加入
-  //      → 双方连 WS 房间（/api/v1/phonelink/ws）→ 命令/信令透传
-  //      → B 只能按快门（capture）；真实拍照由被控端原生插件执行（二期），
-  //        v1 收到 capture 时被控端模拟拍照反馈（闪屏+角标）
-  // =====================================================================
-  (function () {
-    var plApiBase = null;
-    try {
-      plApiBase = new URLSearchParams(window.location.search).get('apiBase') || location.origin + '/api/v1';
-    } catch (e) { plApiBase = location.origin + '/api/v1'; }
+  // ================= 手机互联工作台逻辑 =================
+  const phoneWsClose = document.getElementById('phoneWsClose');
+  const phoneWorkspace = document.getElementById('phoneWorkspace');
+  const phoneShutter = document.getElementById('phoneShutter');
+  const phoneFlash = document.getElementById('phoneFlash');
+  const phoneGalleryImg = document.getElementById('phoneGalleryImg');
+  const phoneBadge = document.getElementById('phoneBadge');
+  const phoneDisconnect = document.getElementById('phoneDisconnect');
+  const phoneViewfinder = document.getElementById('phoneViewfinder');
 
-    // 轻量 API 封装（对齐后端 { code, data, message } 契约）
-    function plApi(path, opts) {
-      opts = opts || {};
-      return fetch(plApiBase + path, {
-        method: opts.method || 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(opts.token ? { Authorization: 'Bearer ' + opts.token } : {}),
-        },
-        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-      }).then(function (r) {
-        return r.json().then(function (j) { return { status: r.status, body: j }; });
-      });
-    }
-    function plToken() {
-      try { return localStorage.getItem('memo_token') || ''; } catch (e) { return ''; }
-    }
-    function plWsUrl(code, role) {
-      var proto = (location.protocol === 'https:' || plApiBase.indexOf('https:') === 0) ? 'wss' : 'ws';
-      var host = plApiBase.replace(/^https?:\/\//, '').replace(/\/api\/v1\/?$/, '');
-      return proto + '://' + host + '/api/v1/phonelink/ws?code=' + encodeURIComponent(code) + '&role=' + role;
-    }
+  let phonePhotoCount = 0;
 
-    // ---------- 状态 ----------
-    var plWs = null;          // WebSocket 实例
-    var plRole = null;        // 'host' | 'client'（当前页面角色）
-    var plCode = '';          // 6 位连接码
-    var plPairId = '';        // 配对 ID
-    var plExpireAt = 0;       // 过期时间戳
-    var plCountdownTimer = null;
-    var plPhotoCount = 0;
+  // 关闭工作台
+  phoneWsClose.addEventListener('click', () => {
+    phoneWorkspace.classList.remove('active');
+  });
 
-    // ---------- DOM ----------
-    var $ = function (id) { return document.getElementById(id); };
-    var cameraModeContent = $('cameraModeContent');
-    var phoneModeContent = $('phoneModeContent');
-    var connIconCamera = $('connIconCamera');
-    var connIconPhone = $('connIconPhone');
-    var connStatusText = $('connStatusText');
-    var phoneWorkspace = $('phoneWorkspace');
-    var phoneHostView = $('phoneHostView');
-    var phoneViewfinder = $('phoneViewfinder');
-    var phoneWsHint = $('phoneWsHint');
-    var phoneGallery = $('phoneGallery');
-    var phoneShutter = $('phoneShutter');
-    var phoneDisconnect = $('phoneDisconnect');
-    var pairInputMask = $('pairInputMask');
-    var pairInputBox = $('pairInputBox');
+  // 断开连接
+  phoneDisconnect.addEventListener('click', () => {
+    phoneWorkspace.classList.remove('active');
+    showToast('已断开与被控手机的连接');
+  });
 
-    // ---------- 模式切换（相机互联 / 手机互联） ----------
-    document.querySelectorAll('.mode-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-        var isPhone = btn.dataset.mode === 'phone';
-        cameraModeContent.style.display = isPhone ? 'none' : '';
-        phoneModeContent.style.display = isPhone ? '' : 'none';
-        connIconCamera.style.display = isPhone ? 'none' : '';
-        connIconPhone.style.display = isPhone ? '' : 'none';
-      });
-    });
+  // 远程拍摄（模拟）
+  phoneShutter.addEventListener('click', () => {
+    // 闪光屏效
+    phoneFlash.classList.remove('active');
+    void phoneFlash.offsetWidth; // trigger reflow
+    phoneFlash.classList.add('active');
 
-    // 演示参数：?mode=phone 初始显示手机互联；?autoHost=1 自动发起配对（e2e 联调用）
-    try {
-      var plParams = new URLSearchParams(window.location.search);
-      if (plParams.get('mode') === 'phone') {
-        setTimeout(function () { document.querySelector('.mode-btn[data-mode="phone"]').click(); }, 0);
-      }
-      if (plParams.get('autoHost') === '1') {
-        setTimeout(function () {
-          document.getElementById('phoneDetectBtn').click();
-          setTimeout(function () {
-            var wsState = plWs ? plWs.readyState : -1;
-            document.title = 'PLH|code=' + plCode + '|ws=' + wsState + '|pair=' + plPairId;
-          }, 2500);
-        }, 800);
-      }
-    } catch (e) {}
+    // 震动反馈 (支持的设备上)
+    if (navigator.vibrate) navigator.vibrate(50);
 
-    // ---------- 工作台角色视图切换 ----------
-    function plShowRole(role) {
-      plRole = role;
-      var isHost = role === 'host';
-      phoneHostView.style.display = isHost ? '' : 'none';
-      phoneViewfinder.style.display = isHost ? 'none' : '';
-      phoneWsHint.style.display = isHost ? 'none' : '';
-      phoneGallery.style.display = isHost ? 'none' : '';
-      phoneShutter.style.display = isHost ? 'none' : '';
-      phoneDisconnect.style.margin = isHost ? '0 auto' : '';
-    }
+    // 远程画面闪烁反馈（模拟被控端快门声效/画面变化）
+    phoneViewfinder.classList.remove('remote-pulse');
+    void phoneViewfinder.offsetWidth;
+    phoneViewfinder.classList.add('remote-pulse');
 
-    // ---------- 连接状态行 ----------
-    function plSetConn(connected, text) {
-      connStatusText.textContent = text || (connected ? '已连接' : '未连接');
-      var dot = document.querySelector('#connStatus .dot');
-      if (dot) dot.style.background = connected ? '#4CAF50' : '';
-    }
+    // 更新相册缩略图和计数
+    setTimeout(() => {
+      phonePhotoCount++;
+      phoneBadge.textContent = phonePhotoCount;
+      phoneBadge.classList.add('show');
+      phoneGalleryImg.src = 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=150&q=80';
+    }, 200);
+  });
 
-    // ---------- 倒计时 ----------
-    function plStartCountdown() {
-      plStopCountdown();
-      var el = $('pairExpireText');
-      plCountdownTimer = setInterval(function () {
-        var remain = Math.max(0, Math.ceil((plExpireAt - Date.now()) / 1000));
-        if (remain <= 0) {
-          plStopCountdown();
-          showToast('⚠️ 连接码已过期，请重新发起');
-          plTeardown(true);
-          return;
-        }
-        if (el) el.textContent = String(Math.floor(remain / 60)).padStart(2, '0') + ':' + String(remain % 60).padStart(2, '0');
-      }, 1000);
-    }
-    function plStopCountdown() {
-      if (plCountdownTimer) { clearInterval(plCountdownTimer); plCountdownTimer = null; }
-    }
-
-    // ---------- 断开清理（closeRemote: 是否告知后端 host 关闭） ----------
-    function plTeardown(closeRemote) {
-      plStopCountdown();
-      if (plWs) {
-        try { plWs.close(); } catch (e) {}
-        plWs = null;
-      }
-      if (closeRemote && plRole === 'host' && plCode && plToken()) {
-        plApi('/phonelink/pairs/' + plCode + '/close', { method: 'POST', token: plToken() }).catch(function () {});
-      }
-      plRole = null;
-      plCode = '';
-      plPairId = '';
-      phoneWorkspace.classList.remove('active');
-      plSetConn(false, '未连接');
-      // 底部导航恢复可点（工作台覆盖了内容区）
-    }
-
-    // ---------- 被控端 A：创建配对 → 工作台 host 视图 ----------
-    $('phoneDetectBtn').addEventListener('click', function () {
-      if (!plToken()) {
-        showToast('请先登录后再发起连接');
+  // 相机按钮 — 点击一律直接调起系统相机（去掉长按跳转 camera-prototype，避免手机误触跳页）
+  (function() {
+    var camBtn = document.getElementById('cameraBtn');
+    camBtn.addEventListener('click', function(e) {
+      if (currentMode === 'phone') {
+        // 手机互联模式下：中央按钮切回相机互联模式
+        document.querySelector('.mode-btn[data-mode="camera"]').click();
         return;
       }
-      var btn = $('phoneDetectBtn');
-      var original = btn.textContent;
-      btn.textContent = '正在创建配对...';
-      btn.style.opacity = '0.7';
-
-      plApi('/phonelink/pairs', { method: 'POST', token: plToken(), body: {} }).then(function (r) {
-        btn.textContent = original;
-        btn.style.opacity = '1';
-        if (r.status !== 200 || r.body.code !== 0) {
-          showToast('⚠️ 创建失败：' + (r.body.message || '请稍后重试'));
-          return;
-        }
-        var d = r.body.data;
-        plCode = d.code;
-        plPairId = d.pairId;
-        plExpireAt = new Date(d.expiresAt).getTime();
-
-        // 进入工作台 host 视图
-        $('pairCodeText').textContent = d.code;
-        $('pairHostStatusText').textContent = '等待控制端加入…';
-        $('pairHostDot').className = 'dot-gray';
-        $('phoneDeviceName').textContent = '我的手机';
-        plShowRole('host');
-        phoneWorkspace.classList.add('active');
-        plSetConn(false, '未连接');
-        plStartCountdown();
-
-        // 连接 WS（host 角色）
-        plConnectWs(d.code, 'host');
-      }).catch(function () {
-        btn.textContent = original;
-        btn.style.opacity = '1';
-        showToast('⚠️ 网络异常，请重试');
-      });
+      captureWithSystemCamera();
     });
-
-    // ---------- 控制端 B：输入连接码（扫码连接的 v1 等价入口） ----------
-    function plOpenInputMask() {
-      if (plWs) { showToast('当前已有连接，请先断开'); return; }
-      pairInputMask.classList.add('show');
-      var inputs = pairInputBox.querySelectorAll('input');
-      inputs.forEach(function (i) { i.value = ''; });
-      setTimeout(function () { inputs[0].focus(); }, 100);
-    }
-    $('plJoinOption').addEventListener('click', plOpenInputMask);
-    $('plLanOption').addEventListener('click', plOpenInputMask);
-    $('pairInputCancel').addEventListener('click', function () { pairInputMask.classList.remove('show'); });
-
-    // 6 位自动跳格 + 回删
-    var plInputs = pairInputBox.querySelectorAll('input');
-    plInputs.forEach(function (inp, idx) {
-      inp.addEventListener('input', function () {
-        var v = inp.value.replace(/\D/g, '');
-        inp.value = v;
-        if (v && idx < plInputs.length - 1) plInputs[idx + 1].focus();
-      });
-      inp.addEventListener('keydown', function (e) {
-        if (e.key === 'Backspace' && !inp.value && idx > 0) plInputs[idx - 1].focus();
-      });
-      inp.addEventListener('paste', function (e) {
-        e.preventDefault();
-        var txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
-        plInputs.forEach(function (i) { i.value = ''; });
-        for (var k = 0; k < txt.length; k++) plInputs[k].value = txt[k];
-      });
-    });
-
-    $('pairInputOk').addEventListener('click', function () {
-      var code = '';
-      plInputs.forEach(function (i) { code += i.value; });
-      if (!/^\d{6}$/.test(code)) { showToast('请输入完整的 6 位连接码'); return; }
-      var btn = $('pairInputOk');
-      var original = btn.textContent;
-      btn.textContent = '正在连接…';
-      btn.disabled = true;
-
-      plApi('/phonelink/pairs/join', { method: 'POST', body: { code: code } }).then(function (r) {
-        btn.textContent = original;
-        btn.disabled = false;
-        if (r.status !== 200 || r.body.code !== 0) {
-          showToast('⚠️ ' + (r.body.message || '加入失败'));
-          return;
-        }
-        pairInputMask.classList.remove('show');
-        var d = r.body.data;
-        plCode = code;
-        plPairId = d.pairId;
-        $('phoneDeviceName').textContent = d.hostDevice || '被控手机';
-        plShowRole('client');
-        phoneWorkspace.classList.add('active');
-        plSetConn(false, '未连接');
-        plConnectWs(code, 'client');
-      }).catch(function () {
-        btn.textContent = original;
-        btn.disabled = false;
-        showToast('⚠️ 网络异常，请重试');
-      });
-    });
-
-    // ---------- WS 通道 ----------
-    function plConnectWs(code, role) {
-      try {
-        plWs = new WebSocket(plWsUrl(code, role));
-      } catch (e) {
-        showToast('⚠️ 连接失败：' + e.message);
-        return;
-      }
-      plWs.onopen = function () {};
-      plWs.onmessage = function (evt) {
-        var msg = null;
-        try { msg = JSON.parse(evt.data); } catch (e) { return; }
-        if (!msg || !msg.type) return;
-
-        if (msg.type === 'client_joined') {
-          // host：控制端已加入
-          $('pairHostStatusText').textContent = '控制端已加入，等待按下快门';
-          $('pairHostDot').className = 'dot-green';
-          plSetConn(true, '已连接');
-          plTeardownHostCaptureReady();
-        } else if (msg.type === 'host_ready') {
-          // client：被控端已就绪
-          if (msg.data && msg.data.hostDevice) $('phoneDeviceName').textContent = msg.data.hostDevice;
-          plSetConn(true, '已连接');
-        } else if (msg.type === 'capture') {
-          // host：远程快门 → v1 模拟拍照（真实拍照待原生插件）
-          plSimulateCapture();
-        } else if (msg.type === 'peer_left') {
-          if (plRole === 'client') showToast('被控手机已断开连接');
-          plTeardown(false);
-        } else if (msg.type === 'pong') {
-          // 保活应答
-        }
-      };
-      plWs.onclose = function () {
-        if (plRole) {
-          plTeardown(false);
-          showToast('连接已断开');
-        }
-      };
-      plWs.onerror = function () {
-        showToast('⚠️ 连接异常');
-      };
-      // 心跳：30s 一次
-      plWs._hb = setInterval(function () {
-        if (plWs && plWs.readyState === 1) plWs.send(JSON.stringify({ type: 'ping' }));
-      }, 30000);
-    }
-
-    // host 收到 capture 时：只保留「按快门」的能力提示（v1 模拟）
-    function plSimulateCapture() {
-      var flash = $('phoneFlash');
-      flash.classList.remove('active');
-      void flash.offsetWidth;
-      flash.classList.add('active');
-      if (navigator.vibrate) navigator.vibrate(50);
-      // 被控端相册计数（v1 模拟；真实照片落点由原生插件完成后端链路）
-      plPhotoCount++;
-      var badge = $('phoneBadge');
-      badge.textContent = plPhotoCount;
-      badge.classList.add('show');
-      var img = $('phoneGalleryImg');
-      img.src = 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=150&q=80';
-      $('phoneGallery').style.display = '';
-    }
-    function plTeardownHostCaptureReady() {
-      // host 视图：等待状态已结束（占位：后续原生插件接管时在此挂真实快门反馈）
-    }
-
-    // ---------- 快门（client）：发送 capture ----------
-    phoneShutter.addEventListener('click', function () {
-      if (!plWs || plWs.readyState !== 1) { showToast('⚠️ 连接已断开'); return; }
-      plWs.send(JSON.stringify({ type: 'capture', data: { ts: Date.now() } }));
-      // 控制端本地反馈：闪屏 + 角标（与被控端模拟拍照同步观感）
-      var flash = $('phoneFlash');
-      flash.classList.remove('active');
-      void flash.offsetWidth;
-      flash.classList.add('active');
-      if (navigator.vibrate) navigator.vibrate(50);
-    });
-
-    // ---------- 断开 ----------
-    phoneDisconnect.addEventListener('click', function () {
-      plTeardown(true);
-      showToast('已断开连接');
-    });
-    $('phoneWsClose').addEventListener('click', function () {
-      plTeardown(true);
-    });
-
-    // 后端配对查询接口对当前页面无感知；host 端直接展示码即可
-    window.plTeardown = plTeardown; // 调试用
   })();
+
+  // 客服
+  document.getElementById('serviceEntry').addEventListener('click', () => {
+    showToast('💬 正在连接人工客服...');
+  });
+
+  // 底部导航
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      var tab = item.dataset.tab;
+      if (tab === 'home') {
+        window.location.href = 'memo-home.html';
+        return;
+      }
+      if (tab === 'message') {
+        window.location.href = 'message-prototype.html';
+        return;
+      }
+      if (tab === 'profile') {
+        window.location.href = 'profile-prototype.html';
+        return;
+      }
+      document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+      item.classList.add('active');
+      var names = { home: '首页', market: '联机', message: '消息', profile: '个人中心' };
+      showToast('切换到：' + (names[tab] || tab));
+    });
+  });
 
   // ========== 系统相机捕获 ==========
   function captureWithSystemCamera() {
@@ -1864,221 +1453,7 @@
       window.location.href = 'memo-home.html';
     });
   }
-
-  // ========== 联机工作台拍摄 → 待归类管线（pendingPhotos） ==========
-  // 快门拍摄后：真实照片文件优先（复用系统相机捕获缓存），否则保持现有模拟图生成 dataURL；
-  // 解析 EXIF 拍摄时间（DateTimeOriginal）；GPS 超时 8s，失败用地图中心 ±0.0015 随机偏移（与 camera 页模拟一致）
-  function wsSaveShotToPending() {
-    var getShot = new Promise(function(resolve) {
-      if (wsLastPhotoFile) {
-        Promise.all([blobToThumbnail(wsLastPhotoFile), parseExifDateTime(wsLastPhotoFile)])
-          .then(function(r) { resolve({ thumb: r[0], exifDate: exifStringToDate(r[1]) }); })
-          .catch(function() { resolve({ thumb: null, exifDate: null }); });
-      } else {
-        // 无真实照片文件 → 保持现有模拟图（取景器/图库同一 Unsplash 静态图）生成缩略图 dataURL
-        fetch('https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=150&q=80')
-          .then(function(res) { return res.blob(); })
-          .then(function(blob) {
-            return Promise.all([blobToThumbnail(blob), parseExifDateTime(blob)])
-              .then(function(r) { return { thumb: r[0], exifDate: exifStringToDate(r[1]) }; });
-          })
-          .catch(function() { resolve({ thumb: null, exifDate: null }); }); // 离线兜底
-      }
-    });
-    var getLocation = new Promise(function(resolve, reject) {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
-      } else { reject(new Error('无定位能力')); }
-    });
-    Promise.all([getShot, getLocation]).then(function(r) {
-      wsWritePending(r[0].thumb, r[0].exifDate, r[1].coords.longitude, r[1].coords.latitude);
-    }).catch(function() {
-      getShot.then(function(r) {
-        wsWritePending(r.thumb, r.exifDate,
-          120.3826 + (Math.random() - 0.5) * 0.003, 36.0671 + (Math.random() - 0.5) * 0.003, 'approx');
-      });
-    });
-  }
-
-  // 按现有 pendingPhotos 字段格式写入（与 camera 页/首页 savePhotoToPending 完全一致）
-  function wsWritePending(thumb, exifDate, lng, lat, gpsSource) {
-    var now = new Date();
-    var capTime = exifDate || now; // EXIF 拍摄时间优先；失败/无 EXIF 用当前时间（保持现有行为）
-    var hour = capTime.getHours();
-    var photoData = {
-      id: 'photo_' + now.getTime() + '_' + Math.floor(Math.random() * 1e6),
-      color: '#F0A040', // color 作为后备显示字段
-      likes: 0, tips: 0, liked: false, tipped: false, collected: false, comments: [],
-      uploadTime: Math.floor(now.getTime() / 1000),
-      timeStr: String(hour).padStart(2, '0') + ':' + String(capTime.getMinutes()).padStart(2, '0'),
-      dateStr: capTime.getFullYear() + '年' + (capTime.getMonth() + 1) + '月' + capTime.getDate() + '日',
-      hour: hour,
-      lng: +lng.toFixed(6),
-      lat: +lat.toFixed(6),
-      photoDataUrl: thumb || solidThumbDataUrl()
-    };
-    // 标记近似定位来源（GPS 失败回退时写入；归类逻辑忽略该字段，仅作数据溯源）
-    if (gpsSource) photoData.gpsSource = gpsSource;
-    db.pendingPhotos.add(photoData).catch(function(e) { console.error('pendingPhotos add failed:', e); });
-  }
-
-  // Blob/File → 最长边 200px 的 JPEG 缩略图 dataURL
-  function blobToThumbnail(blob) {
-    return new Promise(function(resolve) {
-      if (!blob) { resolve(null); return; }
-      var url = URL.createObjectURL(blob);
-      var img = new Image();
-      img.onload = function() {
-        try {
-          var canvas = document.createElement('canvas');
-          var scale = Math.min(200 / img.width, 200 / img.height, 1);
-          canvas.width = Math.max(1, Math.round(img.width * scale));
-          canvas.height = Math.max(1, Math.round(img.height * scale));
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.6));
-        } catch (err) { resolve(null); }
-      };
-      img.onerror = function() { resolve(null); };
-      img.src = url;
-    });
-  }
-
-  // 兜底：按照片 color 生成纯色缩略图 dataURL（离线/图片解码失败时）
-  function solidThumbDataUrl(color) {
-    var canvas = document.createElement('canvas');
-    canvas.width = 200; canvas.height = 150;
-    var ctx = canvas.getContext('2d');
-    ctx.fillStyle = color || '#F0A040';
-    ctx.fillRect(0, 0, 200, 150);
-    return canvas.toDataURL('image/jpeg', 0.6);
-  }
-
-  // ========== 最小 EXIF 解析（JPEG APP1 "Exif\0\0" → DateTimeOriginal） ==========
-  // 读取 JPEG 前 64KB，定位 APP1 段；解析 TIFF IFD0 与 Exif SubIFD 中的
-  // DateTimeOriginal(0x9003) / DateTimeDigitized(0x9004) / DateTime(0x0132)，返回 'YYYY:MM:DD HH:MM:SS' 或 null
-  function parseExifDateTime(blob) {
-    return new Promise(function(resolve) {
-      if (!blob || !blob.slice) { resolve(null); return; }
-      var reader = new FileReader();
-      reader.onerror = function() { resolve(null); };
-      reader.onload = function(e) {
-        try { resolve(readExifDateTimeString(new DataView(e.target.result))); }
-        catch (err) { resolve(null); }
-      };
-      try { reader.readAsArrayBuffer(blob.slice(0, 65536)); } catch (err) { resolve(null); }
-    });
-  }
-
-  function readExifDateTimeString(view) {
-    var len = view.byteLength;
-    if (len < 4 || view.getUint8(0) !== 0xFF || view.getUint8(1) !== 0xD8) return null; // 非 JPEG
-    var off = 2;
-    while (off + 4 <= len) {
-      if (view.getUint8(off) !== 0xFF) break;
-      var marker = view.getUint8(off + 1);
-      if (marker === 0xD8 || (marker >= 0xD0 && marker <= 0xD7)) { off += 2; continue; } // SOI/RSTn 无长度
-      if (marker === 0xD9 || marker === 0xDA) break; // EOI / SOS
-      var segLen = view.getUint16(off + 2);
-      if (marker === 0xE1 && off + 12 <= len
-          && view.getUint32(off + 4) === 0x45786966 // "Exif"
-          && view.getUint16(off + 8) === 0) {        // "\0\0"
-        var t = readExifDateTimeFromTiff(view, off + 10, len);
-        if (t) return t;
-      }
-      off += 2 + segLen;
-    }
-    return null;
-  }
-
-  function readExifDateTimeFromTiff(view, start, limit) {
-    var mark = view.getUint16(start);
-    var little = mark === 0x4949; // 'II'
-    if (!little && mark !== 0x4D4D) return null;
-    var g16 = function(o) { return little ? view.getUint16(o, true) : view.getUint16(o, false); };
-    var g32 = function(o) { return little ? view.getUint32(o, true) : view.getUint32(o, false); };
-    if (g16(start + 2) !== 42) return null; // TIFF 魔术数
-    var out = { dtOriginal: null, dtDigitized: null, dt: null, sub: null };
-    scanIfd(g32(start + 4));            // IFD0
-    if (out.sub !== null) scanIfd(out.sub); // Exif SubIFD
-    return out.dtOriginal || out.dtDigitized || out.dt || null;
-
-    function scanIfd(ifdOffset) {
-      if (ifdOffset < 0 || start + ifdOffset + 2 > limit) return;
-      var count = g16(start + ifdOffset);
-      var base = start + ifdOffset + 2;
-      for (var i = 0; i < count; i++) {
-        var entry = base + i * 12;
-        if (entry + 12 > limit) break;
-        var tag = g16(entry);
-        var type = g16(entry + 2);
-        var n = g32(entry + 4);
-        if (tag === 0x8769 && type === 4 && n === 1) { out.sub = g32(entry + 8); continue; } // Exif IFD 指针
-        if (tag !== 0x9003 && tag !== 0x9004 && tag !== 0x0132) continue;
-        if (type !== 2 || n < 19 || n > 24) continue; // ASCII 且为日期长度
-        var s = readExifAscii(view, start + g32(entry + 8), Math.min(n, 24), limit);
-        if (!s) continue;
-        if (tag === 0x9003 && !out.dtOriginal) out.dtOriginal = s;
-        else if (tag === 0x9004 && !out.dtDigitized) out.dtDigitized = s;
-        else if (tag === 0x0132 && !out.dt) out.dt = s;
-      }
-    }
-  }
-
-  function readExifAscii(view, start, maxLen, limit) {
-    if (start < 0 || start >= limit) return null;
-    var n = Math.min(maxLen, limit - start);
-    if (n < 19) return null;
-    var chars = [];
-    for (var j = 0; j < n; j++) {
-      var c = view.getUint8(start + j);
-      if (c === 0) break;
-      chars.push(String.fromCharCode(c));
-    }
-    var s = chars.join('');
-    return /^\d{4}:\d{2}:\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(s) ? s : null;
-  }
-
-  // 'YYYY:MM:DD HH:MM:SS' → Date（EXIF 时间为拍摄地当地时间）
-  function exifStringToDate(str) {
-    if (!str) return null;
-    var m = str.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
-    if (!m) return null;
-    var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  // 相机按钮 — 点击一律直接调起系统相机（去掉长按跳转 camera-prototype，避免手机误触跳页）
-  (function() {
-    var camBtn = document.getElementById('cameraBtn');
-    camBtn.addEventListener('click', function(e) { captureWithSystemCamera(); });
-  })();
-
-  // 客服
-  document.getElementById('serviceEntry').addEventListener('click', () => {
-    showToast('💬 正在连接人工客服...');
-  });
-
-  // 底部导航
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', () => {
-      var tab = item.dataset.tab;
-      if (tab === 'home') {
-        window.location.href = 'memo-home.html';
-        return;
-      }
-      if (tab === 'message') {
-        window.location.href = 'message-prototype.html';
-        return;
-      }
-      if (tab === 'profile') {
-        window.location.href = 'profile-prototype.html';
-        return;
-      }
-      document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
-      item.classList.add('active');
-      var names = { home: '首页', market: '联机', message: '消息', profile: '个人中心' };
-      showToast('切换到：' + (names[tab] || tab));
-    });
-  });
+  var wsLastPhotoFile = null;
 </script>
 
 </body>
