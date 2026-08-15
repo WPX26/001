@@ -15,9 +15,11 @@
 # ============================================================
 FROM nginx:1.27-alpine
 
-# 9 个页面 + admin.html（管理端）+ api.js（根目录下）
+# 11 个页面 + admin.html（管理端）+ api.js（根目录下）
+# 教训：新增页面（phone-link-prototype.html / online_check.html）曾漏 COPY → 线上 404（2026-08-15 双导航线上验证暴露）
 COPY album-prototype.html camera-prototype.html connect-prototype.html \
      login-prototype.html memo-home.html message-prototype.html \
+     online_check.html phone-link-prototype.html \
      photographer-payment.html profile-prototype.html register-prototype.html \
      admin.html \
      /usr/share/nginx/html/
