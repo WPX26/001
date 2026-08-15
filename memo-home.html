@@ -3396,7 +3396,7 @@
       if (document.body) add();
       else document.addEventListener('DOMContentLoaded', add);
     }
-    var isAppWebview = !!(window.uni && uni.postMessage);
+    var isAppWebview = !!(window.uni && uni.postMessage) || (typeof plus !== 'undefined' && plus.android);
     var isPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 600;
     if (params.get('full') === '1' && isPhone) {
       // 手机浏览器 + full=1：全屏 App 化，但保留 H5 底部导航（手机浏览器没有 App 自定义 tabBar）

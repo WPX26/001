@@ -486,7 +486,7 @@
       if (document.body) add();
       else document.addEventListener('DOMContentLoaded', add);
     }
-    var isAppWebview = !!(window.uni && uni.postMessage);
+    var isAppWebview = !!(window.uni && uni.postMessage) || (typeof plus !== 'undefined' && plus.android);
     if (params.get('full') === '1' || isAppWebview) {
       // App web-view 内嵌（含 H5 内部跳转页）：全屏 + 隐藏 H5 导航（自定义 tabBar 承担导航）
       enterFull();
