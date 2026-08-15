@@ -2749,5 +2749,52 @@
   })();
 </script>
 
+<script>
+// ===== USB 排查兜底诊断（2026-08-16）：独立块，主 JS 块中断也能绑定 + 显示环境 JSON =====
+(function () {
+  function diagBox(title, json) {
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:24px;';
+    box.innerHTML = '<div style="background:#1c0f08;border:1px solid rgba(212,165,116,0.35);border-radius:16px;padding:20px;max-width:94%;max-height:85%;overflow:auto;font-family:monospace;font-size:12px;color:#F5DFC0;white-space:pre-wrap;word-break:break-all;">' +
+      '<div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#E89020;">' + title + '</div>' +
+      '<div>' + (json || '').replace(/</g, '&lt;') + '</div>' +
+      '<button id="diagClose" style="margin-top:16px;width:100%;padding:10px;border:none;border-radius:10px;background:#E89020;color:#1c0f08;font-weight:600;cursor:pointer;">关闭</button></div>';
+    document.body.appendChild(box);
+    box.querySelector('#diagClose').addEventListener('click', function () { box.parentNode.removeChild(box); });
+  }
+  window.__usbDiag = function () {
+    var q = new URLSearchParams(window.location.search);
+    var diag = {
+      mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
+      dexie: typeof Dexie !== 'undefined',
+      usbCamLoaded: !!window.usbCam,        // USB 模块（2486 块）是否加载
+      plus: typeof window.plus !== 'undefined',
+      plusAndroid: !!(window.plus && window.plus.android),
+      uni: typeof window.uni !== 'undefined',
+      uniPostMessage: !!(window.uni && window.uni.postMessage),
+      weexPost: typeof window.__dcloud_weex_postMessage !== 'undefined',
+      weex: typeof window.__dcloud_weex_ !== 'undefined',
+      parentIsSelf: window.parent === window,
+      uaHtml5: /Html5Plus/i.test(navigator.userAgent),
+      uaMobile: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),
+      full: q.get('full'),
+      usbSupported: typeof UsbTether !== 'undefined' && UsbTether.isSupported()
+    };
+    diagBox('USB 诊断（点击已触发）', JSON.stringify(diag, null, 1));
+  };
+  var bind = function () {
+    document.querySelectorAll('.connect-option').forEach(function (opt) {
+      if (opt.__diagBound) return;
+      opt.__diagBound = true;
+      opt.addEventListener('click', function () {
+        if (opt.dataset.type === 'wired') window.__usbDiag();
+      });
+    });
+  };
+  if (document.body) bind();
+  else document.addEventListener('DOMContentLoaded', bind);
+})();
+</script>
+
 </body>
 </html>
