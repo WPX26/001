@@ -1551,8 +1551,22 @@
       const names = { wired: '有线连接', wireless: '无线连接' };
       // 有线连接：App 内走真实 USB 直连（Native.js）；网页端提示限 App
       if (type === 'wired') {
-        if (typeof UsbTether !== 'undefined' && UsbTether.isSupported()) {
-          openUsbConnector();
+        try {
+          if (typeof UsbTether !== 'undefined' && UsbTether.isSupported()) {
+            openUsbConnector();
+            // 闭环反馈（2026-08-16 排查）：300ms 后检查弹层是否真的打开，没开自动弹诊断
+            setTimeout(function () {
+              var mask = document.getElementById('usbCamMask');
+              if (!mask || !mask.classList.contains('show')) {
+                if (window.__usbDiag) window.__usbDiag('有线连接点击已触发，但 USB 弹层未显示（mask.show 未生效）');
+                else showToast('⚠️ USB 弹层未显示');
+              }
+            }, 300);
+            return;
+          }
+        } catch (e) {
+          if (window.__usbDiag) window.__usbDiag('openUsbConnector 异常: ' + (e && e.message || e));
+          else showToast('⚠️ USB 弹层异常: ' + (e && e.message || e));
           return;
         }
         showToast('⚠️ USB 直连需在 App 内使用（网页端仅支持无线检测）');
