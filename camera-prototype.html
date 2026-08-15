@@ -705,10 +705,14 @@
       else document.addEventListener('DOMContentLoaded', add);
     }
     var isAppWebview = !!(window.uni && uni.postMessage) || (typeof plus !== 'undefined' && plus.android);
-    if (params.get('full') === '1' || isAppWebview) {
-      // App web-view 内嵌（含 H5 内部跳转页）：全屏 + 隐藏 H5 导航（自定义 tabBar 承担导航）
+    var isPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 600;
+    if (params.get('full') === '1' && isPhone) {
+      // App web-view 内嵌 / 手机浏览器 full=1：全屏 + 保留 H5 导航（App 壳无 tabBar，导航由网页承担）
+      enterFull('mobile-browser');
+    } else if (params.get('full') === '1' || isAppWebview) {
+      // 桌面 full=1（全屏预览/测试）：全屏无 H5 导航（既有行为不变）
       enterFull();
-    } else if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 600) {
+    } else if (isPhone) {
       // 手机浏览器：自动全屏 App 化，保留 H5 导航（视觉与 App 一致）
       enterFull('mobile-browser');
     }
