@@ -23,8 +23,6 @@ export default {
     uni.$emit('tab-change', 4)
   },
 
-  },
-
   methods: {
     buildWebSrc() {
       const sep = PROFILE_URL.indexOf('?') >= 0 ? '&' : '?'

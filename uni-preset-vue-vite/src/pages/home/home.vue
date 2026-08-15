@@ -38,8 +38,6 @@ export default {
     return false
   },
 
-  },
-
   methods: {
     buildWebSrc() {
       const token = memoApi.getToken()

@@ -23,8 +23,6 @@ export default {
     uni.$emit('tab-change', 3)
   },
 
-  },
-
   methods: {
     buildWebSrc() {
       const token = memoApi.getToken()

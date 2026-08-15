@@ -23,8 +23,6 @@ export default {
     uni.$emit('tab-change', 1)
   },
 
-  },
-
   methods: {
     buildWebSrc() {
       const sep = CONNECT_URL.indexOf('?') >= 0 ? '&' : '?'
