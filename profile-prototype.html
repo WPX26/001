@@ -1428,6 +1428,11 @@
     background-position: center;
     background-repeat: no-repeat;
     border-radius: 10rem;
+    animation: viewerIn 0.25s ease;
+  }
+  @keyframes viewerIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
   }
   .pp-preview-title {
     font-size: 14rem;
@@ -3379,7 +3384,7 @@
           });
         } else {
           html += `
-            <div class="pp-card">
+            <div class="pp-card" data-title="${c.title || '未命名'}">
               <div class="pp-card-cover" style="background:linear-gradient(160deg, #B06A4A 0%, #1c0f08 100%);"></div>
               <div class="pp-card-mask"></div>
               <div class="pp-card-title">${c.title || '未命名'}</div>
@@ -3388,10 +3393,10 @@
         }
       });
       peerProfileCoords.innerHTML = html;
-      // 真实照片卡片点击 → 全屏大图预览(王总 2026-08-14: 卡片要能点开)
-      peerProfileCoords.querySelectorAll('.pp-card[data-img]').forEach(function (el) {
+      // 所有作品卡片可点开（有图为大图预览；无图渲染色块也给反馈——王总 2026-08-15: 图片点不开要修）
+      peerProfileCoords.querySelectorAll('.pp-card').forEach(function (el) {
         el.addEventListener('click', function () {
-          openPpPreview(el.dataset.img, el.dataset.title, '');
+          openPpPreview(el.dataset.img, el.dataset.title, el.dataset.img ? '' : '#B06A4A');
         });
       });
     }).catch(function () {
