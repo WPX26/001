@@ -819,6 +819,54 @@
     padding: 30rem;
   }
   .pair-input-mask.show { display: flex; }
+
+  /* 相机互联：USB 有线连接弹层设备列表（Native.js 直连） */
+  .usb-cam-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10rem;
+    max-height: 260rem;
+    overflow-y: auto;
+    margin-top: 6rem;
+  }
+  .usb-cam-item {
+    display: flex;
+    align-items: center;
+    gap: 12rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1rem solid rgba(212, 165, 116, 0.15);
+    border-radius: 12rem;
+    padding: 14rem 12rem;
+  }
+  .usb-cam-item:active { background: rgba(240, 160, 64, 0.15); }
+  .usb-cam-item-icon {
+    width: 34rem; height: 34rem;
+    border-radius: 50%;
+    background: rgba(240, 160, 64, 0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16rem;
+    flex-shrink: 0;
+  }
+  .usb-cam-item-info { flex: 1; min-width: 0; }
+  .usb-cam-item-name { font-size: 14rem; color: #F5DFC0; font-weight: 600; }
+  .usb-cam-item-sub { font-size: 11rem; color: rgba(245, 223, 192, 0.55); margin-top: 2rem; }
+  .usb-cam-item-badge {
+    font-size: 10rem; color: #F0A040;
+    border: 1rem solid rgba(240, 160, 64, 0.4);
+    border-radius: 8rem;
+    padding: 2rem 8rem;
+    flex-shrink: 0;
+  }
+  .usb-cam-empty {
+    font-size: 12rem; color: rgba(245, 223, 192, 0.5);
+    text-align: center; padding: 20rem 0;
+    line-height: 1.8;
+  }
+  .usb-cam-status {
+    font-size: 12rem; color: rgba(245, 223, 192, 0.7);
+    text-align: center; padding: 8rem 0;
+    line-height: 1.8;
+  }
   .pair-input-card {
     width: 100%;
     max-width: 330rem;
@@ -1378,6 +1426,20 @@
               </div>
             </div>
           </div>
+
+          <!-- USB 相机连接弹层（相机互联·有线连接：Native.js 直连 PTP 相机） -->
+          <div class="pair-input-mask" id="usbCamMask">
+            <div class="pair-input-card">
+              <div class="pair-input-title">USB 连接相机</div>
+              <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机，点击「检测设备」</div>
+              <div class="usb-cam-list" id="usbCamList"></div>
+              <div class="usb-cam-status" id="usbCamStatus" style="display:none"></div>
+              <div class="pair-input-actions">
+                <button class="pair-btn ghost" id="usbCamCancel">取消</button>
+                <button class="pair-btn primary" id="usbCamScan">检测设备</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="home-indicator"></div>
@@ -1459,6 +1521,9 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="camera-ptp.js"></script>
+<script src="usb-transport.js"></script>
+
 <script>
   var db = new Dexie('memoPhotos');
   db.version(1).stores({ pendingPhotos: 'id, hour, lng, lat' });
@@ -1480,6 +1545,15 @@
       // 手机互联选项（qr/lan）由手机互联模块处理，此处不拦截
       if (type === 'qr' || type === 'lan') return;
       const names = { wired: '有线连接', wireless: '无线连接' };
+      // 有线连接：App 内走真实 USB 直连（Native.js）；网页端提示限 App
+      if (type === 'wired') {
+        if (typeof UsbTether !== 'undefined' && UsbTether.isSupported()) {
+          openUsbConnector();
+          return;
+        }
+        showToast('⚠️ USB 直连需在 App 内使用（网页端仅支持无线检测）');
+        return;
+      }
       showToast('🔗 ' + names[type] + ' - 连接引导');
     });
   });
@@ -1553,8 +1627,9 @@
     });
   });
 
-  // 模拟拍摄
+  // 模拟拍摄（USB 相机已连接时改走真实快门链路，见 usbCam 模块）
   wsShutter.addEventListener('click', () => {
+    if (window.usbCam && window.usbCam.connected && window.usbCam.shoot()) return;
     // 闪光屏效
     wsFlash.classList.remove('active');
     void wsFlash.offsetWidth; // trigger reflow
@@ -2402,6 +2477,246 @@
       showToast('切换到：' + (names[tab] || tab));
     });
   });
+
+  // =====================================================================
+  // 相机互联·USB 有线连接（2026-08-15 阶段1：Native.js 直连 PTP 相机）
+  // 协议栈 camera-ptp.js + 传输层 usb-transport.js（Android USB Host）
+  // 链路：检测/选择设备 → 授权 → openSession → 设备信息 → 远程模式 →
+  //       快门（releaseShutter）→ 等 0xC181 事件 → 下载 JPEG → 落 pendingPhotos
+  // 实时取景（EVF）为阶段 2 原生插件（浏览器 PTP 轮询限 1-2fps，JS 主线程卡顿）
+  // =====================================================================
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var usbCam = {
+      supported: false,
+      connected: false,
+      transport: null,
+      ptp: null,
+      deviceInfo: null,
+      busy: false,
+      photoCount: 0,
+      keepTimer: null
+    };
+
+    function isUsbEnv() {
+      return typeof UsbTether !== 'undefined' && UsbTether.isSupported();
+    }
+
+    // ---------- 弹层 ----------
+    function openConnector() {
+      if (!isUsbEnv()) {
+        showToast('⚠️ USB 直连需在 App 内使用');
+        return;
+      }
+      usbCam.supported = true;
+      $('usbCamMask').classList.add('show');
+      scanDevices();
+    }
+    function closeConnector() { $('usbCamMask').classList.remove('show'); }
+
+    // ---------- 设备检测 ----------
+    function scanDevices() {
+      var listEl = $('usbCamList');
+      var descEl = $('usbCamDesc');
+      var statusEl = $('usbCamStatus');
+      statusEl.style.display = 'none';
+      var devices = [];
+      try {
+        devices = UsbTether.get().listDevices();
+      } catch (e) {
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'USB 不可用：' + (e && e.message || '未知错误');
+        listEl.innerHTML = '';
+        return;
+      }
+      if (!devices.length) {
+        listEl.innerHTML = '<div class="usb-cam-empty">未检测到 USB 设备<br>请用 OTG 线连接相机并开机后重新检测</div>';
+        descEl.textContent = '用 OTG 线连接相机，点击「检测设备」';
+        return;
+      }
+      var html = '';
+      devices.forEach(function (d) {
+        var label = d.isCanon ? '<span class="usb-cam-item-badge">佳能</span>' : '';
+        var name = d.isCanon ? '佳能相机' : 'USB 设备';
+        html += '<div class="usb-cam-item" data-id="' + String(d.id).replace(/"/g, '&quot;') + '">' +
+          '<div class="usb-cam-item-icon">📷</div>' +
+          '<div class="usb-cam-item-info">' +
+          '<div class="usb-cam-item-name">' + name + '</div>' +
+          '<div class="usb-cam-item-sub">' + (d.serial || '') + ' · ' +
+            '0x' + d.vid.toString(16) + ':' + '0x' + d.pid.toString(16) + '</div>' +
+          '</div>' + label + '</div>';
+      });
+      listEl.innerHTML = html;
+      Array.prototype.forEach.call(listEl.querySelectorAll('.usb-cam-item'), function (el) {
+        el.addEventListener('click', function () { connectDevice(el.dataset.id); });
+      });
+      descEl.textContent = '已检测到 ' + devices.length + ' 台设备，点击连接';
+    }
+
+    // ---------- 连接（授权 → PTP 会话 → 远程模式） ----------
+    function connectDevice(deviceId) {
+      if (usbCam.busy) return;
+      usbCam.busy = true;
+      var statusEl = $('usbCamStatus');
+      statusEl.style.display = 'block';
+      statusEl.textContent = '正在连接相机…';
+      UsbTether.get().requestConnect(deviceId).then(function (transport) {
+        usbCam.transport = transport;
+        var ptp = new PtpCamera(transport);
+        usbCam.ptp = ptp;
+        return ptp.openSession().then(function () { return ptp.getDeviceInfo(); });
+      }).then(function (info) {
+        usbCam.deviceInfo = info;
+        return usbCam.ptp.setRemoteMode().then(function () { return usbCam.ptp.setEventMode(); });
+      }).then(function () {
+        usbCam.connected = true;
+        usbCam.busy = false;
+        closeConnector();
+        enterWorkspace();
+      }).catch(function (err) {
+        usbCam.busy = false;
+        if (usbCam.transport) {
+          try { usbCam.transport.release(); } catch (e) {}
+          usbCam.transport = null;
+        }
+        usbCam.ptp = null;
+        statusEl.style.display = 'block';
+        statusEl.textContent = '连接失败：' + (err && err.message || '未知错误') + '，请重试';
+      });
+    }
+
+    // ---------- 工作台 ----------
+    function enterWorkspace() {
+      var model = (usbCam.deviceInfo && usbCam.deviceInfo.model) || '佳能 EOS';
+      var wsCamInfo = $('workspace').querySelector('.ws-cam-info span');
+      if (wsCamInfo) wsCamInfo.textContent = model;
+      // 取景器：真实 EVF 为二期；清掉模拟风景图，显示连接态占位（去模拟化）
+      var vf = $('wsViewfinderImg');
+      vf.style.display = 'none';
+      var vfBox = vf.parentNode;
+      var hint = document.getElementById('wsUsbLiveHint');
+      if (!hint) {
+        hint = document.createElement('div');
+        hint.id = 'wsUsbLiveHint';
+        hint.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10rem;background:#141414;';
+        hint.innerHTML = '<div style="font-size:26rem;">📷</div>' +
+          '<div style="font-size:14rem;color:#F5DFC0;font-weight:600;">已连接 ' + model + '</div>' +
+          '<div style="font-size:11rem;color:rgba(245,223,192,0.55);">按快门拍摄，照片实时进入待归类</div>' +
+          '<div style="font-size:10rem;color:rgba(245,223,192,0.35);">实时取景将在二期开放</div>';
+        vfBox.appendChild(hint);
+      } else { hint.style.display = 'flex'; }
+      // 连接状态行 + 图库重置
+      var st = $('connStatusText');
+      if (st) st.textContent = '已连接 ' + model;
+      usbCam.photoCount = 0;
+      $('wsBadge').textContent = '0';
+      $('wsBadge').classList.remove('show');
+      $('wsGalleryImg').src = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+      // 保活：每 15s 发 KeepDeviceOn 防相机休眠断链
+      clearInterval(usbCam.keepTimer);
+      usbCam.keepTimer = setInterval(function () {
+        if (usbCam.connected && usbCam.ptp) usbCam.ptp.keepAlive().catch(function () {});
+      }, 15000);
+      $('workspace').classList.add('active');
+      showToast('✅ 已连接 ' + model);
+    }
+
+    // ---------- 拍照（真实链路：快门 → 事件 → 下载 JPEG → 落管线） ----------
+    // 返回 true = 已接管快门（真实链路或防重入）；false = 未连接（走原模拟）
+    function shoot() {
+      if (!usbCam.connected) return false;
+      if (usbCam.busy) return true; // 防连拍重入
+      usbCam.busy = true;
+      var ptp = usbCam.ptp;
+      var t0 = Date.now();
+      // 快门反馈：闪光屏效 + 震动（与模拟拍摄一致）
+      var flash = $('wsFlash');
+      flash.classList.remove('active');
+      void flash.offsetWidth;
+      flash.classList.add('active');
+      if (navigator.vibrate) navigator.vibrate(50);
+      ptp.releaseShutter()
+        .then(function () { return ptp.waitForObject(30000); })
+        .then(function (objectId) { return ptp.getObject(objectId); })
+        .then(function (jpeg) {
+          var blob = new Blob([jpeg], { type: 'image/jpeg' });
+          var url = URL.createObjectURL(blob);
+          // 取景器显示刚拍的真实照片（替代模拟图）；图库缩略图 + 角标
+          var vf = $('wsViewfinderImg');
+          vf.src = url;
+          vf.style.display = '';
+          var hint = document.getElementById('wsUsbLiveHint');
+          if (hint) hint.style.display = 'none';
+          var img = $('wsGalleryImg');
+          img.src = url;
+          img.style.filter = '';
+          usbCam.photoCount++;
+          $('wsBadge').textContent = usbCam.photoCount;
+          $('wsBadge').classList.add('show');
+          // 落待归类管线：缩略图 + EXIF 拍摄时间 + GPS（与工作台 wsSaveShotToPending 一致）
+          var shot = Promise.all([blobToThumbnail(blob), parseExifDateTime(blob)])
+            .then(function (r) { return { thumb: r[0], exifDate: exifStringToDate(r[1]) }; })
+            .catch(function () { return { thumb: null, exifDate: null }; });
+          var loc = new Promise(function (resolve, reject) {
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+            } else { reject(new Error('无定位能力')); }
+          });
+          return Promise.all([shot, loc]).then(function (r) {
+            wsWritePending(r[0].thumb, r[0].exifDate, r[1].coords.longitude, r[1].coords.latitude);
+          }).catch(function () {
+            return shot.then(function (r) {
+              wsWritePending(r.thumb, r.exifDate,
+                120.3826 + (Math.random() - 0.5) * 0.003, 36.0671 + (Math.random() - 0.5) * 0.003, 'approx');
+            });
+          });
+        })
+        .then(function () {
+          usbCam.busy = false;
+          showToast('✅ 照片已保存（' + ((Date.now() - t0) / 1000).toFixed(1) + 's）');
+        })
+        .catch(function (err) {
+          usbCam.busy = false;
+          showToast('⚠️ 拍摄失败：' + (err && err.message || '未知错误') + '，请检查相机连接');
+        });
+      return true;
+    }
+
+    // ---------- 断开 ----------
+    function disconnect() {
+      clearInterval(usbCam.keepTimer);
+      if (usbCam.transport) { try { usbCam.transport.release(); } catch (e) {} }
+      usbCam.transport = null;
+      usbCam.ptp = null;
+      usbCam.connected = false;
+      usbCam.deviceInfo = null;
+      var hint = document.getElementById('wsUsbLiveHint');
+      if (hint) hint.parentNode.removeChild(hint);
+      var vf = $('wsViewfinderImg');
+      vf.style.display = '';
+      vf.src = 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=600&q=80';
+      var wsCamInfo = $('workspace').querySelector('.ws-cam-info span');
+      if (wsCamInfo) wsCamInfo.textContent = 'Sony A7M4';
+      var st = $('connStatusText');
+      if (st) st.textContent = '未连接';
+      $('workspace').classList.remove('active');
+      showToast('已断开 USB 连接');
+    }
+
+    // ---------- 绑定 ----------
+    $('usbCamCancel').addEventListener('click', closeConnector);
+    $('usbCamScan').addEventListener('click', scanDevices);
+    // 工作台关闭：已连接 USB 时同时断开释放设备（否则保持原有关闭行为）
+    var _wsCloseBound = $('wsClose').onclick || null;
+    $('wsClose').addEventListener('click', function () {
+      if (usbCam.connected) disconnect();
+    });
+
+    usbCam.shoot = shoot;
+    usbCam.disconnect = disconnect;
+    window.usbCam = usbCam;
+    window.openUsbConnector = openConnector;
+  })();
 </script>
 
 </body>
