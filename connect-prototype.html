@@ -1544,6 +1544,7 @@
 
   // 连接选项
   document.querySelectorAll('.connect-option').forEach(opt => {
+    opt.__boundByMain = true; // 绑定标记（USB 排查诊断用）
     opt.addEventListener('click', () => {
       const type = opt.dataset.type;
       // 手机互联选项（qr/lan）由手机互联模块处理，此处不拦截
@@ -2776,8 +2777,26 @@
     document.body.appendChild(box);
     box.querySelector('#diagClose').addEventListener('click', function () { box.parentNode.removeChild(box); });
   }
+  // 全局点击捕获（capture 阶段，任何点击必记录）——定位"点有线连接没反应"
+  window.__clickLog = [];
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    var opt = t.closest ? t.closest('.connect-option') : null;
+    var mask = document.getElementById('usbCamMask');
+    window.__clickLog.push({
+      x: Math.round(e.clientX), y: Math.round(e.clientY),
+      tag: t.tagName,
+      id: t.id || '',
+      cls: (typeof t.className === 'string' ? t.className : '').slice(0, 50),
+      optType: opt ? opt.dataset.type : '',
+      maskShow: !!(mask && mask.classList.contains('show'))
+    });
+    if (window.__clickLog.length > 12) window.__clickLog.shift();
+  }, true);
+
   window.__usbDiag = function () {
     var q = new URLSearchParams(window.location.search);
+    var mask = document.getElementById('usbCamMask');
     var diag = {
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
       dexie: typeof Dexie !== 'undefined',
@@ -2792,7 +2811,15 @@
       uaHtml5: /Html5Plus/i.test(navigator.userAgent),
       uaMobile: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),
       full: q.get('full'),
-      usbSupported: typeof UsbTether !== 'undefined' && !!UsbTether.isSupported()
+      usbSupported: typeof UsbTether !== 'undefined' && !!UsbTether.isSupported(),
+      maskInDom: !!mask,
+      maskShowNow: !!(mask && mask.classList.contains('show')),
+      bindWired: (function () {
+        // 检查 wired 列表项是否绑定过监听（主块绑定后会有 click 监听器）
+        var opt = document.querySelector('.connect-option[data-type="wired"]');
+        return opt ? (typeof opt.__boundByMain !== 'undefined' ? opt.__boundByMain : '未知') : '元素不存在';
+      })(),
+      clickLog: window.__clickLog
     };
     diagBox('USB 诊断', JSON.stringify(diag, null, 1));
   };
