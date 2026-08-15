@@ -83,6 +83,21 @@ try {
   // 工作台 host 视图可见 + 连接码渲染在页面
   check('前端 host：工作台打开且连接码展示', dom.indexOf('pair-host-view') > -1 && dom.indexOf('等待控制端加入') > -1);
 
+  // ============ 落点存储管线（autoDb：IndexedDB/Dexie 在页面环境可用，拍照落点存储层兜底） ============
+  // 说明：真实媒体截帧链路（getUserMedia 视频帧）在 headless 虚拟时间下无法驱动（Chromium 限制），
+  // 由真机实测覆盖（页面保留 autoTest 钩子供真机自查）；本项验证落点管线存储层
+  const testUrl = `http://127.0.0.1:8977/connect-prototype.html?token=${token}&apiBase=${base}/api/v1&mode=phone&autoDb=1`;
+  const dom2 = await new Promise((resolve, reject) => {
+    const child = spawn(edge, ['--headless', '--disable-gpu', '--virtual-time-budget=6000', '--dump-dom', testUrl], { windowsHide: true });
+    let out = '';
+    child.stdout.on('data', (d) => { out += d.toString(); });
+    child.on('close', () => resolve(out));
+    child.on('error', reject);
+  });
+  const title2 = (dom2.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
+  const tm = title2.match(/PLD\|n=(\d+)/);
+  check('落点管线：pendingPhotos 写入+计数正常（存储层）', !!(tm && Number(tm[1]) >= 1), title2);
+
   console.log('\n========== 结果汇总 ==========');
   const failed = results.filter((r) => !r.pass);
   for (const r of results) if (!r.pass) console.log(`  FAIL: ${r.name}`);

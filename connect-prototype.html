@@ -760,6 +760,7 @@
     justify-content: center;
     gap: 20rem;
     padding: 0 30rem;
+    overflow-y: auto; /* 小屏内容超高时可滚动 */
   }
   .pair-host-card {
     text-align: center;
@@ -884,6 +885,91 @@
     color: rgba(245, 223, 192, 0.7);
   }
   .pair-btn.ghost:active { transform: scale(0.97); }
+
+  /* 真实远程画面（2026-08-15 去模拟化：B 端显示真实帧流，占位只显等待态） */
+  .pl-remote-img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    background: #0a0a0a;
+  }
+  .pl-remote-placeholder {
+    position: absolute; inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12rem;
+    color: rgba(245, 223, 192, 0.5);
+    font-size: 12rem;
+    background:
+      radial-gradient(ellipse at 30% 30%, rgba(240, 160, 64, 0.08), transparent 60%),
+      #0a0a0a;
+  }
+  .pl-remote-placeholder svg { width: 44rem; height: 44rem; color: rgba(240, 160, 64, 0.45); }
+
+  /* host 视图相机控制区（真实相机） */
+  .pair-host-cam {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10rem;
+    width: 100%;
+    max-width: 260rem;
+  }
+  .pair-host-cam video {
+    width: 100%;
+    border-radius: 12rem;
+    border: 1rem solid rgba(212, 165, 116, 0.2);
+    background: #000;
+  }
+  .pair-host-cam-status {
+    font-size: 12rem;
+    color: rgba(245, 223, 192, 0.7);
+  }
+  .pair-host-cam-status b { color: #4CAF50; font-weight: 600; }
+  .pair-host-cam-status.err { color: #F0A040; }
+
+  /* 相机互联真实空态（未检测到相机） */
+  .detect-empty {
+    display: none;
+    background: rgba(28, 15, 8, 0.5);
+    border: 1rem solid rgba(212, 165, 116, 0.15);
+    border-radius: 16rem;
+    padding: 18rem;
+    margin-bottom: 16rem;
+    text-align: center;
+  }
+  .detect-empty.show { display: block; }
+  .detect-empty-icon { font-size: 30rem; margin-bottom: 8rem; }
+  .detect-empty-title {
+    font-size: 15rem;
+    font-weight: 700;
+    color: #F5DFC0;
+    margin-bottom: 6rem;
+  }
+  .detect-empty-desc {
+    font-size: 12rem;
+    color: rgba(245, 223, 192, 0.6);
+    line-height: 1.8;
+    margin-bottom: 12rem;
+  }
+  .detect-empty-retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6rem;
+    padding: 8rem 22rem;
+    background: rgba(240, 160, 64, 0.12);
+    border: 1rem solid rgba(240, 160, 64, 0.35);
+    border-radius: 14rem;
+    color: #F0A040;
+    font-size: 13rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .detect-empty-retry:hover { background: rgba(240, 160, 64, 0.22); }
+  .detect-empty-retry:active { transform: scale(0.97); }
 
   /* ===== 移动端 web-view 全屏适配（URL ?full=1 时生效，不影响 Web 端展示） ===== */
   body.full-embed {
@@ -1086,6 +1172,14 @@
           <!-- 检测按钮 -->
           <button class="detect-btn" id="detectBtn">开始检测相机</button>
 
+          <!-- 检测结果（真实空态：未检测到相机时显示） -->
+          <div class="detect-empty" id="detectEmpty">
+            <div class="detect-empty-icon">📷</div>
+            <div class="detect-empty-title">未检测到相机</div>
+            <div class="detect-empty-desc" id="detectEmptyDesc">请确认相机已开机、开启 WiFi 直连，并与本机处于同一网络后重新检测</div>
+            <div class="detect-empty-retry" id="detectRetryBtn">重新检测</div>
+          </div>
+
           </div><!-- /cameraModeContent -->
 
           <!-- ========== 手机互联模式 ========== -->
@@ -1219,22 +1313,26 @@
               <span id="pairHostStatusText">等待控制端加入…</span>
             </div>
             <div class="pair-host-expire">连接码 <b id="pairExpireText">10:00</b> 后过期</div>
+
+            <!-- 真实相机区（去模拟化：getUserMedia 真实相机 → 帧推流给控制端） -->
+            <div class="pair-host-cam">
+              <video id="plHostVideo" autoplay playsinline muted style="display:none"></video>
+              <button class="pair-btn primary" id="plHostCamBtn">开启相机</button>
+              <div class="pair-host-cam-status" id="plHostCamStatus">开启相机后，控制端即可看到实时画面</div>
+            </div>
           </div>
 
           <!-- client 视图：控制端 B（远程画面 + 快门） -->
           <div class="ws-viewfinder" id="phoneViewfinder" style="display:none">
             <div class="remote-frame">
               <div class="remote-screen">
-                <div class="remote-cam">
-                  <div class="remote-cam-scene"></div>
-                  <div class="remote-cam-ui">
-                    <div class="remote-cam-top">
-                      <span>HDR · 闪光</span>
-                      <span class="cam-dot"></span>
-                    </div>
-                    <div class="remote-cam-shutter"></div>
-                    <div class="remote-cam-modes"><span>照片</span> · <span class="active-mode">视频</span> · <span>人像</span></div>
-                  </div>
+                <!-- 真实远程画面（2026-08-15 去模拟化：显示被控端推送的真实帧流） -->
+                <img id="plRemoteImg" class="pl-remote-img" alt="远程画面" style="display:none">
+                <div class="pl-remote-placeholder" id="plRemotePlaceholder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  <span>等待被控手机画面…</span>
                 </div>
               </div>
             </div>
@@ -1386,22 +1484,45 @@
     });
   });
 
-  // 检测按钮 - 模拟成功连接并进入工作台
-  document.getElementById('detectBtn').addEventListener('click', () => {
+  // ========== 相机互联检测（2026-08-15 去模拟化：真实扫描，无相机显示真实空态） ==========
+  function detectCameraReal() {
     const btn = document.getElementById('detectBtn');
+    const empty = document.getElementById('detectEmpty');
+    empty.classList.remove('show');
     const original = btn.textContent;
-    btn.textContent = '正在连接 Sony A7M4...';
-    btn.style.opacity = '0.7';
-    
-    setTimeout(() => {
+    btn.textContent = '正在检测相机...';
+    btn.disabled = true;
+
+    plApi('/tether/detect', { method: 'POST', body: { type: 'wireless' } }).then(function (r) {
       btn.textContent = original;
-      btn.style.opacity = '1';
-      showToast('✅ 相机连接成功！');
-      
-      // 打开联机工作台
-      document.getElementById('workspace').classList.add('active');
-    }, 1500);
-  });
+      btn.disabled = false;
+      if (r.status !== 200 || r.body.code !== 0) {
+        empty.classList.add('show');
+        document.getElementById('detectEmptyDesc').textContent = '检测失败：' + (r.body.message || '网络异常') + '，请重试';
+        return;
+      }
+      const cameras = r.body.data.cameras || [];
+      if (!cameras.length) {
+        // 真实空态：确实没检测到相机
+        empty.classList.add('show');
+        document.getElementById('detectEmptyDesc').textContent =
+          '未在当前网络发现相机。请确认：① 相机已开机 ② 已开启相机 WiFi 直连 ③ 相机与本机同一网络。' +
+          '相机直连通道由 App 原生能力提供（二期），网页端检测范围为云端网络。';
+      } else {
+        // 真实检测到相机（二期原生通道接管真实连接；当前展示真实列表）
+        empty.classList.remove('show');
+        document.getElementById('detectEmptyDesc').textContent = '';
+        showToast('✅ 检测到 ' + cameras.length + ' 台相机（连接通道二期开放）');
+      }
+    }).catch(function () {
+      btn.textContent = original;
+      btn.disabled = false;
+      empty.classList.add('show');
+      document.getElementById('detectEmptyDesc').textContent = '检测失败：网络异常，请重试';
+    });
+  }
+  document.getElementById('detectBtn').addEventListener('click', detectCameraReal);
+  document.getElementById('detectRetryBtn').addEventListener('click', detectCameraReal);
 
   // ================= 联机工作台逻辑 =================
   const wsClose = document.getElementById('wsClose');
@@ -1488,6 +1609,7 @@
     function plToken() {
       try { return localStorage.getItem('memo_token') || ''; } catch (e) { return ''; }
     }
+    window.plApi = plApi; // 供相机互联检测等共用
     function plWsUrl(code, role) {
       var proto = (location.protocol === 'https:' || plApiBase.indexOf('https:') === 0) ? 'wss' : 'ws';
       var host = plApiBase.replace(/^https?:\/\//, '').replace(/\/api\/v1\/?$/, '');
@@ -1548,6 +1670,50 @@
           }, 2500);
         }, 800);
       }
+      // autoDb：落点存储管线自测（headless 可验证；媒体截帧链路需真机摄像头）
+      if (plParams.get('autoDb') === '1') {
+        setTimeout(function () {
+          db.pendingPhotos.add({
+            id: 'photo_' + Date.now(), color: '#F0A040', likes: 0, tips: 0, liked: false, tipped: false, collected: false, comments: [],
+            uploadTime: Math.floor(Date.now() / 1000), timeStr: '12:00', dateStr: '测试', hour: 12, lng: 120.38, lat: 36.06, photoDataUrl: ''
+          }).then(function () { return db.pendingPhotos.count(); })
+            .then(function (n) { document.title = 'PLD|n=' + n; })
+            .catch(function () { document.title = 'PLD|err'; });
+        }, 1500);
+      }
+      // autoTest：真实拍照链路自测（headless 虚拟摄像头）——开相机→真实拍照→落 pendingPhotos→上报 title
+      if (plParams.get('autoTest') === '1') {
+        setTimeout(function () {
+          document.title = 'PLT|step=1';
+          document.getElementById('plHostCamBtn').click();
+          setTimeout(function () {
+            document.title = 'PLT|step=2|cam=' + (plStream ? 'on' : 'off') + '|vw=' + (plVideo ? plVideo.videoWidth : -1);
+            if (!plStream) {
+              // headless 虚拟时间下 getUserMedia 挂起 → 注入 canvas.captureStream 测试视频源（仅测试路径，产品代码不依赖）
+              var c = document.createElement('canvas');
+              c.width = 640; c.height = 360;
+              var ctx = c.getContext('2d');
+              ctx.fillStyle = '#8A6F52'; ctx.fillRect(0, 0, 640, 360);
+              ctx.fillStyle = '#E8B64C';
+              ctx.beginPath(); ctx.arc(450, 90, 40, 0, Math.PI * 2); ctx.fill();
+              var s = c.captureStream(10);
+              plStream = s;
+              plVideo.srcObject = s;
+              plVideo.style.display = '';
+              plVideo.play().catch(function () {});
+            }
+            plCapturePhoto();
+            setTimeout(function () {
+              db.pendingPhotos.count().then(function (n) {
+                var badge = document.getElementById('phoneBadge');
+                document.title = 'PLT|photo=' + badge.textContent + '|pending=' + n + '|cam=' + (plStream ? 'on' : 'off');
+              }).catch(function () {
+                document.title = 'PLT|err=db';
+              });
+            }, 1500);
+          }, 2500);
+        }, 3000);
+      }
     } catch (e) {}
 
     // ---------- 工作台角色视图切换 ----------
@@ -1590,6 +1756,7 @@
 
     // ---------- 断开清理（closeRemote: 是否告知后端 host 关闭） ----------
     function plTeardown(closeRemote) {
+      plStopCamera(); // 关闭真实相机（getUserMedia 释放）
       plStopCountdown();
       if (plWs) {
         try { plWs.close(); } catch (e) {}
@@ -1736,8 +1903,24 @@
           if (msg.data && msg.data.hostDevice) $('phoneDeviceName').textContent = msg.data.hostDevice;
           plSetConn(true, '已连接');
         } else if (msg.type === 'capture') {
-          // host：远程快门 → v1 模拟拍照（真实拍照待原生插件）
-          plSimulateCapture();
+          // host：远程快门 → 真实拍照（截帧 + GPS + 落点 + 回传）
+          plCapturePhoto();
+        } else if (msg.type === 'frame') {
+          // client：真实画面帧（被控端推送）
+          var rImg = $('plRemoteImg');
+          if (rImg.style.display === 'none') {
+            rImg.style.display = '';
+            $('plRemotePlaceholder').style.display = 'none';
+          }
+          rImg.src = msg.data;
+        } else if (msg.type === 'photo_ready') {
+          // client：被控端拍照完成（真实缩略图）
+          plPhotoCount++;
+          var badge = $('phoneBadge');
+          badge.textContent = plPhotoCount;
+          badge.classList.add('show');
+          $('phoneGallery').style.display = '';
+          if (msg.data && msg.data.thumb) $('phoneGalleryImg').src = msg.data.thumb;
         } else if (msg.type === 'peer_left') {
           if (plRole === 'client') showToast('被控手机已断开连接');
           plTeardown(false);
@@ -1760,24 +1943,164 @@
       }, 30000);
     }
 
-    // host 收到 capture 时：只保留「按快门」的能力提示（v1 模拟）
-    function plSimulateCapture() {
+    // =====================================================================
+    // 真实拍摄（2026-08-15 去模拟化）：host 收到 capture → 真实截帧拍照
+    // → 缩略图 + GPS → 落 pendingPhotos 待归类管线（与首页现有链路一致）
+    // → 回传 B 端 photo_ready（真实缩略图 → 控制端相册角标）
+    // =====================================================================
+    function plCapturePhoto() {
       var flash = $('phoneFlash');
       flash.classList.remove('active');
       void flash.offsetWidth;
       flash.classList.add('active');
       if (navigator.vibrate) navigator.vibrate(50);
-      // 被控端相册计数（v1 模拟；真实照片落点由原生插件完成后端链路）
+
+      if (!plStream) {
+        showToast('⚠️ 相机未开启，无法拍照');
+        return;
+      }
+      var canvas = document.createElement('canvas');
+      var vw = plVideo.videoWidth, vh = plVideo.videoHeight;
+      if (!vw || !vh) {
+        showToast('⚠️ 相机画面未就绪，请稍候再拍');
+        return;
+      }
+      canvas.width = vw; canvas.height = vh;
+      canvas.getContext('2d').drawImage(plVideo, 0, 0, vw, vh);
+      var fullUrl = null;
+      try { fullUrl = canvas.toDataURL('image/jpeg', 0.8); } catch (e) {}
+      if (!fullUrl) { showToast('⚠️ 拍照失败，请重试'); return; }
+
+      // 缩略图（最长边 200，与现有管线一致）
+      var thumbCanvas = document.createElement('canvas');
+      var scale = Math.min(200 / vw, 200 / vh, 1);
+      thumbCanvas.width = Math.max(1, Math.round(vw * scale));
+      thumbCanvas.height = Math.max(1, Math.round(vh * scale));
+      thumbCanvas.getContext('2d').drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+      var thumb = null;
+      try { thumb = thumbCanvas.toDataURL('image/jpeg', 0.6); } catch (e) {}
+      thumb = thumb || fullUrl;
+
+      // GPS：8s 超时，失败回退地图中心 ±0.0015 随机（与 camera 页/联机工作台一致）
+      var getLocation = new Promise(function (resolve, reject) {
+        if (navigator.geolocation) navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        else reject(new Error('无定位能力'));
+      });
+      getLocation.then(function (pos) {
+        plWritePending(pos.coords.longitude, pos.coords.latitude, thumb, null);
+        plNotifyClient(thumb);
+      }).catch(function () {
+        plWritePending(120.3826 + (Math.random() - 0.5) * 0.003, 36.0671 + (Math.random() - 0.5) * 0.003, thumb, 'approx');
+        plNotifyClient(thumb);
+      });
+    }
+
+    // 写入待归类管线（与 wsWritePending 字段完全一致；不跳转页面，保持连接）
+    function plWritePending(lng, lat, thumb, gpsSource) {
+      var now = new Date();
+      var hour = now.getHours();
+      var photoData = {
+        id: 'photo_' + now.getTime() + '_' + Math.floor(Math.random() * 1e6),
+        color: '#F0A040',
+        likes: 0, tips: 0, liked: false, tipped: false, collected: false, comments: [],
+        uploadTime: Math.floor(now.getTime() / 1000),
+        timeStr: String(hour).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
+        dateStr: now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日',
+        hour: hour,
+        lng: +lng.toFixed(6),
+        lat: +lat.toFixed(6),
+        photoDataUrl: thumb
+      };
+      if (gpsSource) photoData.gpsSource = gpsSource;
+      db.pendingPhotos.add(photoData).catch(function (e) { console.error('pendingPhotos add failed:', e); });
+    }
+
+    // 被控端拍照完成：角标 + 相册缩略图 + 回传 B 端 photo_ready
+    function plNotifyClient(thumb) {
       plPhotoCount++;
       var badge = $('phoneBadge');
       badge.textContent = plPhotoCount;
       badge.classList.add('show');
-      var img = $('phoneGalleryImg');
-      img.src = 'https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=150&q=80';
       $('phoneGallery').style.display = '';
+      $('phoneGalleryImg').src = thumb;
+      if (plWs && plWs.readyState === 1) {
+        plWs.send(JSON.stringify({ type: 'photo_ready', data: { thumb: thumb } }));
+      }
     }
+
+    // =====================================================================
+    // 真实相机（host 端：getUserMedia → 帧推流 → 控制端实时画面）
+    // =====================================================================
+    var plStream = null;
+    var plVideo = $('plHostVideo');
+    var plHostCamBtn = $('plHostCamBtn');
+    var plHostCamStatus = $('plHostCamStatus');
+    var plFrameTimer = null;
+
+    function plStartCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        plHostCamStatus.textContent = '当前浏览器不支持相机（需支持 getUserMedia）';
+        plHostCamStatus.className = 'pair-host-cam-status err';
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      }).then(function (stream) {
+        plStream = stream;
+        plVideo.srcObject = stream;
+        plVideo.style.display = '';
+        plVideo.play().catch(function () {});
+        plHostCamBtn.textContent = '关闭相机';
+        plHostCamStatus.textContent = '相机已开启 · 画面正在实时推送';
+        plHostCamStatus.className = 'pair-host-cam-status';
+        plStartFramePush();
+      }).catch(function (err) {
+        plHostCamStatus.textContent =
+          '相机开启失败：' + ((err && err.name === 'NotAllowedError') ? '请在浏览器允许相机权限后重试' : '相机不可用');
+        plHostCamStatus.className = 'pair-host-cam-status err';
+      });
+    }
+    function plStopCamera() {
+      if (plStream) {
+        plStream.getTracks().forEach(function (t) { t.stop(); });
+        plStream = null;
+      }
+      plStopFramePush();
+      plVideo.srcObject = null;
+      plVideo.style.display = 'none';
+      plHostCamBtn.textContent = '开启相机';
+      plHostCamStatus.textContent = '开启相机后，控制端即可看到实时画面';
+      plHostCamStatus.className = 'pair-host-cam-status';
+    }
+    plHostCamBtn.addEventListener('click', function () {
+      if (plStream) plStopCamera();
+      else plStartCamera();
+    });
+
+    // 帧推流：150ms 一帧（宽 320 JPEG q0.45，控制带宽；仅 host 且连接正常时推送）
+    function plStartFramePush() {
+      plStopFramePush();
+      var canvas = document.createElement('canvas');
+      plFrameTimer = setInterval(function () {
+        if (!plStream || !plWs || plWs.readyState !== 1 || plRole !== 'host') return;
+        var vw = plVideo.videoWidth, vh = plVideo.videoHeight;
+        if (!vw || !vh) return;
+        var scale = 320 / vw;
+        canvas.width = 320;
+        canvas.height = Math.max(1, Math.round(vh * scale));
+        canvas.getContext('2d').drawImage(plVideo, 0, 0, canvas.width, canvas.height);
+        var dataUrl = null;
+        try { dataUrl = canvas.toDataURL('image/jpeg', 0.45); } catch (e) {}
+        if (dataUrl) plWs.send(JSON.stringify({ type: 'frame', data: dataUrl }));
+      }, 150);
+    }
+    function plStopFramePush() {
+      if (plFrameTimer) { clearInterval(plFrameTimer); plFrameTimer = null; }
+    }
+
     function plTeardownHostCaptureReady() {
-      // host 视图：等待状态已结束（占位：后续原生插件接管时在此挂真实快门反馈）
+      // host 视图：控制端已加入（真实拍摄由 plCapturePhoto 接管）
     }
 
     // ---------- 快门（client）：发送 capture ----------
