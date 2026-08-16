@@ -44,7 +44,8 @@
         var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkOutEp, jsArr, u8.length, timeoutMs || 3000);
         if (n < 0) throw new Error('bulkTransfer(out) 失败 n=' + n);
         resolve();
-      } catch (e) { reject(e); }
+      } catch (e) { reject(new Error('[bulkOut] ' + (e && e.message || e) +
+        (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : ''))); }
     });
   };
 
@@ -61,7 +62,8 @@
         var u8 = new Uint8Array(n);
         for (var i = 0; i < n; i++) u8[i] = jbuf[i] & 0xFF; // Java byte 有符号，转 0-255
         resolve(u8);
-      } catch (e) { reject(e); }
+      } catch (e) { reject(new Error('[bulkIn] ' + (e && e.message || e) +
+        (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : ''))); }
     });
   };
 

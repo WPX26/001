@@ -2606,14 +2606,25 @@
       var statusEl = $('usbCamStatus');
       statusEl.style.display = 'block';
       statusEl.textContent = '正在连接相机…';
+      var ptpStage = 'requestConnect'; // PTP 阶段标记（2026-08-16 排查：无 [stage] 前缀说明错误不在授权链路）
       UsbTether.get().requestConnect(deviceId).then(function (transport) {
+        ptpStage = 'transport';
         usbCam.transport = transport;
+        ptpStage = 'newPtp';
         var ptp = new PtpCamera(transport);
         usbCam.ptp = ptp;
-        return ptp.openSession().then(function () { return ptp.getDeviceInfo(); });
+        ptpStage = 'openSession';
+        return ptp.openSession().then(function () {
+          ptpStage = 'getDeviceInfo';
+          return ptp.getDeviceInfo();
+        });
       }).then(function (info) {
+        ptpStage = 'setRemoteMode';
         usbCam.deviceInfo = info;
-        return usbCam.ptp.setRemoteMode().then(function () { return usbCam.ptp.setEventMode(); });
+        return usbCam.ptp.setRemoteMode().then(function () {
+          ptpStage = 'setEventMode';
+          return usbCam.ptp.setEventMode();
+        });
       }).then(function () {
         usbCam.connected = true;
         usbCam.busy = false;
@@ -2627,7 +2638,8 @@
         }
         usbCam.ptp = null;
         statusEl.style.display = 'block';
-        statusEl.textContent = '连接失败：' + (err && err.message || '未知错误') + '，请重试';
+        statusEl.textContent = '连接失败[PTP:' + ptpStage + ']：' + (err && err.message || '未知错误') +
+          (err && err.stack ? ' | ' + String(err.stack).split('\n').slice(0, 3).join(' | ') : '') + '，请重试';
       });
     }
 
@@ -2799,6 +2811,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
+      usbVer: '20260816-r6',                // usb-transport.js 版本指纹（排查第 6 轮：确认 App 加载的 JS 是否最新）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
       dexie: typeof Dexie !== 'undefined',
       usbCamLoaded: !!window.usbCam,        // USB 模块（2486 块）是否加载
