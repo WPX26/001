@@ -34,7 +34,54 @@
     this.released = false;
   }
 
-  /** 写数据（同步阻塞；USB 2.0 bulk 写命令包毫秒级） */
+  /** 对照实验开关（默认 false=JS 数组直传，已实证可用）——见 _makeBuf 注释 */
+  AndroidTransport.useJavaByteArray = false;
+
+  /**
+   * 创建 bulk 传输 buffer（2026-08-16 对照实验开关）。
+   * 社区经验（ask.dcloud 220280/115486）：「JS 数组直传 byte[]」在部分设备/场景不可靠
+   * （收到 null/类型错配），官方无 newArray，替代是 newObject('byte[]', size)。
+   * 我们 JS 数组直传已实证可用（2c9316e 起 bulkIn 返回真实 n 且数据可读回），默认维持；
+   * 若复验出现「数据错位/截断/类型」问题，把 useJavaByteArray 置 true 对照（注意读回
+   * 需 invoke buffer.get(i) 逐字节，仅建议小包实验，大文件读回太慢）。
+   */
+  AndroidTransport.prototype._makeBuf = function (size) {
+    var arr = new Array(size);
+    for (var i = 0; i < size; i++) arr[i] = 0;
+    if (typeof plus !== 'undefined' && plus.android && AndroidTransport.useJavaByteArray) {
+      try {
+        var j = plus.android.newObject('byte[]', size);
+        if (j) return { java: j, js: arr };
+      } catch (e) {}
+    }
+    return { java: null, js: arr };
+  };
+
+  /** 把读回的数据转 Uint8Array（JS 数组直接取；Java 数组逐字节 get） */
+  AndroidTransport.prototype._toU8 = function (buf, n) {
+    var u8 = new Uint8Array(n);
+    if (buf.java) {
+      for (var i = 0; i < n; i++) u8[i] = plus.android.invoke(buf.java, 'get', i) & 0xFF;
+    } else {
+      for (var j = 0; j < n; j++) u8[j] = buf.js[j] & 0xFF; // Java byte 有符号，转 0-255
+    }
+    return u8;
+  };
+
+  /**
+   * clear halt：CLEAR_FEATURE(ENDPOINT_HALT)（gphoto2 gp_port_usb_clear_halt 同法）。
+   * 端点地址用真实端点（2026-08-16 修正：之前硬编码 0x81，换相机/固件会错）。
+   */
+  AndroidTransport.prototype._clearHalt = function (epAddr) {
+    if (!epAddr) return;
+    try {
+      // requestType=0x02(OUT|standard|endpoint), request=0x01(CLEAR_FEATURE),
+      // value=0(ENDPOINT_HALT), index=端点地址
+      plus.android.invoke(this.connection, 'controlTransfer', 0x02, 0x01, 0, epAddr, null, 0, 1000);
+    } catch (e) {}
+  };
+
+  /** 写数据（同步阻塞；USB 2.0 bulk 写命令包毫秒级；失败 clear halt(OUT) 重试一次） */
   AndroidTransport.prototype.bulkOut = function (u8, timeoutMs) {
     var self = this;
     return new Promise(function (resolve, reject) {
@@ -42,58 +89,68 @@
       try {
         var jsArr = new Array(u8.length);
         for (var i = 0; i < u8.length; i++) jsArr[i] = u8[i] & 0xFF;
-        var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkOutEp, jsArr, u8.length, timeoutMs || 3000);
-        // n<=0 视为失败（n=0 假成功会让相机收不到命令，排查第 10 轮补）
-        if (!(n > 0)) throw new Error('bulkTransfer(out) 失败 n=' + n + ' len=' + u8.length);
+        var outEp = self.bulkOutEp;
+        var outAddr = 0;
+        try { outAddr = plus.android.invoke(outEp, 'getAddress'); } catch (e) {}
+        var n = plus.android.invoke(self.connection, 'bulkTransfer', outEp, jsArr, u8.length, timeoutMs || 4000);
+        // n<=0 视为失败（n=0 假成功会让相机收不到命令，排查第 10 轮补）；
+        // 写方向 STALL → clear halt(OUT) 重试一次（gphoto2 同）
+        if (!(n > 0)) {
+          if (n === -1) {
+            self._clearHalt(outAddr & 0xFF);
+            n = plus.android.invoke(self.connection, 'bulkTransfer', outEp, jsArr, u8.length, timeoutMs || 4000);
+          }
+          if (!(n > 0)) throw new Error('bulkTransfer(out) 失败 n=' + n + ' len=' + u8.length);
+        }
         resolve();
       } catch (e) { reject(new Error('[bulkOut] ' + (e && e.message || e) +
         (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : ''))); }
     });
   };
 
-  /** 读数据（同步阻塞；返回实际字节；超时/无数据返回空） */
+  /** 读数据（同步阻塞；返回实际字节；0 字节重读一次 = ZLP 遗留，gphoto2 语义） */
   AndroidTransport.prototype.bulkIn = function (maxLen, timeoutMs) {
     var self = this;
     return new Promise(function (resolve, reject) {
       if (self.released) return reject(new Error('USB 连接已释放'));
       try {
         // 排查第 12 轮实锤：bulkTransfer(in) 返回 -1 的根因是**读 buffer 必须 ≥ 端点
-        // maxPacketSize**（5D2 USB2.0 高速 bulk 端点 = 512 字节）；之前 expectAck 传
-        // bulkIn(12) 只有 12 字节 buffer → Android 直接返回 -1。bulkOut 写方向无此限制。
-        var size = Math.max(maxLen || 4096, 512);
+        // maxPacketSize**（5D2 USB2.0 高速 bulk 端点 = 512 字节）；bulkOut 写方向无此限制。
+        // 上限 16384：Android bulkTransfer 单次传输长度上限（官方 API 约束），
+        // 协议栈（PacketStream）靠多次读取拼接大包。
+        var size = Math.min(Math.max(maxLen || 4096, 512), 16384);
+        var timeout = timeoutMs || 20000;
         // web-view 桥没有 plus.android.newArray（2026-08-16 实锤 not a function），
-        // bulkOut 已验证 JS 数组可直接作 byte[] 参数，bulkIn 同法（桥自动转换）
-        var jbuf = new Array(size);
-        for (var i = 0; i < size; i++) jbuf[i] = 0;
-        var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf, size, timeoutMs || 3000);
-        // 排查第 14 轮：n=-1 时 clear halt（CLEAR_FEATURE(ENDPOINT_HALT)）后重试一次
-        // ——gphoto2 标准做法（gp_port_usb_clear_halt + retry），端点 STALL 时必用
+        // 用 _makeBuf（JS 数组直传，已实证可用；对照实验开关 useJavaByteArray）
+        var buf = self._makeBuf(size);
+        var inEp = self.bulkInEp;
+        var inAddr = 0;
+        try { inAddr = plus.android.invoke(inEp, 'getAddress'); } catch (e) {}
+        var target = buf.java || buf.js;
+        var n = plus.android.invoke(self.connection, 'bulkTransfer', inEp, target, size, timeout);
+        // n=-1（STALL）→ clear halt(IN) 重试一次（gphoto2 标准做法，端点 STALL 时必用）
         if (!(n > 0) && n === -1) {
-          try {
-            // requestType=0x02(OUT|standard|endpoint), request=0x01(CLEAR_FEATURE),
-            // value=0(ENDPOINT_HALT), index=IN 端点地址（5D2 实测 0x81）
-            plus.android.invoke(self.connection, 'controlTransfer', 0x02, 0x01, 0, 0x81, null, 0, 1000);
-          } catch (e) {}
-          var jbuf2 = new Array(size);
-          for (var i2 = 0; i2 < size; i2++) jbuf2[i2] = 0;
-          n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf2, size, timeoutMs || 3000);
-          if (n > 0) {
-            var u8r = new Uint8Array(n);
-            for (var i3 = 0; i3 < n; i3++) u8r[i3] = jbuf2[i3] & 0xFF;
-            return resolve(u8r);
-          }
+          self._clearHalt(inAddr & 0xFF);
+          var buf2 = self._makeBuf(size);
+          var target2 = buf2.java || buf2.js;
+          n = plus.android.invoke(self.connection, 'bulkTransfer', inEp, target2, size, timeout);
+          if (n > 0) return resolve(self._toU8(buf2, n));
+        }
+        // n=0：ZLP（上次传输末尾设备遗留的零写，gphoto2 读到 0 字节再读一次）
+        if (n === 0) {
+          var buf3 = self._makeBuf(size);
+          n = plus.android.invoke(self.connection, 'bulkTransfer', inEp, buf3.java || buf3.js, size, timeout);
+          if (n > 0) return resolve(self._toU8(buf3, n));
         }
         // 读空/错误时把 n 值 + 接口结构打出来（2026-08-16 全面扫描：-1 可能是指向
         // 端点方向/接口选错，带上 ifaceInfo 定位）
         if (!(n > 0)) {
           var why = self.ifaceInfo ? ' 接口: ' + self.ifaceInfo : '';
           if (typeof n === 'undefined') throw new Error('bulkTransfer(in) invoke 失败返回 undefined（JS 数组读方向可能不被桥支持）' + why);
-          if (n === 0) throw new Error('bulkTransfer(in) 返回 0（相机无响应或无数据，可能是 init 格式/端点问题）' + why);
+          if (n === 0) throw new Error('bulkTransfer(in) 连续两次返回 0（相机无响应）' + why);
           throw new Error('bulkTransfer(in) 返回 n=' + n + why);
         }
-        var u8 = new Uint8Array(n);
-        for (var i = 0; i < n; i++) u8[i] = jbuf[i] & 0xFF; // Java byte 有符号，转 0-255
-        resolve(u8);
+        resolve(self._toU8(buf, n));
       } catch (e) { reject(new Error('[bulkIn] ' + (e && e.message || e) +
         (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : ''))); }
     });

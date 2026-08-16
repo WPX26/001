@@ -2624,6 +2624,15 @@
         return usbCam.ptp.setRemoteMode().then(function () {
           ptpStage = 'setEventMode';
           return usbCam.ptp.setEventMode();
+        }).then(function () {
+          // 2026-08-16（gphoto2 prepare_capture 语义）：事件模式后必须排空初始事件
+          // （否则拍照易 Busy），并把照片目标显式设为 CF 卡（5D2 gphoto2 默认 SDRAM
+          // 走慢速分块取图；设卡后 0xC181 StorageID≠0 走 0x9104 快路径）
+          ptpStage = 'drainEvents';
+          return usbCam.ptp.drainEosEvents();
+        }).then(function () {
+          ptpStage = 'setCaptureDest';
+          return usbCam.ptp.setCaptureDestination(1);
         });
       }).then(function () {
         usbCam.connected = true;
@@ -2670,13 +2679,15 @@
       $('wsBadge').textContent = '0';
       $('wsBadge').classList.remove('show');
       $('wsGalleryImg').src = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
-      // 保活：每 15s 发 KeepDeviceOn 防相机休眠断链
+      // 保活：每 10s 发 KeepDeviceOn 防相机休眠断链（gphoto2 camera_keep_device_on 同频）
       clearInterval(usbCam.keepTimer);
       usbCam.keepTimer = setInterval(function () {
         if (usbCam.connected && usbCam.ptp) usbCam.ptp.keepAlive().catch(function () {});
-      }, 15000);
+      }, 10000);
+      // 5D2 固件行为提示：USB 连接后机身按键会锁定显示 buSy（gphoto2 社区多年实证，
+      // 无软件解），拔线自动恢复——提前告知避免误以为相机故障
+      showToast('✅ 已连接 ' + model + '（相机按键将锁定 buSy，拔线恢复）');
       $('workspace').classList.add('active');
-      showToast('✅ 已连接 ' + model);
     }
 
     // ---------- 拍照（真实链路：快门 → 事件 → 下载 JPEG → 落管线） ----------
@@ -2694,8 +2705,10 @@
       flash.classList.add('active');
       if (navigator.vibrate) navigator.vibrate(50);
       ptp.releaseShutter()
-        .then(function () { return ptp.waitForObject(30000); })
-        .then(function (objectId) { return ptp.getObject(objectId); })
+        // 等照片默认 90s（gphoto2 EOS_CAPTURE_TIMEOUT；RAW/写卡慢时 30s 不够）
+        .then(function () { return ptp.waitForObject(); })
+        // waitForObject 返回 {objectId, storageId}——storageId=0(SDRAM) 走 0x9107 分块取图
+        .then(function (obj) { return ptp.getObject(obj); })
         .then(function (jpeg) {
           var blob = new Blob([jpeg], { type: 'image/jpeg' });
           var url = URL.createObjectURL(blob);
@@ -2811,7 +2824,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r11',               // usb-transport.js 版本指纹（排查第 11 轮：bulkIn n 值诊断 + 桥方法清单）
+      usbVer: '20260816-r12',               // usb-transport.js 版本指纹（r12：对照 gphoto2 重写——n=0 ZLP 重读/OUT clear halt/真实端点地址/16384 上限/byte[] 对照开关）
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
