@@ -248,6 +248,36 @@ async function main() {
   ok('端点锁定（IN=1 OUT=2）', tr6.bulkInEpNum === 1 && tr6.bulkOutEpNum === 2);
   ok('首次连接 0x66/clearHalt 默认不执行（r19：避免 5D2 复位挂死）', dev6._halts.length === 0, dev6._halts.join(','));
 
+  /* ===== 3c. _open 失败路径不抛 TypeError（r21：catch 的 this 绑定） + 非佳能拒绝 ===== */
+  console.log('\n[3c] _open 失败友好报错 + 非相机设备拒绝');
+  const cam6c = new MockUsbCamera();
+  const dev6c = makeUsbDevice(cam6c);
+  dev6c.claimInterface = () => Promise.reject(new Error('The requested interface implements a protected class'));
+  const t6c = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev6c]),
+    requestDevice: () => Promise.resolve(dev6c)
+  } } });
+  let claimErr = null;
+  try {
+    await t6c.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  } catch (e) {
+    claimErr = e && e.message || '';
+  }
+  ok('claim 失败 → 报 [open:claim] 真实错误（不再 TypeError）',
+    /open:claim/.test(claimErr), claimErr);
+
+  const t6d = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([]), // 列表无佳能
+    requestDevice: () => Promise.reject(new Error('不应弹框'))
+  } } });
+  let nonCanonErr = null;
+  try {
+    await t6d.get().requestConnect('webusb:46d:c539'); // 罗技 HID
+  } catch (e) {
+    nonCanonErr = e && e.message || '';
+  }
+  ok('非佳能设备 → 友好拒绝且不弹授权框', /不是佳能/.test(nonCanonErr), nonCanonErr);
+
   /* ===== 3b. 失败后重连（r19：self.device 已 close 时从列表重新匹配） ===== */
   console.log('\n[3b] 连接失败 release 后重连');
   const cam6b = new MockUsbCamera();

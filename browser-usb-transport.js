@@ -340,6 +340,12 @@
             });
           }
           if (!dev) {
+            // r21：deviceId 非 PTP 相机（vid≠0x04A9，如罗技 HID 被误授权）→
+            // 直接友好拒绝，不弹 requestDevice 框（避免选到受保护类设备再报错）
+            var m2 = /^webusb:([0-9a-f]+):/.exec(deviceId || '');
+            if (m2 && parseInt(m2[1], 16) !== CANON_VID) {
+              throw new Error('[findDevice] 该设备不是佳能 PTP 相机（VID=0x' + m2[1] + '），无法连接');
+            }
             // 已授权列表无匹配（极少见竞态）→ 弹系统授权框（仍在用户手势内）
             self._log('findDevice:list-empty', null, deviceId);
             return navigator.usb.requestDevice({ filters: [] }).then(function (d) {
@@ -443,12 +449,14 @@
         });
       }.bind(this));
     }.bind(this)).catch(function (err) {
-      // 打开/连接失败 → 关闭设备释放资源；记录失败日志（诊断 JSON 输出）
+      // r21 修复：catch 回调必须 bind(this)——r20 漏绑导致
+      // "Cannot set properties of undefined (setting 'lastOpenErr')"
+      // 掩盖真实错误（王总真机实锤）
       this.lastOpenErr = { stage: stage, msg: (err && err.message || err) };
       this._log('open:fail:' + stage, 'err', (err && err.message || err));
       try { if (dev && dev.opened) dev.close().catch(function () {}); } catch (e) {}
       throw new Error('[open:' + stage + '] ' + (err && err.message || err));
-    });
+    }.bind(this));
   };
 
   /* ---------- 导出（仅 WebUSB 环境，不覆盖 plus 版） ---------- */

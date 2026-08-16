@@ -2567,9 +2567,10 @@
     function renderDeviceList(devices, listEl, descEl) {
       var html = '';
       devices.forEach(function (d) {
-        var label = d.isCanon ? '<span class="usb-cam-item-badge">佳能</span>' : '';
+        var label = d.isCanon ? '<span class="usb-cam-item-badge">佳能</span>' : '<span class="usb-cam-item-badge" style="opacity:0.6">非相机</span>';
         var name = d.isCanon ? '佳能相机' : 'USB 设备';
-        html += '<div class="usb-cam-item" data-id="' + String(d.id).replace(/"/g, '&quot;') + '">' +
+        html += '<div class="usb-cam-item" data-id="' + String(d.id).replace(/"/g, '&quot;') + '"' +
+          (d.isCanon ? '' : ' data-noncanon="1"') + '>' +
           '<div class="usb-cam-item-icon">📷</div>' +
           '<div class="usb-cam-item-info">' +
           '<div class="usb-cam-item-name">' + name + '</div>' +
@@ -2579,7 +2580,14 @@
       });
       listEl.innerHTML = html;
       Array.prototype.forEach.call(listEl.querySelectorAll('.usb-cam-item'), function (el) {
-        el.addEventListener('click', function () { connectDevice(el.dataset.id); });
+        el.addEventListener('click', function () {
+          // r21：非相机设备（如被误授权的罗技 HID）点击直接提示，不发起连接
+          if (el.dataset.noncanon && el.dataset.noncanon === '1') {
+            showToast('⚠️ 该设备不是 PTP 相机，无法连接（只支持佳能相机）');
+            return;
+          }
+          connectDevice(el.dataset.id);
+        });
       });
       descEl.textContent = '已检测到 ' + devices.length + ' 台设备，点击连接';
     }
@@ -2859,7 +2867,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r20',               // r20：全链路操作日志（open/claim/端点/每次传输的写入字节与响应）——openSession 超时根因一锤定音：命令是否发出/写了几字节/相机有无响应
+      usbVer: '20260816-r21',               // r20：全链路操作日志（open/claim/端点/每次传输的写入字节与响应）——openSession 超时根因一锤定音：命令是否发出/写了几字节/相机有无响应
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）

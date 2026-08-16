@@ -18,7 +18,11 @@ import sys, os, time, struct
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 import usb.core, usb.util, usb.backend.libusb1
-import libusb_package
+import libusb_package, os
+# 2026-08-16 r20 修正：libusb_package.find_library 在 Python 3.14 上失效
+# （get_backend 返回 None → "未找到 5D2" 假象）→ 显式 DLL 路径
+def _find_lib(name):
+    return os.path.join(os.path.dirname(libusb_package.__file__), 'libusb-1.0.dll')
 
 VID, PID = 0x04A9, 0x3199
 EP_IN, EP_OUT = 0x81, 0x02
@@ -77,7 +81,7 @@ def rd_u32(buf, off): return struct.unpack_from('<I', buf, off)[0], off + 4
 
 # ---------- 主流程 ----------
 print('=== 5D2 USB 真机诊断 ===')
-backend = usb.backend.libusb1.get_backend(find_library=libusb_package.find_library)
+backend = usb.backend.libusb1.get_backend(find_library=_find_lib)
 dev = usb.core.find(idVendor=VID, idProduct=PID, backend=backend)
 if dev is None:
     print('❌ 未找到 5D2，请确认 USB 已连接'); sys.exit(1)
