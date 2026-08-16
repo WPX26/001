@@ -49,19 +49,23 @@
    * 试 JNI 描述符 '[B'；仍失败则 JS 兜底并记录 bufMode 供 USB 诊断实锤。
    */
   AndroidTransport.prototype._makeBuf = function (size) {
+    var mode = 'js';
     if (typeof plus !== 'undefined' && plus.android) {
       for (var m = 0; m < 2; m++) {
         try {
           var j = m === 0 ? plus.android.newObject('byte[]', size)
                           : plus.android.newObject('[B', size);
           if (j) {
-            this.bufMode = m === 0 ? 'java' : '[B';
+            mode = m === 0 ? 'java' : '[B';
+            this.bufMode = mode;
+            if (getUsbTether) { try { getUsbTether()._lastBufMode = mode; } catch (e) {} }
             return { java: j, js: null };
           }
         } catch (e) {}
       }
     }
-    this.bufMode = 'js';
+    this.bufMode = mode;
+    if (getUsbTether) { try { getUsbTether()._lastBufMode = mode; } catch (e) {} }
     var arr = new Array(size);
     for (var i = 0; i < size; i++) arr[i] = 0;
     return { java: null, js: arr }; // 兜底（非 App 环境/实验）
@@ -470,9 +474,27 @@
     return singleton;
   }
 
+  /** r17：当场探测桥能否创建 Java byte[]（诊断按钮直接用，不依赖连接状态） */
+  function probeByteArray() {
+    if (!isSupported()) return '无plus';
+    var out = [];
+    ['byte[]', '[B'].forEach(function (cls) {
+      try {
+        var j = plus.android.newObject(cls, 4);
+        out.push(cls + '=' + (j ? 'ok' : 'null'));
+      } catch (e) {
+        out.push(cls + '=throw:' + String(e && e.message || e).slice(0, 60));
+      }
+    });
+    return out.join(' | ');
+  }
+
   global.UsbTether = {
     isSupported: isSupported,
-    get: getUsbTether
+    get: getUsbTether,
+    probeByteArray: probeByteArray,
+    /** r17：最近一次传输实际用的 buffer 形态（连接失败后也能读，单例级） */
+    lastBufMode: function () { return singleton ? singleton._lastBufMode : '未连接'; }
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2824,7 +2824,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r16',               // usb-transport.js 版本指纹（r16：newObject('byte[]') 失败试 '[B'；bufMode 诊断字段实锤读 buffer 形态）
+      usbVer: '20260816-r17',               // usb-transport.js 版本指纹（r17：当场探测 newObject('byte[]')/'[B' 能力 + lastBufMode 失败后仍可读——诊断不再依赖连接状态）
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
@@ -2841,7 +2841,8 @@
       uaMobile: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),
       full: q.get('full'),
       usbSupported: typeof UsbTether !== 'undefined' && !!UsbTether.isSupported(),
-      bufMode: (usbCam && usbCam.transport) ? usbCam.transport.bufMode : '未连接', // r16：读 buffer 形态（java/[B/js）——实锤桥的数组创建能力
+      probeByteArray: (typeof UsbTether !== 'undefined' && UsbTether.probeByteArray) ? UsbTether.probeByteArray() : '无', // r17：当场探测 newObject('byte[]')/'[B'（不依赖连接状态）
+      lastBufMode: (typeof UsbTether !== 'undefined' && UsbTether.lastBufMode) ? UsbTether.lastBufMode() : '未连接', // r17：上次传输实际 buffer 形态（失败后也可读）
       maskInDom: !!mask,
       maskShowNow: !!(mask && mask.classList.contains('show')),
       bindWired: (function () {
