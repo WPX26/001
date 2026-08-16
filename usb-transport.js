@@ -42,7 +42,8 @@
         var jsArr = new Array(u8.length);
         for (var i = 0; i < u8.length; i++) jsArr[i] = u8[i] & 0xFF;
         var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkOutEp, jsArr, u8.length, timeoutMs || 3000);
-        if (n < 0) throw new Error('bulkTransfer(out) 失败 n=' + n);
+        // n<=0 视为失败（n=0 假成功会让相机收不到命令，排查第 10 轮补）
+        if (!(n > 0)) throw new Error('bulkTransfer(out) 失败 n=' + n + ' len=' + u8.length);
         resolve();
       } catch (e) { reject(new Error('[bulkOut] ' + (e && e.message || e) +
         (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : ''))); }
@@ -61,7 +62,8 @@
         var jbuf = new Array(size);
         for (var i = 0; i < size; i++) jbuf[i] = 0;
         var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf, size, timeoutMs || 3000);
-        if (n <= 0) return resolve(new Uint8Array(0)); // 超时/无数据
+        // 排查第 10 轮：读空时把 n 和超时打出来，区分「桥转换失败 n=0」与「真超时 n=-1」
+        if (!(n > 0)) return resolve(new Uint8Array(0)); // 超时/无数据
         var u8 = new Uint8Array(n);
         for (var i = 0; i < n; i++) u8[i] = jbuf[i] & 0xFF; // Java byte 有符号，转 0-255
         resolve(u8);

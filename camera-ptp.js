@@ -293,7 +293,9 @@
     function expectAck(expectType) {
       return self.transport.bulkIn(12, 3000).then(function (ack) {
         if (!ack || ack.length < 12 || ack[0] !== expectType) {
-          throw PtpError(0xE008, 'PTP USB init ack 无效 (期望 type=' + expectType + ' 实际=' + (ack ? ack[0] : '空') + ')');
+          // 排查第 10 轮：ack 为空时把实际长度打出来（区分桥转换失败/真超时/相机无响应）
+          throw PtpError(0xE008, 'PTP USB init ack 无效 (期望 type=' + expectType +
+            ' 实际=' + (ack && ack.length ? ack[0] : '空') + ' ackLen=' + (ack ? ack.length : 0) + ')');
         }
       });
     }
