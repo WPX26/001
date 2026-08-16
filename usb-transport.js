@@ -355,6 +355,9 @@
         }
       }
     } catch (e) {}
+    // r13 曾误删 ifaceCount 声明（真机 [open] ifaceCount is not defined 实锤，r14 修复）
+    var ifaceCount = 0;
+    try { ifaceCount = plus.android.invoke(device, 'getInterfaceCount'); } catch (e) {}
     var bulkInEp = null, bulkOutEp = null, iface = null, ifaceInfo = [cfgInfo];
     for (var i = 0; i < ifaceCount; i++) {
       var cand = plus.android.invoke(device, 'getInterface', i);
