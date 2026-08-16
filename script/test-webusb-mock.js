@@ -134,8 +134,9 @@ function makeUsbDevice(camera, opts) {
     controlTransferOut() { return Promise.resolve({ status: 'ok' }); },
     clearHalt(dir, ep) { this._halts.push(dir + ':' + ep); return Promise.resolve(); },
     transferOut(epNum, data) {
+      if (opts.writeZero) return Promise.resolve({ status: 'ok', bytesWritten: 0 }); // 假成功模拟
       camera.handleWrite(Buffer.from(data.buffer || data, data.byteOffset || 0, data.byteLength));
-      return Promise.resolve({ status: 'ok' });
+      return Promise.resolve({ status: 'ok', bytesWritten: data.byteLength });
     },
     transferIn(epNum, len) {
       if (camera.stallNextIn > 0) {
@@ -245,7 +246,21 @@ async function main() {
   ok('连接成功返回 WebUsbTransport', tr6 && typeof tr6.bulkOut === 'function' && typeof tr6.bulkIn === 'function');
   ok('open/claimInterface 执行', dev6.opened === true && dev6._claimed === 0);
   ok('端点锁定（IN=1 OUT=2）', tr6.bulkInEpNum === 1 && tr6.bulkOutEpNum === 2);
-  ok('0x66 reset + clearHalt 兜底执行', dev6._halts.length === 2, dev6._halts.join(','));
+  ok('首次连接 0x66/clearHalt 默认不执行（r19：避免 5D2 复位挂死）', dev6._halts.length === 0, dev6._halts.join(','));
+
+  /* ===== 3b. 失败后重连（r19：self.device 已 close 时从列表重新匹配） ===== */
+  console.log('\n[3b] 连接失败 release 后重连');
+  const cam6b = new MockUsbCamera();
+  const dev6b = makeUsbDevice(cam6b);
+  const t6b = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev6b]),
+    requestDevice: () => Promise.resolve(dev6b)
+  } } });
+  const tr6b1 = await t6b.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  tr6b1.release(); // 失败路径：transport 释放（device 被 close）
+  const tr6b2 = await t6b.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  ok('release 后重连成功（从列表重新匹配并 re-open）', tr6b2 && typeof tr6b2.bulkOut === 'function');
+  tr6b2.release();
 
   /* ===== 4. 协议栈全链路（transport 与 camera-ptp.js 联通） ===== */
   console.log('\n[4] 协议栈联通（openSession → getDeviceInfo → 模式 → 排空 → 保活）');
@@ -292,8 +307,8 @@ async function main() {
   ok('STALL → clearHalt(in) 被调', dev8._halts.some(h => h === 'in:1'));
   ok('STALL 重试后 openSession 成功', cam8.sessionId > 0);
 
-  /* ===== 6. bulkIn 超时 ===== */
-  console.log('\n[6] bulkIn 超时');
+  /* ===== 6. bulkIn 超时 + stale 机制（r19） ===== */
+  console.log('\n[6] bulkIn 超时 → stale 拒绝后续传输');
   const cam9 = new MockUsbCamera();
   const dev9 = makeUsbDevice(cam9);
   const t9 = loadModule({ navigator: { usb: {
@@ -309,7 +324,52 @@ async function main() {
     timedOut = /超时/.test(e && e.message || '');
   }
   ok('150ms 超时 reject（相机无响应）', timedOut);
+  let staleRejected = false;
+  try {
+    await tr9.bulkIn(512, 300);
+  } catch (e) {
+    staleRejected = /变脏|重连/.test(e && e.message || '');
+  }
+  ok('超时后管道置 stale → 后续 bulkIn 拒绝提示重连', staleRejected);
+  const diag9 = tr9.diagInfo();
+  ok('diagInfo 输出超时次数/stale 标记', diag9.timeouts >= 1 && diag9.stale === true && diag9.timeouts === 1,
+    JSON.stringify(diag9));
   tr9.release();
+  ok('release 后 stale 清除', tr9.diagInfo().stale === false);
+
+  /* ===== 7. bytesWritten=0 假成功拦截（r19） ===== */
+  console.log('\n[7] bulkOut 写 0 字节拦截');
+  const cam10 = new MockUsbCamera();
+  const dev10 = makeUsbDevice(cam10, { writeZero: true });
+  const t10 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev10]),
+    requestDevice: () => Promise.resolve(dev10)
+  } } });
+  const tr10 = await t10.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  let zeroRejected = false;
+  try {
+    await tr10.bulkOut(new Uint8Array(12), 500);
+  } catch (e) {
+    zeroRejected = /0 字节/.test(e && e.message || '');
+  }
+  ok('bytesWritten=0 → 报「写入 0 字节」', zeroRejected);
+  ok('diagInfo 记录 lastOutBytes=0', tr10.diagInfo().lastOutBytes === 0);
+  tr10.release();
+
+  /* ===== 8. 0x66 默认不执行（r19：避免 5D2 复位挂死） ===== */
+  console.log('\n[8] 0x66 Device Reset 默认关闭');
+  const cam11 = new MockUsbCamera();
+  const dev11 = makeUsbDevice(cam11);
+  const t11 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev11]),
+    requestDevice: () => Promise.resolve(dev11)
+  } } });
+  let ctrl66Called = false;
+  dev11.controlTransferOut = (opts) => { if (opts && opts.request === 0x66) ctrl66Called = true; return Promise.resolve({ status: 'ok' }); };
+  const tr11 = await t11.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  ok('首次连接 0x66 不被调用（避免复位设备）', !ctrl66Called);
+  ok('首次连接 clearHalt 也不调用', dev11._halts.length === 0, dev11._halts.join(','));
+  tr11.release();
 
   /* ===== 结果 ===== */
   console.log('\n结果: ' + passed + ' 通过, ' + failed + ' 失败');

@@ -2851,7 +2851,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r18',               // r18：新增 browser-usb-transport.js（WebUSB 传输层，Chrome/Edge 桌面 + Android Chrome 直连）——navigator.usb 探测分支 + 系统授权框检测流程
+      usbVer: '20260816-r19',               // r19：WebUSB 传输层全面修复——0x66 默认移除（避免 5D2 复位挂死）、bytesWritten 校验（防写 0 字节假成功）、超时置 stale（防残留读吃掉相机响应）、diagInfo 输出传输层上下文
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
@@ -2872,6 +2872,7 @@
       navigatorUsb: !!(navigator.usb && typeof navigator.usb.requestDevice === 'function'), // r18：浏览器原生 WebUSB 能力
       probeByteArray: (typeof UsbTether !== 'undefined' && UsbTether.probeByteArray) ? UsbTether.probeByteArray() : '无', // r17：当场探测 newObject('byte[]')/'[B'（不依赖连接状态）；r18 WebUSB 模式返回 'webusb'
       lastBufMode: (typeof UsbTether !== 'undefined' && UsbTether.lastBufMode) ? UsbTether.lastBufMode() : '未连接', // r17：上次传输实际 buffer 形态（失败后也可读）
+      usbTransportDiag: (typeof window.usbCam !== 'undefined' && window.usbCam.transport && window.usbCam.transport.diagInfo) ? window.usbCam.transport.diagInfo() : null, // r19：WebUSB 传输层最近操作（超时/写入字节/端点）——openSession 超时时一眼定位
       maskInDom: !!mask,
       maskShowNow: !!(mask && mask.classList.contains('show')),
       bindWired: (function () {

@@ -51,15 +51,42 @@
     // device.close() 取消（close 会 cancel 全部 in-flight transfer，
     // 其 Promise 以 DOMException 拒绝，届时 released 标记已置位、结果丢弃）
     this._pending = [];
+    // 2026-08-16 r19：超时后残留 transferIn 仍在浏览器队列中（无法 cancel），
+    // 其迟到的数据会被静默丢弃 → 相机响应丢失 → 后续读全部错位/连环超时。
+    // 方案：超时 reject 时置 _stale=true；后续 bulkIn/bulkOut 检测到 _stale
+    // 直接拒绝并提示重连（避免在脏管道上并发读）；release 或显式 reset()
+    // 清除 _stale。真机连续 2 次超时即提示用户重连。
+    this._stale = false;
+    this._timeoutCount = 0;
+    // 诊断日志（r19）：最近操作上下文，USB 诊断 JSON 输出，真机一锤定音
+    this.diag = { lastOp: null, lastOutBytes: -1, lastOutStatus: null,
+      lastInBytes: -1, lastInStatus: null, timeouts: 0, openStage: null };
   }
 
-  /** 等待 Promise 并附带超时（超时 reject，残留请求由 close() 回收） */
+  /** 标记管道已脏（超时后调用），后续传输立即拒绝提示重连 */
+  WebUsbTransport.prototype._markStale = function (why) {
+    this._stale = true;
+    this._timeoutCount++;
+    this.diag.timeouts = this._timeoutCount;
+    this.diag.lastOp = 'stale:' + why;
+  };
+
+  /** 清除脏标记（release 或重新连接成功后） */
+  WebUsbTransport.prototype._clearStale = function () {
+    this._stale = false;
+    this._timeoutCount = 0;
+  };
+
+  /** 等待 Promise 并附带超时（超时 reject + 置 stale，残留请求由 close() 回收） */
   WebUsbTransport.prototype._withTimeout = function (p, timeoutMs, tag) {
     var self = this;
     return new Promise(function (resolve, reject) {
       var t = setTimeout(function () {
         var i = self._pending.indexOf(p);
         if (i >= 0) self._pending.splice(i, 1);
+        // r19：超时 = 相机响应丢失（残留 transferIn 无法 cancel，迟到数据会
+        // 静默丢弃导致错位）→ 标记管道脏，后续传输直接拒绝提示重连
+        self._markStale(tag);
         reject(new Error(tag + ' 超时（' + (timeoutMs || 0) + 'ms）'));
       }, timeoutMs || 20000);
       self._pending.push(p);
@@ -68,6 +95,7 @@
         var i = self._pending.indexOf(p);
         if (i >= 0) self._pending.splice(i, 1);
         if (self.released) return; // close() 后的迟到结果丢弃
+        if (self._stale) return;   // r19：超时后的迟到数据丢弃（响应已丢失）
         resolve(v);
       }, function (e) {
         clearTimeout(t);
@@ -84,15 +112,29 @@
     var self = this;
     var dev = this.device;
     if (this.released) return Promise.reject(new Error('USB 连接已释放'));
+    if (this._stale) return Promise.reject(new Error('USB 管道已超时变脏，请重连（点击设备重新连接）'));
     return this._withTimeout(dev.transferOut(this.bulkOutEpNum, u8), timeoutMs || 4000, 'bulkTransfer(out)')
       .then(function (res) {
-        if (res.status === 'ok') return;
+        // r19：status=ok 不代表数据进端点——必须校验 bytesWritten（WebUSB
+        // 已知坑：写 0 字节假成功，相机收不到命令 → 白等响应超时）
+        if (res.status === 'ok') {
+          self.diag.lastOutBytes = typeof res.bytesWritten === 'number' ? res.bytesWritten : u8.length;
+          self.diag.lastOutStatus = 'ok';
+          if (res.bytesWritten === 0) {
+            throw new Error('bulkTransfer(out) 写入 0 字节（相机未就绪/接口未激活）');
+          }
+          return;
+        }
+        self.diag.lastOutStatus = res.status;
         if (res.status === 'stall') {
           return self._withTimeout(dev.clearHalt('out', self.bulkOutEpNum), 3000, 'clearHalt(out)')
             .then(function () {
               return self._withTimeout(dev.transferOut(self.bulkOutEpNum, u8), timeoutMs || 4000, 'bulkTransfer(out)重试');
             }).then(function (res2) {
-              if (res2.status === 'ok') return;
+              if (res2.status === 'ok') {
+                if (res2.bytesWritten === 0) throw new Error('bulkTransfer(out) 重试写入 0 字节');
+                return;
+              }
               throw new Error('bulkTransfer(out) stall 重试后 status=' + res2.status);
             });
         }
@@ -105,6 +147,7 @@
     var self = this;
     var dev = this.device;
     if (this.released) return Promise.reject(new Error('USB 连接已释放'));
+    if (this._stale) return Promise.reject(new Error('USB 管道已超时变脏，请重连（点击设备重新连接）'));
     // WebUSB 无桥的数组限制（Android 版 16KB 上限是桥的限制），
     // 单次请求 ≤16KB 与协议栈 PacketStream 流式拼接配合（16KB 是
     // tethr 实测的分配/性能平衡点；Chrome 上限 32MB 远高于此）
@@ -113,14 +156,19 @@
       .then(function (res) {
         if (res.status === 'ok') {
           // ZLP（空读）：返回空 Uint8Array，协议栈 PacketStream 空读容忍（与 Android 版一致）
+          self.diag.lastInStatus = 'ok';
+          self.diag.lastInBytes = res.data ? res.data.byteLength : 0;
           return res.data ? new Uint8Array(res.data) : new Uint8Array(0);
         }
+        self.diag.lastInStatus = res.status;
         if (res.status === 'stall') {
           return self._withTimeout(dev.clearHalt('in', self.bulkInEpNum), 3000, 'clearHalt(in)')
             .then(function () {
               return self._withTimeout(dev.transferIn(self.bulkInEpNum, size), timeoutMs || 20000, 'bulkTransfer(in)重试');
             }).then(function (res2) {
               if (res2.status === 'ok') {
+                self.diag.lastInStatus = 'ok-after-stall';
+                self.diag.lastInBytes = res2.data ? res2.data.byteLength : 0;
                 return res2.data ? new Uint8Array(res2.data) : new Uint8Array(0);
               }
               throw new Error('bulkTransfer(in) stall 重试后 status=' + res2.status);
@@ -133,12 +181,29 @@
   WebUsbTransport.prototype.release = function () {
     if (this.released) return;
     this.released = true;
+    this._clearStale();
     var dev = this.device;
     if (dev && dev.opened) {
       // close() 会 cancel 全部 in-flight transfer（其 Promise 拒绝后
       // 被 _withTimeout 的 released 分支丢弃），并释放接口
       try { dev.close().catch(function () {}); } catch (e) {}
     }
+  };
+
+  /** 诊断信息（r19：USB 诊断 JSON 输出——超时/假成功时一锤定音） */
+  WebUsbTransport.prototype.diagInfo = function () {
+    return {
+      iface: this.ifaceInfo,
+      epIn: this.bulkInEpNum,
+      epOut: this.bulkOutEpNum,
+      stale: this._stale,
+      timeouts: this.diag.timeouts,
+      lastOp: this.diag.lastOp,
+      lastOutStatus: this.diag.lastOutStatus,
+      lastOutBytes: this.diag.lastOutBytes,
+      lastInStatus: this.diag.lastInStatus,
+      lastInBytes: this.diag.lastInBytes
+    };
   };
 
   /* ============================================================
@@ -227,13 +292,23 @@
       try {
         self._require();
         stage = 'findDevice';
-        // 优先从已授权列表按 id 匹配
+        // 优先从已授权列表匹配：serial 精确优先，无 serial 按 vid:pid 首个
         return navigator.usb.getDevices().then(function (list) {
           var dev = null;
+          // r19：self.device 若已被 close（上次连接失败 release 过）则弃用，
+          // 重新从列表匹配——否则 re-open 已关闭设备句柄可能失败
+          if (self.device && !self.device.opened) self.device = null;
           if (self.device) dev = self.device; // promptAndList 刚授权过的优先
           if (!dev) {
-            list.forEach(function (d, i) {
-              if (!dev && self._mapDevice(d, i).id === deviceId) dev = d;
+            var m = /^webusb:([0-9a-f]+):([0-9a-f]+)(?::(.*))?$/i.exec(deviceId || '');
+            var vid = m ? parseInt(m[1], 16) : -1;
+            var pid = m ? parseInt(m[2], 16) : -1;
+            var serial = m ? (m[3] || '') : '';
+            list.forEach(function (d) {
+              if (dev) return;
+              if (d.vendorId !== vid || d.productId !== pid) return;
+              if (serial && d.serialNumber === serial) dev = d;  // serial 精确匹配
+              else if (!serial && !d.serialNumber && !dev) dev = d; // 无 serial → 首个同 vid:pid
             });
           }
           if (!dev) {
@@ -259,7 +334,13 @@
   };
 
   /** 打开设备：open → selectConfiguration → claimInterface(PTP) → 找 bulk 端点 → transport */
-  UsbTetherWebUsb.prototype._open = function (dev) {
+  UsbTetherWebUsb.prototype._open = function (dev, opts) {
+    opts = opts || {};
+    // r19：PIMA 0x66 Device Reset + clearHalt 兜底（tethr 的"页面重载后脏会话恢复"
+    // 逻辑）**默认不做**——首次连接执行 0x66 可能让 5D2 真复位设备（重新枚举，
+    // 接口失效 → bulk 全挂死 → openSession 超时）。仅显式 connectReset=true
+    // （失败重试路径）时执行。
+    var cleanReset = !!opts.cleanReset;
     var stage = 'open';
     return dev.open().then(function () {
       stage = 'config';
@@ -303,12 +384,14 @@
       });
       if (!epIn || !epOut) throw new Error('缺少 bulk 端点（IN=' + !!epIn + ' OUT=' + !!epOut + '）');
       stage = 'reset';
-      // 恢复脏状态（tethr 同法，best effort）：PIMA 0x66 Device Reset
-      // 中止相机侧未完成事务 + clearHalt 清端点 STALL——任一失败忽略
+      // r19：0x66 仅 connectReset=true（失败重试）时执行——首次连接跳过，
+      // 避免 5D2 真复位设备导致接口失效挂死（见 _open 注释）
       var p = Promise.resolve();
-      p = p.then(function () { return dev.controlTransferOut({ requestType: 'class', recipient: 'interface', request: 0x66, value: 0, index: target.itf.interfaceNumber }).catch(function () {}); });
-      p = p.then(function () { return dev.clearHalt('out', epOut.endpointNumber).catch(function () {}); });
-      p = p.then(function () { return dev.clearHalt('in', epIn.endpointNumber).catch(function () {}); });
+      if (cleanReset) {
+        p = p.then(function () { return dev.controlTransferOut({ requestType: 'class', recipient: 'interface', request: 0x66, value: 0, index: target.itf.interfaceNumber }).catch(function () {}); });
+        p = p.then(function () { return dev.clearHalt('out', epOut.endpointNumber).catch(function () {}); });
+        p = p.then(function () { return dev.clearHalt('in', epIn.endpointNumber).catch(function () {}); });
+      }
       return p.then(function () {
         return new WebUsbTransport({
           device: dev,
