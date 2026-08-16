@@ -136,42 +136,11 @@
     return out;
   };
 
-  /** 注册权限广播接收器（一次性） */
-  UsbTetherAndroid.prototype._ensurePermReceiver = function () {
-    if (this._permReceiver) return;
-    var self = this;
-    var Intent = plus.android.importClass('android.content.Intent');
-    var IntentFilter = plus.android.importClass('android.content.IntentFilter');
-    var UsbManager = plus.android.importClass('android.hardware.usb.UsbManager');
-    this._permReceiver = plus.android.implements('android.content.BroadcastReceiver', {
-      onReceive: function (context, intent) {
-        try {
-          var action = plus.android.invoke(intent, 'getAction');
-          if (action !== UsbManager.ACTION_USB_PERMISSION || !self.pendingPerm) return;
-          var granted = plus.android.invoke(intent, 'getBooleanExtra', UsbManager.EXTRA_PERMISSION_GRANTED, false);
-          var device = plus.android.invoke(intent, 'getParcelableExtra', UsbManager.EXTRA_DEVICE);
-          var resolve = self.pendingPerm.resolve, reject = self.pendingPerm.reject;
-          self.pendingPerm = null;
-          if (granted && device) resolve(device);
-          else reject(new Error('USB 权限被拒绝'));
-        } catch (e) {
-          if (self.pendingPerm) {
-            var r = self.pendingPerm.reject;
-            self.pendingPerm = null;
-            r(e);
-          }
-        }
-      }
-    });
-    var permIntent = new Intent(UsbManager.ACTION_USB_PERMISSION);
-    plus.android.invoke(permIntent, 'setPackage', plus.android.invoke(this.main, 'getPackageName'));
-    var PendingIntent = plus.android.importClass('android.app.PendingIntent');
-    var pi = PendingIntent.getBroadcast(this.main, 0, permIntent, 0);
-    plus.android.invoke(this.main, 'registerReceiver', this._permReceiver, new IntentFilter(UsbManager.ACTION_USB_PERMISSION));
-  };
-
   /**
    * 申请权限并连接
+   * 授权结果采用「轮询 hasPermission」——web-view 里 importClass/implements 会因
+   * 类名解析报 Unexpected identifier 'android'（2026-08-16 真机实锤），广播接收器
+   * 方案不可行；Android 授权是瞬时的，500ms 轮询足够及时
    * @param {String} deviceId 设备 ID（listDevices 返回的 id）
    * @returns {Promise<AndroidTransport>}
    */
@@ -179,7 +148,6 @@
     var self = this;
     return new Promise(function (resolve, reject) {
       self._init();
-      var UsbManager = plus.android.importClass('android.hardware.usb.UsbManager');
       // 按 deviceName 找回设备对象
       var device = null;
       self._eachDevice(function (d) {
@@ -191,26 +159,36 @@
       if (plus.android.invoke(self.um, 'hasPermission', device)) {
         return resolve(self._open(device));
       }
-      // 未授权：弹系统授权框
-      self._ensurePermReceiver();
-      self.pendingPerm = {
-        resolve: function (dev) {
-          try { resolve(self._open(dev)); }
-          catch (e) { reject(e); }
-        },
-        reject: reject
-      };
-      var permIntent = new (plus.android.importClass('android.content.Intent'))(UsbManager.ACTION_USB_PERMISSION);
+      // 未授权：弹系统授权框（PendingIntent 用类名字符串调静态方法，绕开 importClass）
+      var ACTION_USB_PERMISSION = 'android.hardware.usb.action.USB_PERMISSION';
+      var permIntent = plus.android.newObject('android.content.Intent', ACTION_USB_PERMISSION);
       plus.android.invoke(permIntent, 'setPackage', plus.android.invoke(self.main, 'getPackageName'));
-      var PendingIntent = plus.android.importClass('android.app.PendingIntent');
-      var pi = PendingIntent.getBroadcast(self.main, 0, permIntent, 0);
+      var pi = plus.android.invoke('android.app.PendingIntent', 'getBroadcast', self.main, 0, permIntent, 0);
       plus.android.invoke(self.um, 'requestPermission', device, pi);
+      // 轮询授权结果（拒绝/超时都会 hasPermission=false）
+      var start = Date.now();
+      var timer = setInterval(function () {
+        var granted = false;
+        try { granted = plus.android.invoke(self.um, 'hasPermission', device); } catch (e) {}
+        if (granted) {
+          clearInterval(timer);
+          try { resolve(self._open(device)); }
+          catch (e) { reject(e); }
+        } else if (Date.now() - start > 30000) {
+          clearInterval(timer);
+          reject(new Error('USB 授权超时，请确认弹窗并点允许'));
+        }
+      }, 500);
     });
   };
 
   /** 打开设备并锁定 bulk 端点 */
   UsbTetherAndroid.prototype._open = function (device) {
-    var UsbConstants = plus.android.importClass('android.hardware.usb.UsbConstants');
+    // UsbConstants 是 Android 公开 API 常量（官方文档定义，永不变化），直接硬编码，
+    // 避免 web-view 里 importClass/getAttribute 类名解析问题（2026-08-16 真机实锤）
+    var USB_ENDPOINT_XFER_BULK = 2;
+    var USB_DIR_IN = 0x80;
+    var USB_DIR_OUT = 0;
     var connection = plus.android.invoke(this.um, 'openDevice', device);
     if (!connection) throw new Error('打开 USB 设备失败（可能被其他应用占用）');
     var iface = plus.android.invoke(device, 'getInterface', 0);
@@ -226,9 +204,9 @@
     var n = plus.android.invoke(iface, 'getEndpointCount');
     for (var i = 0; i < n; i++) {
       var ep = plus.android.invoke(iface, 'getEndpoint', i);
-      if (plus.android.invoke(ep, 'getType') !== UsbConstants.USB_ENDPOINT_XFER_BULK) continue;
-      if (plus.android.invoke(ep, 'getDirection') === UsbConstants.USB_DIR_IN) bulkInEp = ep;
-      else if (plus.android.invoke(ep, 'getDirection') === UsbConstants.USB_DIR_OUT) bulkOutEp = ep;
+      if (plus.android.invoke(ep, 'getType') !== USB_ENDPOINT_XFER_BULK) continue;
+      if (plus.android.invoke(ep, 'getDirection') === USB_DIR_IN) bulkInEp = ep;
+      else if (plus.android.invoke(ep, 'getDirection') === USB_DIR_OUT) bulkOutEp = ep;
     }
     if (!bulkInEp || !bulkOutEp) {
       plus.android.invoke(connection, 'close');
@@ -246,40 +224,42 @@
   UsbTetherAndroid.prototype.watchAttach = function (cb) {
     this._init();
     var self = this;
-    var IntentFilter = plus.android.importClass('android.content.IntentFilter');
-    var UsbManager = plus.android.importClass('android.hardware.usb.UsbManager');
     this._attachCallback = cb;
-    if (!this._attachReceiver) {
-      this._attachReceiver = plus.android.implements('android.content.BroadcastReceiver', {
-        onReceive: function (context, intent) {
-          try {
-            var dev = plus.android.invoke(intent, 'getParcelableExtra', UsbManager.EXTRA_DEVICE);
-            if (dev && self._attachCallback) self._attachCallback(dev);
-          } catch (e) {}
-        }
-      });
-      plus.android.invoke(this.main, 'registerReceiver', this._attachReceiver,
-        new IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED));
-    }
+    // web-view 里 implements 会报 Unexpected identifier（2026-08-16 实锤）——
+    // 插拔监听属增强功能，注册失败静默降级（不影响手动检测/连接主链路）
+    try {
+      if (!this._attachReceiver) {
+        this._attachReceiver = plus.android.implements('android.content.BroadcastReceiver', {
+          onReceive: function (context, intent) {
+            try {
+              var dev = plus.android.invoke(intent, 'getParcelableExtra', 'device');
+              if (dev && self._attachCallback) self._attachCallback(dev);
+            } catch (e) {}
+          }
+        });
+        plus.android.invoke(this.main, 'registerReceiver', this._attachReceiver,
+          plus.android.newObject('android.content.IntentFilter', 'android.hardware.usb.action.USB_DEVICE_ATTACHED'));
+      }
+    } catch (e) {}
   };
 
   UsbTetherAndroid.prototype.watchDetach = function (cb) {
     this._init();
     var self = this;
-    var IntentFilter = plus.android.importClass('android.content.IntentFilter');
-    var UsbManager = plus.android.importClass('android.hardware.usb.UsbManager');
     this._detachCallback = cb;
-    if (!this._detachReceiver) {
-      this._detachReceiver = plus.android.implements('android.content.BroadcastReceiver', {
-        onReceive: function (context, intent) {
-          try {
-            if (self._detachCallback) self._detachCallback();
-          } catch (e) {}
-        }
-      });
-      plus.android.invoke(this.main, 'registerReceiver', this._detachReceiver,
-        new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED));
-    }
+    try {
+      if (!this._detachReceiver) {
+        this._detachReceiver = plus.android.implements('android.content.BroadcastReceiver', {
+          onReceive: function (context, intent) {
+            try {
+              if (self._detachCallback) self._detachCallback();
+            } catch (e) {}
+          }
+        });
+        plus.android.invoke(this.main, 'registerReceiver', this._detachReceiver,
+          plus.android.newObject('android.content.IntentFilter', 'android.hardware.usb.action.USB_DEVICE_DETACHED'));
+      }
+    } catch (e) {}
   };
 
   /* ---------- 导出 ---------- */
