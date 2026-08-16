@@ -65,12 +65,13 @@
         var jbuf = new Array(size);
         for (var i = 0; i < size; i++) jbuf[i] = 0;
         var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf, size, timeoutMs || 3000);
-        // 读空/错误时把 n 值打出来——区分 undefined（invoke 参数类型不匹配）、
-        // 0（调用成功但无数据）、-1（USB 层错误，如 buffer < maxPacketSize）
+        // 读空/错误时把 n 值 + 接口结构打出来（2026-08-16 全面扫描：-1 可能是指向
+        // 端点方向/接口选错，带上 ifaceInfo 定位）
         if (!(n > 0)) {
-          if (typeof n === 'undefined') throw new Error('bulkTransfer(in) invoke 失败返回 undefined（JS 数组读方向可能不被桥支持）');
-          if (n === 0) throw new Error('bulkTransfer(in) 返回 0（相机无响应或无数据，可能是 init 格式/端点问题）');
-          throw new Error('bulkTransfer(in) 返回 n=' + n);
+          var why = self.ifaceInfo ? ' 接口: ' + self.ifaceInfo : '';
+          if (typeof n === 'undefined') throw new Error('bulkTransfer(in) invoke 失败返回 undefined（JS 数组读方向可能不被桥支持）' + why);
+          if (n === 0) throw new Error('bulkTransfer(in) 返回 0（相机无响应或无数据，可能是 init 格式/端点问题）' + why);
+          throw new Error('bulkTransfer(in) 返回 n=' + n + why);
         }
         var u8 = new Uint8Array(n);
         for (var i = 0; i < n; i++) u8[i] = jbuf[i] & 0xFF; // Java byte 有符号，转 0-255
@@ -218,7 +219,7 @@
     });
   };
 
-  /** 打开设备并锁定 bulk 端点 */
+  /** 打开设备并锁定 bulk 端点（全面扫描版：遍历全部接口找 PTP，不写死 interface 0） */
   UsbTetherAndroid.prototype._open = function (device) {
     // UsbConstants 是 Android 公开 API 常量（官方文档定义，永不变化），直接硬编码，
     // 避免 web-view 里 importClass/getAttribute 类名解析问题（2026-08-16 真机实锤）
@@ -227,30 +228,50 @@
     var USB_DIR_OUT = 0;
     var connection = plus.android.invoke(this.um, 'openDevice', device);
     if (!connection) throw new Error('打开 USB 设备失败（可能被其他应用占用）');
-    var iface = plus.android.invoke(device, 'getInterface', 0);
-    if (!iface) {
-      plus.android.invoke(connection, 'close');
-      throw new Error('设备无接口（非 PTP 相机）');
+    // setConfiguration：Android 文档要求 claimInterface 前设置配置，否则 bulk 传输返回 -1
+    try {
+      var cfg = plus.android.invoke(device, 'getConfiguration');
+      if (cfg) {
+        var cfgId = plus.android.invoke(cfg, 'getId');
+        plus.android.invoke(connection, 'setConfiguration', cfgId);
+      }
+    } catch (e) {}
+    // 遍历全部接口（2026-08-16 全面扫描：5D2 PTP 接口不一定在 interface 0）
+    var ifaceCount = 0;
+    try { ifaceCount = plus.android.invoke(device, 'getInterfaceCount'); } catch (e) {}
+    var bulkInEp = null, bulkOutEp = null, iface = null, ifaceInfo = [];
+    for (var i = 0; i < ifaceCount; i++) {
+      var cand = plus.android.invoke(device, 'getInterface', i);
+      if (!cand) continue;
+      var epCount = 0, epInfo = [];
+      try { epCount = plus.android.invoke(cand, 'getEndpointCount'); } catch (e) {}
+      for (var j = 0; j < epCount; j++) {
+        var ep = plus.android.invoke(cand, 'getEndpoint', j);
+        var eType = plus.android.invoke(ep, 'getType');
+        var eDir = plus.android.invoke(ep, 'getDirection');
+        var eAddr = 0;
+        try { eAddr = plus.android.invoke(ep, 'getAddress'); } catch (e) {}
+        epInfo.push('ep' + j + ':addr=0x' + (eAddr & 0xFF).toString(16) + ',type=' + eType + ',dir=' + eDir);
+        if (eType !== USB_ENDPOINT_XFER_BULK) continue;
+        if (eDir === USB_DIR_IN && !bulkInEp) bulkInEp = ep;
+        else if (eDir === USB_DIR_OUT && !bulkOutEp) bulkOutEp = ep;
+      }
+      ifaceInfo.push('iface' + i + '[' + epInfo.join(' ') + ']');
+      if (!iface && bulkInEp && bulkOutEp) iface = cand; // 首个含 bulk 双端点的接口
     }
-    if (!plus.android.invoke(connection, 'claimInterface', iface, true)) {
+    if (!iface || !bulkInEp || !bulkOutEp) {
       plus.android.invoke(connection, 'close');
-      throw new Error('claimInterface 失败（设备被占用）');
+      throw new Error('未找到 bulk 端点（非 PTP 设备） 结构: ' + (ifaceInfo.join(' | ') || '空'));
     }
-    var bulkInEp = null, bulkOutEp = null;
-    var n = plus.android.invoke(iface, 'getEndpointCount');
-    for (var i = 0; i < n; i++) {
-      var ep = plus.android.invoke(iface, 'getEndpoint', i);
-      if (plus.android.invoke(ep, 'getType') !== USB_ENDPOINT_XFER_BULK) continue;
-      if (plus.android.invoke(ep, 'getDirection') === USB_DIR_IN) bulkInEp = ep;
-      else if (plus.android.invoke(ep, 'getDirection') === USB_DIR_OUT) bulkOutEp = ep;
-    }
-    if (!bulkInEp || !bulkOutEp) {
+    var claimed = false;
+    try { claimed = plus.android.invoke(connection, 'claimInterface', iface, true); } catch (e) {}
+    if (!claimed) {
       plus.android.invoke(connection, 'close');
-      throw new Error('未找到 bulk 端点（非 PTP 设备）');
+      throw new Error('claimInterface 失败（设备被占用） 结构: ' + ifaceInfo.join(' | '));
     }
     return new AndroidTransport({
       usbManager: this.um, device: device, connection: connection,
-      bulkInEp: bulkInEp, bulkOutEp: bulkOutEp
+      bulkInEp: bulkInEp, bulkOutEp: bulkOutEp, ifaceInfo: ifaceInfo.join(' | ')
     });
   };
 
