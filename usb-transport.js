@@ -165,14 +165,22 @@
         if (plus.android.invoke(self.um, 'hasPermission', device)) {
           return resolve(self._open(device));
         }
-        // 未授权：弹系统授权框（PendingIntent 用类名字符串调静态方法，绕开 importClass）
+        // 未授权：弹系统授权框
+        // web-view 桥铁律（2026-08-16 三连实锤）：字符串类名 invoke 会内部 eval 炸
+        // （Invalid or unexpected token），importClass 也炸；只有「实例对象 invoke」
+        // 与 newObject 安全。因此 PendingIntent 静态方法用 ClassLoader 链拿到
+        // Class 对象（实例对象）再 invoke——全程避开类名字符串
         stage = 'newObjectIntent';
         var ACTION_USB_PERMISSION = 'android.hardware.usb.action.USB_PERMISSION';
         var permIntent = plus.android.newObject('android.content.Intent', ACTION_USB_PERMISSION);
         stage = 'setPackage';
         plus.android.invoke(permIntent, 'setPackage', plus.android.invoke(self.main, 'getPackageName'));
+        stage = 'getPiClass';
+        var piClass = plus.android.invoke(
+          plus.android.invoke(plus.android.invoke(self.um, 'getClass'), 'getClassLoader'),
+          'loadClass', 'android.app.PendingIntent');
         stage = 'pendingIntent';
-        var pi = plus.android.invoke('android.app.PendingIntent', 'getBroadcast', self.main, 0, permIntent, 0);
+        var pi = plus.android.invoke(piClass, 'getBroadcast', self.main, 0, permIntent, 0);
         stage = 'requestPermission';
         plus.android.invoke(self.um, 'requestPermission', device, pi);
         // 轮询授权结果（拒绝/超时都会 hasPermission=false）
