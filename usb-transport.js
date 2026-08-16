@@ -32,6 +32,11 @@
     this.bulkOutEp = deps.bulkOutEp;
     this.ifaceInfo = deps.ifaceInfo;   // 2026-08-16 排查补：接口结构（之前漏存，错误不带结构）
     this.released = false;
+    // 2026-08-16 r13：单次 bulk 读大小自适应。真机实锤：大 JS 数组（16384）被桥
+    // byte[] 转换返回 null（"参数不匹配"语义）、65536 返回 -1（Android 上限）；
+    // 512 已实证可读（2c9316e）。从 512 起，成功×2、失败÷2（512~16384），
+    // 兼顾小包零开销与大文件吞吐（PacketStream 本来就是流式拼接）。
+    this._readSize = 512;
   }
 
   /** 对照实验开关（默认 false=JS 数组直传，已实证可用）——见 _makeBuf 注释 */
@@ -108,7 +113,7 @@
     });
   };
 
-  /** 读数据（同步阻塞；返回实际字节；0 字节重读一次 = ZLP 遗留，gphoto2 语义） */
+  /** 读数据（同步阻塞；返回实际字节；单次读大小自适应，见 _readSize 说明） */
   AndroidTransport.prototype.bulkIn = function (maxLen, timeoutMs) {
     var self = this;
     return new Promise(function (resolve, reject) {
@@ -116,44 +121,66 @@
       try {
         // 排查第 12 轮实锤：bulkTransfer(in) 返回 -1 的根因是**读 buffer 必须 ≥ 端点
         // maxPacketSize**（5D2 USB2.0 高速 bulk 端点 = 512 字节）；bulkOut 写方向无此限制。
-        // 上限 16384：Android bulkTransfer 单次传输长度上限（官方 API 约束），
-        // 协议栈（PacketStream）靠多次读取拼接大包。
-        var size = Math.min(Math.max(maxLen || 4096, 512), 16384);
+        // r13 实锤修正：**桥对超过可用上限的 JS 数组转换会返回 null**（真机 n=null，
+        // "参数不匹配"语义）；65536 直接 -1（Android 单次传输上限 16384）。
+        // 解决：从 512 起自适应（成功×2 失败÷2），PacketStream 负责跨次拼接。
+        var size = Math.min(Math.max(maxLen || 512, 512), self._readSize);
         var timeout = timeoutMs || 20000;
-        // web-view 桥没有 plus.android.newArray（2026-08-16 实锤 not a function），
-        // 用 _makeBuf（JS 数组直传，已实证可用；对照实验开关 useJavaByteArray）
-        var buf = self._makeBuf(size);
         var inEp = self.bulkInEp;
         var inAddr = 0;
         try { inAddr = plus.android.invoke(inEp, 'getAddress'); } catch (e) {}
-        var target = buf.java || buf.js;
-        var n = plus.android.invoke(self.connection, 'bulkTransfer', inEp, target, size, timeout);
+        var n = self._readOnce(inEp, size, timeout);
+        // n=null（桥转换失败/参数不匹配）→ 减半重试一次（真机 16384→null 的修复路径）
+        if (n === null) {
+          if (self._readSize > 512) self._readSize = Math.max(512, self._readSize >> 1);
+          n = self._readOnce(inEp, size, timeout);
+        }
         // n=-1（STALL）→ clear halt(IN) 重试一次（gphoto2 标准做法，端点 STALL 时必用）
         if (!(n > 0) && n === -1) {
           self._clearHalt(inAddr & 0xFF);
-          var buf2 = self._makeBuf(size);
-          var target2 = buf2.java || buf2.js;
-          n = plus.android.invoke(self.connection, 'bulkTransfer', inEp, target2, size, timeout);
-          if (n > 0) return resolve(self._toU8(buf2, n));
+          n = self._readOnce(inEp, size, timeout);
+          if (n > 0) { self._growReadSize(); return resolve(self._readBytes(n)); }
         }
         // n=0：ZLP（上次传输末尾设备遗留的零写，gphoto2 读到 0 字节再读一次）
         if (n === 0) {
-          var buf3 = self._makeBuf(size);
-          n = plus.android.invoke(self.connection, 'bulkTransfer', inEp, buf3.java || buf3.js, size, timeout);
-          if (n > 0) return resolve(self._toU8(buf3, n));
+          n = self._readOnce(inEp, size, timeout);
+          if (n > 0) { self._growReadSize(); return resolve(self._readBytes(n)); }
         }
         // 读空/错误时把 n 值 + 接口结构打出来（2026-08-16 全面扫描：-1 可能是指向
         // 端点方向/接口选错，带上 ifaceInfo 定位）
         if (!(n > 0)) {
           var why = self.ifaceInfo ? ' 接口: ' + self.ifaceInfo : '';
-          if (typeof n === 'undefined') throw new Error('bulkTransfer(in) invoke 失败返回 undefined（JS 数组读方向可能不被桥支持）' + why);
+          if (n === null || typeof n === 'undefined') {
+            // 512 也失败 = 桥对 byte[] 参数整体不支持（对照组 useJavaByteArray 可试）
+            throw new Error('bulkTransfer(in) 桥转换失败（n=' + n + '，已减到 ' + self._readSize + 'B）' + why);
+          }
           if (n === 0) throw new Error('bulkTransfer(in) 连续两次返回 0（相机无响应）' + why);
           throw new Error('bulkTransfer(in) 返回 n=' + n + why);
         }
-        resolve(self._toU8(buf, n));
+        self._growReadSize();
+        resolve(self._readBytes(n));
       } catch (e) { reject(new Error('[bulkIn] ' + (e && e.message || e) +
         (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : ''))); }
     });
+  };
+
+  /** 单次 bulkTransfer(in) 调用（JS 数组直传；useJavaByteArray 开关走 Java 数组对照） */
+  AndroidTransport.prototype._readOnce = function (ep, size, timeout) {
+    var buf = this._makeBuf(size);
+    var target = buf.java || buf.js;
+    var n = plus.android.invoke(this.connection, 'bulkTransfer', ep, target, size, timeout);
+    this._lastBuf = buf; // 供 _readBytes 回读
+    return n;
+  };
+
+  /** 把最后一次读取的数据转 Uint8Array */
+  AndroidTransport.prototype._readBytes = function (n) {
+    return this._toU8(this._lastBuf, n);
+  };
+
+  /** 成功读到数据 → 尝试加大单次读（上限 16384 = Android 单次传输上限） */
+  AndroidTransport.prototype._growReadSize = function () {
+    if (this._readSize < 16384) this._readSize = Math.min(16384, this._readSize << 1);
   };
 
   AndroidTransport.prototype.release = function () {
@@ -303,26 +330,30 @@
     var USB_DIR_OUT = 0;
     var connection = plus.android.invoke(this.um, 'openDevice', device);
     if (!connection) throw new Error('打开 USB 设备失败（可能被其他应用占用）');
-    // setConfiguration（2026-08-16 排查第 14 轮实锤）：cfg? = getConfiguration 返回 null
-    // = 配置未激活 → bulk 传输返回 -1。必须显式设置配置（Android 不自动激活）。
-    // getConfiguration() 在未激活时返回 null，改用 getConfigurationCount + getConfiguration(i)
-    try {
-      var cfgCount = plus.android.invoke(device, 'getConfigurationCount');
-      for (var ci = 0; ci < cfgCount; ci++) {
-        var cfgI = plus.android.invoke(device, 'getConfiguration', ci);
-        if (!cfgI) continue;
-        var cfgIdI = plus.android.invoke(cfgI, 'getId');
-        if (typeof cfgIdI === 'number') plus.android.invoke(connection, 'setConfiguration', cfgIdI);
-        break; // 设第一个可用配置
-      }
-    } catch (e) {}
-    // 遍历全部接口（2026-08-16 全面扫描：5D2 PTP 接口不一定在 interface 0）
-    var ifaceCount = 0;
-    try { ifaceCount = plus.android.invoke(device, 'getInterfaceCount'); } catch (e) {}
+    // setConfiguration（2026-08-16 r13 修正）：**UsbDevice.getConfiguration() 返回的
+    // UsbConfiguration 对象在 web-view 桥里是 null**（真机诊断 cfg?）→ 之前 setConfiguration
+    // 从未真正执行（typeof 检查挡掉）。改用 UsbDeviceConnection.getConfiguration()——
+    // **返回 int**（0=未激活，非 0=当前配置 id），桥可直接转换。Android 不自动激活配置，
+    // 必须显式 setConfiguration 否则 bulk 传输 -1。
     var cfgInfo = 'cfg?';
     try {
-      var cfg0 = plus.android.invoke(device, 'getConfiguration');
-      if (cfg0) cfgInfo = 'cfgId=' + plus.android.invoke(cfg0, 'getId');
+      var cfgCur = plus.android.invoke(connection, 'getConfiguration');
+      if (typeof cfgCur === 'number') {
+        cfgInfo = 'cfgId=' + cfgCur;
+        if (cfgCur === 0) {
+          var cfgCount = plus.android.invoke(device, 'getConfigurationCount');
+          for (var ci = 0; ci < cfgCount; ci++) {
+            var cfgI = plus.android.invoke(device, 'getConfiguration', ci);
+            if (!cfgI) continue;
+            var cfgIdI = plus.android.invoke(cfgI, 'getId');
+            if (typeof cfgIdI === 'number' && cfgIdI > 0) {
+              plus.android.invoke(connection, 'setConfiguration', cfgIdI);
+              cfgInfo = 'cfgId=' + cfgIdI + '(set)';
+              break; // 设第一个可用配置
+            }
+          }
+        }
+      }
     } catch (e) {}
     var bulkInEp = null, bulkOutEp = null, iface = null, ifaceInfo = [cfgInfo];
     for (var i = 0; i < ifaceCount; i++) {

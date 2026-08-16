@@ -2824,7 +2824,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r12',               // usb-transport.js 版本指纹（r12：对照 gphoto2 重写——n=0 ZLP 重读/OUT clear halt/真实端点地址/16384 上限/byte[] 对照开关）
+      usbVer: '20260816-r13',               // usb-transport.js 版本指纹（r13：真机 n=null 实锤——大 JS 数组被桥转换失败→单次读 512 起自适应；配置诊断改 connection.getConfiguration() int，UsbDevice.getConfiguration() 对象在桥里是 null）
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
