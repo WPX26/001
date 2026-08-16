@@ -62,8 +62,13 @@
         var jbuf = new Array(size);
         for (var i = 0; i < size; i++) jbuf[i] = 0;
         var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf, size, timeoutMs || 3000);
-        // 排查第 10 轮：读空时把 n 和超时打出来，区分「桥转换失败 n=0」与「真超时 n=-1」
-        if (!(n > 0)) return resolve(new Uint8Array(0)); // 超时/无数据
+        // 排查第 11 轮：读空时把 n 值打出来——区分 undefined（invoke 参数类型不匹配，
+        // 桥不支持 JS 数组读方向）、0（调用成功但无数据/相机无响应）、-1（USB 层错误）
+        if (!(n > 0)) {
+          if (typeof n === 'undefined') throw new Error('bulkTransfer(in) invoke 失败返回 undefined（JS 数组读方向可能不被桥支持）');
+          if (n === 0) throw new Error('bulkTransfer(in) 返回 0（相机无响应或无数据，可能是 init 格式/端点问题）');
+          throw new Error('bulkTransfer(in) 返回 n=' + n);
+        }
         var u8 = new Uint8Array(n);
         for (var i = 0; i < n; i++) u8[i] = jbuf[i] & 0xFF; // Java byte 有符号，转 0-255
         resolve(u8);
