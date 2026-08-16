@@ -39,34 +39,41 @@
     this._readSize = 512;
   }
 
-  /** 对照实验开关（默认 false=JS 数组直传，已实证可用）——见 _makeBuf 注释 */
-  AndroidTransport.useJavaByteArray = false;
-
   /**
-   * 创建 bulk 传输 buffer（2026-08-16 对照实验开关）。
-   * 社区经验（ask.dcloud 220280/115486）：「JS 数组直传 byte[]」在部分设备/场景不可靠
-   * （收到 null/类型错配），官方无 newArray，替代是 newObject('byte[]', size)。
-   * 我们 JS 数组直传已实证可用（2c9316e 起 bulkIn 返回真实 n 且数据可读回），默认维持；
-   * 若复验出现「数据错位/截断/类型」问题，把 useJavaByteArray 置 true 对照（注意读回
-   * 需 invoke buffer.get(i) 逐字节，仅建议小包实验，大文件读回太慢）。
+   * 创建 bulk 读 buffer（2026-08-16 r15 真机实锤修正）：
+   * **读方向必须用 Java byte[]**——JS 数组直传时桥只做 JS→byte[] 单向转换，
+   * bulkTransfer 写进 byte[] 的数据**不会回写 JS 数组**（真机：n=12 但读回全 0，
+   * 协议栈解析出"非法包长 0"）。写方向（bulkOut）JS 数组仍可用（命令已实证送达）。
    */
   AndroidTransport.prototype._makeBuf = function (size) {
-    var arr = new Array(size);
-    for (var i = 0; i < size; i++) arr[i] = 0;
-    if (typeof plus !== 'undefined' && plus.android && AndroidTransport.useJavaByteArray) {
+    if (typeof plus !== 'undefined' && plus.android) {
       try {
         var j = plus.android.newObject('byte[]', size);
-        if (j) return { java: j, js: arr };
+        if (j) return { java: j, js: null };
       } catch (e) {}
     }
-    return { java: null, js: arr };
+    var arr = new Array(size);
+    for (var i = 0; i < size; i++) arr[i] = 0;
+    return { java: null, js: arr }; // 兜底（非 App 环境/实验）
   };
 
-  /** 把读回的数据转 Uint8Array（JS 数组直接取；Java 数组逐字节 get） */
+  /**
+   * 把读回的数据转 Uint8Array。
+   * Java byte[] → newObject('java.lang.String', jbuf, 'ISO-8859-1') 整块转换
+   * （1 次 invoke，ISO-8859-1 逐字节无损映射），比逐字节 get 快 3 个数量级；
+   * 转换失败兜底逐字节 get（慢但可靠，社区验证过）。
+   */
   AndroidTransport.prototype._toU8 = function (buf, n) {
     var u8 = new Uint8Array(n);
     if (buf.java) {
-      for (var i = 0; i < n; i++) u8[i] = plus.android.invoke(buf.java, 'get', i) & 0xFF;
+      try {
+        var s = plus.android.newObject('java.lang.String', buf.java, 'ISO-8859-1');
+        if (typeof s === 'string' && s.length >= n) {
+          for (var i = 0; i < n; i++) u8[i] = s.charCodeAt(i) & 0xFF;
+          return u8;
+        }
+      } catch (e) {}
+      for (var k = 0; k < n; k++) u8[k] = plus.android.invoke(buf.java, 'get', k) & 0xFF;
     } else {
       for (var j = 0; j < n; j++) u8[j] = buf.js[j] & 0xFF; // Java byte 有符号，转 0-255
     }

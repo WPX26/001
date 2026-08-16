@@ -48,7 +48,8 @@ function make5D2() {
     close: () => { connection.opened = false; },
     controlTransfer: (rt, rq, v, idx, buf, len, t) => 0,
     // 端点参数是 UsbEndpoint 对象（真机语义），按 getAddress() 判断方向。
-    // 写方向返回写入字节数；读方向返回一个模拟 PTP 响应头（12 字节，code=0x2001）。
+    // 写方向返回写入字节数；读方向把模拟响应头写进 buffer（真机语义：写入 Java byte[]，
+    // 桥不回写 JS 数组——r15 修复后读 buffer 是 Java 数组 mock）。
     bulkTransfer: (ep, buf, len, t) => {
       const addr = ep && typeof ep.getAddress === 'function' ? ep.getAddress() : -1;
       if (addr === 0x02) return len;
@@ -56,7 +57,10 @@ function make5D2() {
         // 12B: length=12, type=3(Response), code=0x2001(OK), tid=1
         const data = [0x0C, 0, 0, 0, 3, 0, 0x01, 0x20, 1, 0, 0, 0];
         const n = Math.min(data.length, len);
-        for (let i = 0; i < n; i++) buf[i] = data[i];
+        for (let i = 0; i < n; i++) {
+          if (Array.isArray(buf)) buf[i] = data[i];           // JS 数组兜底
+          else if (buf && buf._bytes) buf._bytes[i] = data[i]; // Java byte[] mock
+        }
         return n;
       }
       return 0;
@@ -100,6 +104,18 @@ function makePlus(dev5d2) {
         return null;
       },
       newObject: (cls, ...args) => {
+        if (cls === 'byte[]') {
+          // Java byte[] mock：bulkTransfer 写入 _bytes，get(i) 逐字节读（真机语义）
+          const size = args[0];
+          return { _bytes: new Array(size).fill(0), get: function (i) { return this._bytes[i] || 0; } };
+        }
+        if (cls === 'java.lang.String') {
+          // Java byte[] → ISO-8859-1 字符串（r15 整块读回方案）
+          const arr = args[0];
+          let s = '';
+          if (arr && arr._bytes) for (const b of arr._bytes) s += String.fromCharCode(b & 0xFF);
+          return s;
+        }
         if (objects[cls]) return objects[cls](...args);
         return null;
       },
