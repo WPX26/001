@@ -414,10 +414,17 @@
       if (!target) throw new Error('未找到 bulk 端点（非 PTP 设备）');
       stage = 'claim';
       this._log('open:target', null, 'class=' + (target.itf.interfaceClass || '?') + ' ifaceNum=' + target.itf.interfaceNumber);
-      return dev.claimInterface(target.itf.interfaceNumber).then(function () {
-        this._log('open:claim', 'ok', 'ifaceNum=' + target.itf.interfaceNumber);
-        return target;
-      }.bind(this));
+      // r22（tethr 防御序列，只取无害部分）：claim 前 releaseInterface 容错——
+      // 消除 Windows 上「接口被上次会话/其他标签页占用」的 busy 残留。
+      // 注意：不抄 tethr 的 reset()（设备级复位，5D2 老固件可能真复位导致
+      // 接口失效挂死——与 r19 移除 0x66 同理）；releaseInterface 未 claim 时
+      // 抛错被 catch，无害。
+      return dev.releaseInterface(target.itf.interfaceNumber).catch(function () {})
+        .then(function () { return dev.claimInterface(target.itf.interfaceNumber); })
+        .then(function () {
+          this._log('open:claim', 'ok', 'ifaceNum=' + target.itf.interfaceNumber);
+          return target;
+        }.bind(this));
     }.bind(this)).then(function (target) {
       // 端点号（WebUSB 的 endpointNumber 不含方向位）
       var epIn = null, epOut = null, epInfo = [];
