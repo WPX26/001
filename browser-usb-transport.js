@@ -45,6 +45,7 @@
     this.bulkInEpNum = deps.bulkInEpNum;   // 端点号（不含方向位，WebUSB 用法）
     this.bulkOutEpNum = deps.bulkOutEpNum;
     this.ifaceInfo = deps.ifaceInfo; // 诊断用结构文本
+    this._t0 = Date.now();
     this.released = false;
     // 超时兜底：WebUSB 无原生 timeout 参数（请求挂到有数据或断开），
     // 超时由 JS 侧 setTimeout 实现；残留 pending 请求靠 release() 的
@@ -61,7 +62,17 @@
     // 诊断日志（r19）：最近操作上下文，USB 诊断 JSON 输出，真机一锤定音
     this.diag = { lastOp: null, lastOutBytes: -1, lastOutStatus: null,
       lastInBytes: -1, lastInStatus: null, timeouts: 0, openStage: null };
+    // r20：全链路操作日志（环形 40 条）——openSession 超时时，命令是否发出、
+    // 写入字节、相机有无任何响应，一目了然
+    this._ops = [];
   }
+
+  /** 记录一次传输操作（环形日志，诊断输出） */
+  WebUsbTransport.prototype._logOp = function (op, len, res, extra) {
+    this._ops.push({ t: Date.now() - this._t0, op: op, len: len || null,
+      res: res || null, extra: extra || null });
+    if (this._ops.length > 40) this._ops.shift();
+  };
 
   /** 标记管道已脏（超时后调用），后续传输立即拒绝提示重连 */
   WebUsbTransport.prototype._markStale = function (why) {
@@ -69,6 +80,7 @@
     this._timeoutCount++;
     this.diag.timeouts = this._timeoutCount;
     this.diag.lastOp = 'stale:' + why;
+    this._logOp(why, null, 'timeout', 'stale');
   };
 
   /** 清除脏标记（release 或重新连接成功后） */
@@ -120,12 +132,14 @@
         if (res.status === 'ok') {
           self.diag.lastOutBytes = typeof res.bytesWritten === 'number' ? res.bytesWritten : u8.length;
           self.diag.lastOutStatus = 'ok';
+          self._logOp('out', u8.length, 'ok:' + self.diag.lastOutBytes, 'ep' + self.bulkOutEpNum);
           if (res.bytesWritten === 0) {
             throw new Error('bulkTransfer(out) 写入 0 字节（相机未就绪/接口未激活）');
           }
           return;
         }
         self.diag.lastOutStatus = res.status;
+        self._logOp('out', u8.length, res.status, 'ep' + self.bulkOutEpNum);
         if (res.status === 'stall') {
           return self._withTimeout(dev.clearHalt('out', self.bulkOutEpNum), 3000, 'clearHalt(out)')
             .then(function () {
@@ -133,6 +147,7 @@
             }).then(function (res2) {
               if (res2.status === 'ok') {
                 if (res2.bytesWritten === 0) throw new Error('bulkTransfer(out) 重试写入 0 字节');
+                self._logOp('out-retry', u8.length, 'ok:' + res2.bytesWritten, 'stall 后重试成功');
                 return;
               }
               throw new Error('bulkTransfer(out) stall 重试后 status=' + res2.status);
@@ -158,9 +173,11 @@
           // ZLP（空读）：返回空 Uint8Array，协议栈 PacketStream 空读容忍（与 Android 版一致）
           self.diag.lastInStatus = 'ok';
           self.diag.lastInBytes = res.data ? res.data.byteLength : 0;
+          self._logOp('in', size, 'ok:' + self.diag.lastInBytes, 'ep' + self.bulkInEpNum);
           return res.data ? new Uint8Array(res.data) : new Uint8Array(0);
         }
         self.diag.lastInStatus = res.status;
+        self._logOp('in', size, res.status, 'ep' + self.bulkInEpNum);
         if (res.status === 'stall') {
           return self._withTimeout(dev.clearHalt('in', self.bulkInEpNum), 3000, 'clearHalt(in)')
             .then(function () {
@@ -169,6 +186,7 @@
               if (res2.status === 'ok') {
                 self.diag.lastInStatus = 'ok-after-stall';
                 self.diag.lastInBytes = res2.data ? res2.data.byteLength : 0;
+                self._logOp('in-retry', size, 'ok:' + self.diag.lastInBytes, 'stall 后重试成功');
                 return res2.data ? new Uint8Array(res2.data) : new Uint8Array(0);
               }
               throw new Error('bulkTransfer(in) stall 重试后 status=' + res2.status);
@@ -202,7 +220,8 @@
       lastOutStatus: this.diag.lastOutStatus,
       lastOutBytes: this.diag.lastOutBytes,
       lastInStatus: this.diag.lastInStatus,
-      lastInBytes: this.diag.lastInBytes
+      lastInBytes: this.diag.lastInBytes,
+      ops: this._ops // r20：全链路操作日志（命令发出/字节数/响应/超时）——超时根因一眼定位
     };
   };
 
@@ -211,7 +230,16 @@
    * ============================================================ */
   function UsbTetherWebUsb() {
     this.device = null; // 最近连接/授权设备（诊断用）
+    // r20：连接阶段日志（open/claim/端点查找等，transport 未建时的失败也能定位）
+    this._logs = [];
+    this._logT = 0;
+    this.lastOpenErr = null;
   }
+
+  UsbTetherWebUsb.prototype._log = function (stage, res, extra) {
+    this._logs.push({ t: this._logT++, stage: stage, res: res || null, extra: extra || null });
+    if (this._logs.length > 40) this._logs.shift();
+  };
 
   UsbTetherWebUsb.prototype._require = function () {
     if (!isSupported()) throw new Error('当前浏览器不支持 WebUSB（需 Chrome/Edge 61+，桌面或 Android）');
@@ -313,18 +341,24 @@
           }
           if (!dev) {
             // 已授权列表无匹配（极少见竞态）→ 弹系统授权框（仍在用户手势内）
+            self._log('findDevice:list-empty', null, deviceId);
             return navigator.usb.requestDevice({ filters: [] }).then(function (d) {
               self.device = d;
+              self._log('findDevice:requested', 'ok', '授权新设备');
               return self._open(d);
             }, function (err) {
               if (err && err.name === 'NotFoundError') throw new Error('[findDevice] 未选择设备');
               throw err;
             });
           }
+          self._log('findDevice:matched', null, deviceId);
           return self._open(dev);
         }).then(function (transport) {
+          self._transport = transport; // r20：注册当前 transport（诊断读 ops 日志）
+          self._log('connect:done', 'ok', 'transport 就绪');
           resolve(transport);
         }, function (err) {
+          self._log('connect:fail:' + stage, 'err', (err && err.message || err));
           reject(new Error('[' + stage + '] ' + (err && err.message || err)));
         });
       } catch (e) {
@@ -342,16 +376,19 @@
     // （失败重试路径）时执行。
     var cleanReset = !!opts.cleanReset;
     var stage = 'open';
+    this._log('open:start', null, 'vid=' + dev.vendorId.toString(16) + ' pid=' + dev.productId.toString(16));
     return dev.open().then(function () {
       stage = 'config';
+      this._log('open:config', null, dev.configuration ? '已有配置' : '需 selectConfiguration');
       if (!dev.configuration) {
         if (!dev.configurations || !dev.configurations.length) throw new Error('设备无配置');
         return dev.selectConfiguration(dev.configurations[0].configurationValue);
       }
       return null;
-    }).then(function () {
+    }.bind(this)).then(function () {
       stage = 'findIface';
       var config = dev.configuration;
+      this._log('open:iface', null, 'configs=' + (dev.configurations || []).length + ' ifaces=' + ((config && config.interfaces) || []).length);
       if (!config || !config.interfaces || !config.interfaces.length) throw new Error('无接口');
       // 找 PTP 接口：优先 class=6（Still Image）；否则首个含 bulk 双端点的接口
       var target = null;
@@ -370,10 +407,12 @@
       });
       if (!target) throw new Error('未找到 bulk 端点（非 PTP 设备）');
       stage = 'claim';
+      this._log('open:target', null, 'class=' + (target.itf.interfaceClass || '?') + ' ifaceNum=' + target.itf.interfaceNumber);
       return dev.claimInterface(target.itf.interfaceNumber).then(function () {
+        this._log('open:claim', 'ok', 'ifaceNum=' + target.itf.interfaceNumber);
         return target;
-      });
-    }).then(function (target) {
+      }.bind(this));
+    }.bind(this)).then(function (target) {
       // 端点号（WebUSB 的 endpointNumber 不含方向位）
       var epIn = null, epOut = null, epInfo = [];
       (target.alt.endpoints || []).forEach(function (ep) {
@@ -383,6 +422,7 @@
         if (ep.type === 'bulk' && ep.direction === 'out' && !epOut) epOut = ep;
       });
       if (!epIn || !epOut) throw new Error('缺少 bulk 端点（IN=' + !!epIn + ' OUT=' + !!epOut + '）');
+      this._log('open:eps', null, epInfo.join(' '));
       stage = 'reset';
       // r19：0x66 仅 connectReset=true（失败重试）时执行——首次连接跳过，
       // 避免 5D2 真复位设备导致接口失效挂死（见 _open 注释）
@@ -393,6 +433,7 @@
         p = p.then(function () { return dev.clearHalt('in', epIn.endpointNumber).catch(function () {}); });
       }
       return p.then(function () {
+        this._log('open:done', 'ok', 'transport 就绪');
         return new WebUsbTransport({
           device: dev,
           ifaceNum: target.itf.interfaceNumber,
@@ -400,9 +441,11 @@
           bulkOutEpNum: epOut.endpointNumber,
           ifaceInfo: 'class=' + (target.itf.interfaceClass || '?') + ' [' + epInfo.join(' ') + ']'
         });
-      });
-    }).catch(function (err) {
-      // 打开/连接失败 → 关闭设备释放资源
+      }.bind(this));
+    }.bind(this)).catch(function (err) {
+      // 打开/连接失败 → 关闭设备释放资源；记录失败日志（诊断 JSON 输出）
+      this.lastOpenErr = { stage: stage, msg: (err && err.message || err) };
+      this._log('open:fail:' + stage, 'err', (err && err.message || err));
       try { if (dev && dev.opened) dev.close().catch(function () {}); } catch (e) {}
       throw new Error('[open:' + stage + '] ' + (err && err.message || err));
     });
@@ -423,7 +466,20 @@
       webusbMode: true,
       /** 诊断字段（兼容 plus 版签名） */
       probeByteArray: function () { return 'webusb'; },
-      lastBufMode: function () { return 'webusb'; }
+      lastBufMode: function () { return 'webusb'; },
+      /** r20：连接阶段全链路日志（open/claim/端点/失败——transport 未建时也定位） */
+      diagLogs: function () {
+        var t = singleton;
+        if (!t) return [];
+        var out = t._logs.slice();
+        if (t._transport && t._transport.diagInfo) {
+          var d = t._transport.diagInfo();
+          if (d && d.ops) {
+            out.push({ stage: 'transport-ops', res: 'ok', extra: JSON.stringify(d.ops) });
+          }
+        }
+        return out;
+      }
     };
   }
 

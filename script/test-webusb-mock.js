@@ -316,6 +316,8 @@ async function main() {
     requestDevice: () => Promise.resolve(dev9)
   } } });
   const tr9 = await t9.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  ok('diagLogs 含连接阶段日志（open/claim/eps）', Array.isArray(t9.diagLogs()) &&
+    t9.diagLogs().some(l => /open:done/.test(l.stage || '')), JSON.stringify(t9.diagLogs()));
   cam9.delayMs = 99999; // 相机不响应
   let timedOut = false;
   try {
@@ -334,6 +336,8 @@ async function main() {
   const diag9 = tr9.diagInfo();
   ok('diagInfo 输出超时次数/stale 标记', diag9.timeouts >= 1 && diag9.stale === true && diag9.timeouts === 1,
     JSON.stringify(diag9));
+  ok('diagInfo 输出全链路 ops 日志（r20）', Array.isArray(diag9.ops) && diag9.ops.length >= 1 &&
+    diag9.ops.some(o => /timeout/.test(o.res || '')), JSON.stringify(diag9.ops));
   tr9.release();
   ok('release 后 stale 清除', tr9.diagInfo().stale === false);
 
