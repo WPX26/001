@@ -28,7 +28,7 @@ COPY album-prototype.html camera-prototype.html connect-prototype.html \
 COPY api.js /usr/share/nginx/html/
 
 # 相机互联 USB 有线连接（阶段1：Native.js 直连 PTP）——联机页 script 引用，缺失会 404 导致 USB 功能失效
-COPY camera-ptp.js usb-transport.js /usr/share/nginx/html/
+COPY camera-ptp.js usb-transport.js browser-usb-transport.js /usr/share/nginx/html/
 
 # 卡片插画底图（他人主页/我的主页 hero 引用 card-bg.jpg，1ae52a5 起）——缺失时线上 404、卡片只剩染色层
 COPY card-bg.jpg /usr/share/nginx/html/

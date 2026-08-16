@@ -1,10 +1,10 @@
-# 相机互联·USB 有线连接真机联调指南（2026-08-16 更新）
+# 相机互联·USB 有线连接真机联调指南（2026-08-16 深夜更新）
 
 > 目标：Android 手机 USB OTG 直连佳能 5D2，实现连接 → 快门 → 照片进待归类管线。
-> 技术：Native.js 直调 Android USB Host + 自研 PTP 协议栈（camera-ptp.js），**已上线**（f363a94）。
+> 技术：自研 PTP 协议栈（camera-ptp.js）+ 双传输层——**App 内 Native.js**（usb-transport.js，读方向受限）+ **浏览器 WebUSB**（browser-usb-transport.js，r18 新增）。**已上线**。
 > 阶段1 不含实时取景（二期原生插件）；拍照为真实链路。
 
-> **当前状态（2026-08-16 深夜，r17）**：协议层已由**电脑直连 5D2 真机 100% 验证并真实出片**（快门 0x9128 正解，见「五」）；手机端 Native.js 桥的字节传输经 r13-r17 多轮收敛，停在**最后一锤：USB 诊断探 probeByteArray 定分支**（见「六」）。本次复验目标：检测 → 授权 → 连接（**报错正常**）→ **USB诊断 JSON 发回** → 判分支。
+> **当前状态（2026-08-16 深夜，r18）**：协议层已由**电脑直连 5D2 真机 100% 验证并真实出片**（快门 0x9128 正解，见「五」）。r17 真机 USB 诊断已**判定 Native.js 桥无数组创建能力**（probeByteArray=throw:Unexpected identifier 'java'，桥类名解析不支持 byte[]/'[B'）→ **Native.js 路线判死**（读方向架构性无解）。r18 新增 **WebUSB 传输层**（browser-usb-transport.js）：Chrome/Edge 浏览器直接连相机，纯 JS、零打包——**当前主验证线**（见「七」）。App 壳内后续走 UTS 插件（二期，见「八」）。
 
 ## 一、打包 App（HBuilderX 云打包，约 10-20 分钟）
 
@@ -97,3 +97,30 @@
 **连接报错是预期**：r17 前传输层读方向已知问题（JS 数组读回全 0「非法包长 0」），所以「连接中」卡住→USB诊断 是本次的核心测试动作，不是失败。
 
 **预期全通链路**（分支判 ok 后）：OPEN_SESSION → 排空事件 → 工作台（buSy toast）→ 快门（0x9128 半按 1.5s → 全按 → 释放）→ 90s 内 0xC181 → JPEG 落 pendingPhotos（EXIF 时间 + 手机 GPS → 地图坐标点）
+
+## 七、WebUSB 直连测试（r18，当前主验证线）
+
+**背景**：r17 实锤 App 内 Native.js 桥无法创建 Java byte[]（读方向无解）；r18 上线 WebUSB 传输层——**浏览器（Chrome/Edge）直接连相机**，官方成熟方案（GoogleChromeLabs/web-gphoto2 在 Android 手机直连佳能实测出图；参考实现 tethr/baku89）。**零打包零部署**，电脑 Chrome 当天可验。
+
+**先电脑 Chrome 验证（5D2 已 Zadig 换 WinUSB 驱动，直接可用）**：
+1. 电脑 Chrome/Edge 打开 `https://dsofatjxxjyf.sealoshzh.site/connect-prototype.html`
+2. 相机开机 + USB 连电脑 → 有线连接 → 检测设备 → **弹系统授权框** → 选「Canon EOS 5D Mark II」→ 允许
+3. 连接 → 工作台（buSy toast）→ 快门 → 照片落待归类管线
+4. 电脑端预期：**首次弹框选设备 → 全链路走通**（WebUSB 无桥限制，WebSocket 等网络 API 照常）
+
+**再 Android Chrome OTG 验证（王总手机）**：
+1. 手机 Chrome 打开线上 connect 页（**不是 App**，App 内 web-view 无 WebUSB）
+2. 拔电脑线、OTG 接 5D2（同 App 测试物理步骤）
+3. 有线连接 → 检测设备（弹授权框）→ 允许 → 连接 → 快门
+4. **预期风险点（真机见分晓）**：Android 上相机接口若被系统挂驱动，claimInterface 报 busy（Chrome 工程师确认；2025-01 起新 Chrome 支持 detach 缓解）——若遇到报「接口被占用」，先杀占用 App/重启相机再试
+
+**诊断判读**：USB 诊断按钮 JSON——`usbVer` 应为 **20260816-r18**、`webusbMode:true`、`navigatorUsb:true`、`probeByteArray:"webusb"`（WebUSB 模式无需 Java 数组探测）。
+
+**要点**：WebUSB 需要 https（线上满足）+ 用户手势（点检测按钮）；Windows 上非 Zadig 设备的「well-known」相机被系统驱动独占需先换驱动（macOS/Linux 开箱即用）；浏览器地址栏与 App 授权是独立两套，互不干扰。
+
+## 八、App 壳内路线（UTS 插件，二期）
+
+- App web-view 不支持 WebUSB（MDN 实锤）→ App 壳内 USB 走 **UTS 原生插件**（DCloud 官方主推，2026-08-16 调研定案）
+- 插件实现 transport 接口（bulkOut/bulkIn/release），页面/协议栈**零改动**（与 WebUSB 版同构，WebUSB 验证过的传输参数直接照抄）
+- 传输层模式参考 remoteyourcam-usb（Apache-2.0）：命令/响应同步 bulkTransfer（200ms×3 重试）+ 大文件 16KB×3 UsbRequest 管道；保留我们的 clear halt（三套开源实现均无此层，是我们的超越点）
+- 参考插件：estplugin-usbserial（ext.dcloud id=28207，UTS 源码随插件）；与 EVF 实时取景二期合并开发；需王总 HBuilderX 云打包（每轮 10-20 分钟）

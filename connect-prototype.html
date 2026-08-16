@@ -1528,6 +1528,8 @@
 
 <script src="camera-ptp.js"></script>
 <script src="usb-transport.js"></script>
+<!-- r18：WebUSB 传输层（Chrome/Edge 桌面 + Android Chrome 直连；App web-view 内自动不生效，仍走 plus 版） -->
+<script src="browser-usb-transport.js"></script>
 
 <script>
   var db = new Dexie('memoPhotos');
@@ -2561,25 +2563,8 @@
     function closeConnector() { $('usbCamMask').classList.remove('show'); }
 
     // ---------- 设备检测 ----------
-    function scanDevices() {
-      var listEl = $('usbCamList');
-      var descEl = $('usbCamDesc');
-      var statusEl = $('usbCamStatus');
-      statusEl.style.display = 'none';
-      var devices = [];
-      try {
-        devices = UsbTether.get().listDevices();
-      } catch (e) {
-        statusEl.style.display = 'block';
-        statusEl.textContent = 'USB 不可用：' + (e && e.message || '未知错误');
-        listEl.innerHTML = '';
-        return;
-      }
-      if (!devices.length) {
-        listEl.innerHTML = '<div class="usb-cam-empty">未检测到 USB 设备<br>请用 OTG 线连接相机并开机后重新检测</div>';
-        descEl.textContent = '用 OTG 线连接相机，点击「检测设备」';
-        return;
-      }
+    // r18：渲染设备列表（plus 版与 WebUSB 版共用）
+    function renderDeviceList(devices, listEl, descEl) {
       var html = '';
       devices.forEach(function (d) {
         var label = d.isCanon ? '<span class="usb-cam-item-badge">佳能</span>' : '';
@@ -2597,6 +2582,48 @@
         el.addEventListener('click', function () { connectDevice(el.dataset.id); });
       });
       descEl.textContent = '已检测到 ' + devices.length + ' 台设备，点击连接';
+    }
+
+    function scanDevices() {
+      var listEl = $('usbCamList');
+      var descEl = $('usbCamDesc');
+      var statusEl = $('usbCamStatus');
+      statusEl.style.display = 'none';
+      // r18：WebUSB 模式（Chrome/Edge 浏览器直连）——检测按钮 = 弹系统授权框。
+      // 已授权设备直接列出；未授权则 requestDevice 弹框（scan 在按钮点击的
+      // 用户手势内同步发起，满足 WebUSB 手势要求）
+      if (typeof UsbTether !== 'undefined' && UsbTether.webusbMode) {
+        listEl.innerHTML = '<div class="usb-cam-empty">Chrome 直连：正在弹出系统授权框<br>请选择相机并点允许</div>';
+        UsbTether.get().scan().then(function (devices) {
+          if (!devices || !devices.length) {
+            listEl.innerHTML = '<div class="usb-cam-empty">未选择设备<br>点击「检测设备」重新弹出授权框</div>';
+            descEl.textContent = 'Chrome 直连：USB OTG 插相机后点「检测设备」';
+            return;
+          }
+          renderDeviceList(devices, listEl, descEl);
+        }).catch(function (e) {
+          statusEl.style.display = 'block';
+          statusEl.textContent = 'WebUSB 不可用：' + (e && e.message || '未知错误') +
+            '（Chrome 直连需 https + Chrome 61+；Windows 相机需先 Zadig 换 WinUSB 驱动）';
+          listEl.innerHTML = '';
+        });
+        return;
+      }
+      var devices = [];
+      try {
+        devices = UsbTether.get().listDevices();
+      } catch (e) {
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'USB 不可用：' + (e && e.message || '未知错误');
+        listEl.innerHTML = '';
+        return;
+      }
+      if (!devices.length) {
+        listEl.innerHTML = '<div class="usb-cam-empty">未检测到 USB 设备<br>请用 OTG 线连接相机并开机后重新检测</div>';
+        descEl.textContent = '用 OTG 线连接相机，点击「检测设备」';
+        return;
+      }
+      renderDeviceList(devices, listEl, descEl);
     }
 
     // ---------- 连接（授权 → PTP 会话 → 远程模式） ----------
@@ -2824,7 +2851,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r17',               // usb-transport.js 版本指纹（r17：当场探测 newObject('byte[]')/'[B' 能力 + lastBufMode 失败后仍可读——诊断不再依赖连接状态）
+      usbVer: '20260816-r18',               // r18：新增 browser-usb-transport.js（WebUSB 传输层，Chrome/Edge 桌面 + Android Chrome 直连）——navigator.usb 探测分支 + 系统授权框检测流程
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
@@ -2841,7 +2868,9 @@
       uaMobile: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),
       full: q.get('full'),
       usbSupported: typeof UsbTether !== 'undefined' && !!UsbTether.isSupported(),
-      probeByteArray: (typeof UsbTether !== 'undefined' && UsbTether.probeByteArray) ? UsbTether.probeByteArray() : '无', // r17：当场探测 newObject('byte[]')/'[B'（不依赖连接状态）
+      webusbMode: typeof UsbTether !== 'undefined' && !!UsbTether.webusbMode, // r18：WebUSB 传输层接管（Chrome/Edge 浏览器场景）
+      navigatorUsb: !!(navigator.usb && typeof navigator.usb.requestDevice === 'function'), // r18：浏览器原生 WebUSB 能力
+      probeByteArray: (typeof UsbTether !== 'undefined' && UsbTether.probeByteArray) ? UsbTether.probeByteArray() : '无', // r17：当场探测 newObject('byte[]')/'[B'（不依赖连接状态）；r18 WebUSB 模式返回 'webusb'
       lastBufMode: (typeof UsbTether !== 'undefined' && UsbTether.lastBufMode) ? UsbTether.lastBufMode() : '未连接', // r17：上次传输实际 buffer 形态（失败后也可读）
       maskInDom: !!mask,
       maskShowNow: !!(mask && mask.classList.contains('show')),
