@@ -147,38 +147,51 @@
   UsbTetherAndroid.prototype.requestConnect = function (deviceId) {
     var self = this;
     return new Promise(function (resolve, reject) {
-      self._init();
-      // 按 deviceName 找回设备对象
-      var device = null;
-      self._eachDevice(function (d) {
-        if (device) return;
-        if (plus.android.invoke(d, 'getDeviceName') === deviceId) device = d;
-      });
-      if (!device) return reject(new Error('设备已拔出，请重新插上'));
-      // 已授权则直接连
-      if (plus.android.invoke(self.um, 'hasPermission', device)) {
-        return resolve(self._open(device));
-      }
-      // 未授权：弹系统授权框（PendingIntent 用类名字符串调静态方法，绕开 importClass）
-      var ACTION_USB_PERMISSION = 'android.hardware.usb.action.USB_PERMISSION';
-      var permIntent = plus.android.newObject('android.content.Intent', ACTION_USB_PERMISSION);
-      plus.android.invoke(permIntent, 'setPackage', plus.android.invoke(self.main, 'getPackageName'));
-      var pi = plus.android.invoke('android.app.PendingIntent', 'getBroadcast', self.main, 0, permIntent, 0);
-      plus.android.invoke(self.um, 'requestPermission', device, pi);
-      // 轮询授权结果（拒绝/超时都会 hasPermission=false）
-      var start = Date.now();
-      var timer = setInterval(function () {
-        var granted = false;
-        try { granted = plus.android.invoke(self.um, 'hasPermission', device); } catch (e) {}
-        if (granted) {
-          clearInterval(timer);
-          try { resolve(self._open(device)); }
-          catch (e) { reject(e); }
-        } else if (Date.now() - start > 30000) {
-          clearInterval(timer);
-          reject(new Error('USB 授权超时，请确认弹窗并点允许'));
+      // 分步阶段标记（2026-08-16 真机排查：web-view 桥对类名/对象序列化会抛
+      // SyntaxError，加 stage 让错误信息直接指出炸在哪一步）
+      var stage = 'init';
+      try {
+        self._init();
+        stage = 'findDevice';
+        var device = null;
+        self._eachDevice(function (d) {
+          if (device) return;
+          if (plus.android.invoke(d, 'getDeviceName') === deviceId) device = d;
+        });
+        if (!device) return reject(new Error('[findDevice] 设备已拔出，请重新插上'));
+        stage = 'hasPermission';
+        if (plus.android.invoke(self.um, 'hasPermission', device)) {
+          return resolve(self._open(device));
         }
-      }, 500);
+        // 未授权：弹系统授权框（PendingIntent 用类名字符串调静态方法，绕开 importClass）
+        stage = 'newObjectIntent';
+        var ACTION_USB_PERMISSION = 'android.hardware.usb.action.USB_PERMISSION';
+        var permIntent = plus.android.newObject('android.content.Intent', ACTION_USB_PERMISSION);
+        stage = 'setPackage';
+        plus.android.invoke(permIntent, 'setPackage', plus.android.invoke(self.main, 'getPackageName'));
+        stage = 'pendingIntent';
+        var pi = plus.android.invoke('android.app.PendingIntent', 'getBroadcast', self.main, 0, permIntent, 0);
+        stage = 'requestPermission';
+        plus.android.invoke(self.um, 'requestPermission', device, pi);
+        // 轮询授权结果（拒绝/超时都会 hasPermission=false）
+        stage = 'poll';
+        var start = Date.now();
+        var timer = setInterval(function () {
+          var granted = false;
+          try { granted = plus.android.invoke(self.um, 'hasPermission', device); } catch (e) {}
+          if (granted) {
+            clearInterval(timer);
+            try { resolve(self._open(device)); }
+            catch (e) { reject(new Error('[open] ' + (e && e.message || e))); }
+          } else if (Date.now() - start > 30000) {
+            clearInterval(timer);
+            reject(new Error('[poll] USB 授权超时，请确认弹窗并点允许'));
+          }
+        }, 500);
+      } catch (e) {
+        reject(new Error('[' + stage + '] ' + (e && e.message || e) +
+          (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : '')));
+      }
     });
   };
 
