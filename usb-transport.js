@@ -166,21 +166,21 @@
           return resolve(self._open(device));
         }
         // 未授权：弹系统授权框
-        // web-view 桥铁律（2026-08-16 三连实锤）：字符串类名 invoke 会内部 eval 炸
-        // （Invalid or unexpected token），importClass 也炸；只有「实例对象 invoke」
-        // 与 newObject 安全。因此 PendingIntent 静态方法用 ClassLoader 链拿到
-        // Class 对象（实例对象）再 invoke——全程避开类名字符串
+        // web-view 桥铁律（2026-08-16 五连实锤）：importClass / 字符串类名 invoke /
+        // Class 对象 invoke 静态方法 全部内部 eval 类名 → SyntaxError；
+        // 只有「实例对象 invoke」与 newObject 安全。
+        // PendingIntent 不能用静态方法 getBroadcast 创建（需类名）——
+        // 改用 Activity.createPendingResult(requestCode, intent, flags)【实例方法】，
+        // 返回 PendingIntent 同样可传给 requestPermission 弹系统授权框；
+        // 授权结果仍由轮询 hasPermission 感知（本方案不需要广播接收器/回调）。
         stage = 'newObjectIntent';
         var ACTION_USB_PERMISSION = 'android.hardware.usb.action.USB_PERMISSION';
         var permIntent = plus.android.newObject('android.content.Intent', ACTION_USB_PERMISSION);
         stage = 'setPackage';
         plus.android.invoke(permIntent, 'setPackage', plus.android.invoke(self.main, 'getPackageName'));
-        stage = 'getPiClass';
-        var piClass = plus.android.invoke(
-          plus.android.invoke(plus.android.invoke(self.um, 'getClass'), 'getClassLoader'),
-          'loadClass', 'android.app.PendingIntent');
         stage = 'pendingIntent';
-        var pi = plus.android.invoke(piClass, 'getBroadcast', self.main, 0, permIntent, 0);
+        var pi = plus.android.invoke(self.main, 'createPendingResult', 0, permIntent, 0);
+        if (!pi) throw new Error('createPendingResult 返回 null');
         stage = 'requestPermission';
         plus.android.invoke(self.um, 'requestPermission', device, pi);
         // 轮询授权结果（拒绝/超时都会 hasPermission=false）

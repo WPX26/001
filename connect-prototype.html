@@ -2811,7 +2811,8 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r6',                // usb-transport.js 版本指纹（排查第 6 轮：确认 App 加载的 JS 是否最新）
+      usbVer: '20260816-r7',                // usb-transport.js 版本指纹（排查第 7 轮：createPendingResult 绕过 PendingIntent 静态创建）
+      os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
       dexie: typeof Dexie !== 'undefined',
       usbCamLoaded: !!window.usbCam,        // USB 模块（2486 块）是否加载
