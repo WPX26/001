@@ -109,7 +109,7 @@ function makeUsbDevice(camera, opts) {
   opts = opts || {};
   return {
     vendorId: 0x04A9, productId: 0x3199,
-    productName: 'Canon EOS 5D Mark II', serialNumber: opts.serial || 'mock-5d2',
+    productName: 'Canon EOS 5D Mark II', serialNumber: opts.noSerial ? '' : (opts.serial || 'mock-5d2'),
     opened: false,
     _halts: [],
     configurations: [{
@@ -277,6 +277,20 @@ async function main() {
     nonCanonErr = e && e.message || '';
   }
   ok('非佳能设备 → 友好拒绝且不弹授权框', /不是佳能/.test(nonCanonErr), nonCanonErr);
+
+  /* ===== 3d. 无序列号设备匹配（r23：serial 空 → ns 标记，requestConnect 能匹配） ===== */
+  console.log('\n[3d] 无序列号设备（5D2 实况）匹配');
+  const cam6e = new MockUsbCamera();
+  const dev6e = makeUsbDevice(cam6e, { noSerial: true });
+  const t6e = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev6e]),
+    requestDevice: () => { throw new Error('不应弹授权框'); }
+  } } });
+  const listed6e = await t6e.get().scan();
+  ok('scan 返回设备（id 用 ns 标记）', listed6e.length === 1 && /:ns$/.test(listed6e[0].id), JSON.stringify(listed6e[0].id));
+  const tr6e = await t6e.get().requestConnect(listed6e[0].id);
+  ok('requestConnect 匹配无 serial 设备成功（不弹框）', tr6e && typeof tr6e.bulkOut === 'function');
+  tr6e.release();
 
   /* ===== 3b. 失败后重连（r19：self.device 已 close 时从列表重新匹配） ===== */
   console.log('\n[3b] 连接失败 release 后重连');

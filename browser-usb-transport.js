@@ -250,7 +250,10 @@
     var vid = d.vendorId || 0;
     var pid = d.productId || 0;
     var serial = d.serialNumber || '';
-    var id = 'webusb:' + vid.toString(16) + ':' + pid.toString(16) + ':' + (serial || idx);
+    // r23：serial 空时用固定标记 'ns'（此前用数组索引，requestConnect 解析出
+    // serial='0' 与设备空序列号不匹配 → getDevices 匹配失败 → 误弹授权框
+    // → 「未选择设备」——王总 r22 真机实锤）
+    var id = 'webusb:' + vid.toString(16) + ':' + pid.toString(16) + ':' + (serial || 'ns');
     var name = d.productName || (serial ? serial : ('USB 设备 ' + (idx + 1)));
     return {
       id: id,
@@ -332,11 +335,14 @@
             var vid = m ? parseInt(m[1], 16) : -1;
             var pid = m ? parseInt(m[2], 16) : -1;
             var serial = m ? (m[3] || '') : '';
+            // r23：serial 为空/标记（'ns'/'0' 旧格式）→ 匹配「无序列号」的设备；
+            // 有真实 serial → 精确匹配
+            var wantNoSerial = !serial || serial === 'ns' || serial === '0';
             list.forEach(function (d) {
               if (dev) return;
               if (d.vendorId !== vid || d.productId !== pid) return;
-              if (serial && d.serialNumber === serial) dev = d;  // serial 精确匹配
-              else if (!serial && !d.serialNumber && !dev) dev = d; // 无 serial → 首个同 vid:pid
+              if (wantNoSerial) { if (!d.serialNumber) dev = d; }
+              else if (d.serialNumber === serial) dev = d;
             });
           }
           if (!dev) {
