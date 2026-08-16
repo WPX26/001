@@ -66,6 +66,23 @@
         var jbuf = new Array(size);
         for (var i = 0; i < size; i++) jbuf[i] = 0;
         var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf, size, timeoutMs || 3000);
+        // 排查第 14 轮：n=-1 时 clear halt（CLEAR_FEATURE(ENDPOINT_HALT)）后重试一次
+        // ——gphoto2 标准做法（gp_port_usb_clear_halt + retry），端点 STALL 时必用
+        if (!(n > 0) && n === -1) {
+          try {
+            // requestType=0x02(OUT|standard|endpoint), request=0x01(CLEAR_FEATURE),
+            // value=0(ENDPOINT_HALT), index=IN 端点地址（5D2 实测 0x81）
+            plus.android.invoke(self.connection, 'controlTransfer', 0x02, 0x01, 0, 0x81, null, 0, 1000);
+          } catch (e) {}
+          var jbuf2 = new Array(size);
+          for (var i2 = 0; i2 < size; i2++) jbuf2[i2] = 0;
+          n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf2, size, timeoutMs || 3000);
+          if (n > 0) {
+            var u8r = new Uint8Array(n);
+            for (var i3 = 0; i3 < n; i3++) u8r[i3] = jbuf2[i3] & 0xFF;
+            return resolve(u8r);
+          }
+        }
         // 读空/错误时把 n 值 + 接口结构打出来（2026-08-16 全面扫描：-1 可能是指向
         // 端点方向/接口选错，带上 ifaceInfo 定位）
         if (!(n > 0)) {
@@ -229,12 +246,17 @@
     var USB_DIR_OUT = 0;
     var connection = plus.android.invoke(this.um, 'openDevice', device);
     if (!connection) throw new Error('打开 USB 设备失败（可能被其他应用占用）');
-    // setConfiguration：Android 文档要求 claimInterface 前设置配置，否则 bulk 传输返回 -1
+    // setConfiguration（2026-08-16 排查第 14 轮实锤）：cfg? = getConfiguration 返回 null
+    // = 配置未激活 → bulk 传输返回 -1。必须显式设置配置（Android 不自动激活）。
+    // getConfiguration() 在未激活时返回 null，改用 getConfigurationCount + getConfiguration(i)
     try {
-      var cfg = plus.android.invoke(device, 'getConfiguration');
-      if (cfg) {
-        var cfgId = plus.android.invoke(cfg, 'getId');
-        plus.android.invoke(connection, 'setConfiguration', cfgId);
+      var cfgCount = plus.android.invoke(device, 'getConfigurationCount');
+      for (var ci = 0; ci < cfgCount; ci++) {
+        var cfgI = plus.android.invoke(device, 'getConfiguration', ci);
+        if (!cfgI) continue;
+        var cfgIdI = plus.android.invoke(cfgI, 'getId');
+        if (typeof cfgIdI === 'number') plus.android.invoke(connection, 'setConfiguration', cfgIdI);
+        break; // 设第一个可用配置
       }
     } catch (e) {}
     // 遍历全部接口（2026-08-16 全面扫描：5D2 PTP 接口不一定在 interface 0）

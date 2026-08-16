@@ -275,44 +275,17 @@
     return evts;
   };
 
-  /* ---------- USB 初始化握手（PTP 连接必做，gphoto2 ptp_usb_init） ----------
-   * 5D2 真机实测（2026-08-16）：不做 init 直接发 OPEN_SESSION，相机无响应
-   * （bulkIn 空 →「PTP 包过短」）。序列：
-   *   Init Command Block(0x05) → Init Ack(0x06)
-   *   Init Event Block(0x07)  → Init Event Ack(0x08)
-   * 初始化块 12 字节：byte0=type, byte4..7=length(LE)=12
+  /* ---------- 会话 ----------
+   * 注意（2026-08-16 排查第 14 轮修正）：PTP over USB **没有** init 握手序列！
+   * gphoto2 的 ptp_usb_sendreq 直接发标准 PTP 命令包；0x05 Init Command 块是
+   * PTP/IP 网络协议的东西，USB 相机（5D2）不认识 → STALL → bulkIn -1。
+   * 之前加的 _initUsb 是错误方向，已移除。
    */
-  PtpCamera.prototype._initUsb = function () {
-    var self = this;
-    function initBlock(type) {
-      var b = new Uint8Array(12);
-      b[0] = type;
-      b[4] = 12; // length LE
-      return self.transport.bulkOut(b, 3000);
-    }
-    function expectAck(expectType) {
-      return self.transport.bulkIn(12, 3000).then(function (ack) {
-        if (!ack || ack.length < 12 || ack[0] !== expectType) {
-          // 排查第 10 轮：ack 为空时把实际长度打出来（区分桥转换失败/真超时/相机无响应）
-          throw PtpError(0xE008, 'PTP USB init ack 无效 (期望 type=' + expectType +
-            ' 实际=' + (ack && ack.length ? ack[0] : '空') + ' ackLen=' + (ack ? ack.length : 0) + ')');
-        }
-      });
-    }
-    return initBlock(0x05)
-      .then(function () { return expectAck(0x06); })
-      .then(function () { return initBlock(0x07); })
-      .then(function () { return expectAck(0x08); });
-  };
-
-  /* ---------- 会话 ---------- */
   PtpCamera.prototype.openSession = function () {
     var self = this;
     // 会话 ID 取 tid 一次（任意非 0 值）
     var sessionId = 0x5D20;
-    return self._initUsb().then(function () {
-      return self.transact(PTP_OC_OPEN_SESSION, [sessionId]);
-    }).then(function () {
+    return self.transact(PTP_OC_OPEN_SESSION, [sessionId]).then(function () {
       self.sessionOpen = true;
     });
   };
