@@ -41,7 +41,7 @@
       try {
         var jsArr = new Array(u8.length);
         for (var i = 0; i < u8.length; i++) jsArr[i] = u8[i] & 0xFF;
-        var n = self.connection.bulkTransfer(self.bulkOutEp, jsArr, u8.length, timeoutMs || 3000);
+        var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkOutEp, jsArr, u8.length, timeoutMs || 3000);
         if (n < 0) throw new Error('bulkTransfer(out) 失败 n=' + n);
         resolve();
       } catch (e) { reject(e); }
@@ -56,7 +56,7 @@
       try {
         var size = maxLen || 4096;
         var jbuf = plus.android.newArray('byte', size);
-        var n = self.connection.bulkTransfer(self.bulkInEp, jbuf, size, timeoutMs || 3000);
+        var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf, size, timeoutMs || 3000);
         if (n <= 0) return resolve(new Uint8Array(0)); // 超时/无数据
         var u8 = new Uint8Array(n);
         for (var i = 0; i < n; i++) u8[i] = jbuf[i] & 0xFF; // Java byte 有符号，转 0-255
@@ -70,10 +70,10 @@
     this.released = true;
     try {
       if (this.connection) {
-        if (this.device && this.device.getInterface(0)) {
-          try { this.connection.releaseInterface(this.device.getInterface(0)); } catch (e) {}
+        if (this.device && plus.android.invoke(this.device, 'getInterface', 0)) {
+          try { plus.android.invoke(this.connection, 'releaseInterface', plus.android.invoke(this.device, 'getInterface', 0)); } catch (e) {}
         }
-        this.connection.close();
+        plus.android.invoke(this.connection, 'close');
       }
     } catch (e) {}
   };
@@ -97,8 +97,18 @@
     if (!isSupported()) throw new Error('当前环境不支持 USB（需 App 内打开）');
     if (this.um) return;
     this.main = plus.android.runtimeMainActivity();
-    var UsbManager = plus.android.importClass('android.hardware.usb.UsbManager');
-    this.um = this.main.getSystemService('usb');
+    this.um = plus.android.invoke(this.main, 'getSystemService', 'usb');
+  };
+
+  /** 遍历 UsbManager.getDeviceList() 的 HashMap——必须用 plus.android.invoke 显式调用（Native.js 不能链式调用 Java 集合方法，map.values().iterator() 会报 map.values is not a function） */
+  UsbTetherAndroid.prototype._eachDevice = function (cb) {
+    var map = plus.android.invoke(this.um, 'getDeviceList'); // HashMap<String, UsbDevice>
+    var col = plus.android.invoke(map, 'values');            // Collection<UsbDevice>
+    var it = plus.android.invoke(col, 'iterator');           // Iterator<UsbDevice>
+    while (plus.android.invoke(it, 'hasNext')) {
+      var d = plus.android.invoke(it, 'next');               // UsbDevice
+      cb(d);
+    }
   };
 
   /**
@@ -108,22 +118,21 @@
   UsbTetherAndroid.prototype.listDevices = function () {
     this._init();
     var out = [];
-    var map = this.um.getDeviceList(); // HashMap<String, UsbDevice>
-    var it = map.values().iterator();
-    while (it.hasNext()) {
-      var d = it.next();
-      var vid = d.getVendorId(), pid = d.getProductId();
+    this._eachDevice(function (d) {
+      var vid = plus.android.invoke(d, 'getVendorId');
+      var pid = plus.android.invoke(d, 'getProductId');
       var serial = null;
-      try { serial = d.getSerialNumber(); } catch (e) {}
+      try { serial = plus.android.invoke(d, 'getSerialNumber'); } catch (e) {}
+      var name = plus.android.invoke(d, 'getDeviceName');
       out.push({
-        id: d.getDeviceName(),           // 用 deviceName 作为设备 ID（唯一且稳定）
+        id: name,                        // 用 deviceName 作为设备 ID（唯一且稳定）
         vid: vid & 0xFFFFFFFF,
         pid: pid & 0xFFFFFFFF,
-        name: d.getDeviceName(),
+        name: name,
         serial: serial,
         isCanon: (vid & 0xFFFF) === CANON_VID
       });
-    }
+    });
     return out;
   };
 
@@ -137,10 +146,10 @@
     this._permReceiver = plus.android.implements('android.content.BroadcastReceiver', {
       onReceive: function (context, intent) {
         try {
-          var action = intent.getAction();
+          var action = plus.android.invoke(intent, 'getAction');
           if (action !== UsbManager.ACTION_USB_PERMISSION || !self.pendingPerm) return;
-          var granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
-          var device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+          var granted = plus.android.invoke(intent, 'getBooleanExtra', UsbManager.EXTRA_PERMISSION_GRANTED, false);
+          var device = plus.android.invoke(intent, 'getParcelableExtra', UsbManager.EXTRA_DEVICE);
           var resolve = self.pendingPerm.resolve, reject = self.pendingPerm.reject;
           self.pendingPerm = null;
           if (granted && device) resolve(device);
@@ -155,10 +164,10 @@
       }
     });
     var permIntent = new Intent(UsbManager.ACTION_USB_PERMISSION);
-    permIntent.setPackage(this.main.getPackageName());
+    plus.android.invoke(permIntent, 'setPackage', plus.android.invoke(this.main, 'getPackageName'));
     var PendingIntent = plus.android.importClass('android.app.PendingIntent');
     var pi = PendingIntent.getBroadcast(this.main, 0, permIntent, 0);
-    this.main.registerReceiver(this._permReceiver, new IntentFilter(UsbManager.ACTION_USB_PERMISSION));
+    plus.android.invoke(this.main, 'registerReceiver', this._permReceiver, new IntentFilter(UsbManager.ACTION_USB_PERMISSION));
   };
 
   /**
@@ -172,16 +181,14 @@
       self._init();
       var UsbManager = plus.android.importClass('android.hardware.usb.UsbManager');
       // 按 deviceName 找回设备对象
-      var map = self.um.getDeviceList();
       var device = null;
-      var it = map.values().iterator();
-      while (it.hasNext()) {
-        var d = it.next();
-        if (d.getDeviceName() === deviceId) { device = d; break; }
-      }
+      self._eachDevice(function (d) {
+        if (device) return;
+        if (plus.android.invoke(d, 'getDeviceName') === deviceId) device = d;
+      });
       if (!device) return reject(new Error('设备已拔出，请重新插上'));
       // 已授权则直接连
-      if (self.um.hasPermission(device)) {
+      if (plus.android.invoke(self.um, 'hasPermission', device)) {
         return resolve(self._open(device));
       }
       // 未授权：弹系统授权框
@@ -194,37 +201,37 @@
         reject: reject
       };
       var permIntent = new (plus.android.importClass('android.content.Intent'))(UsbManager.ACTION_USB_PERMISSION);
-      permIntent.setPackage(self.main.getPackageName());
+      plus.android.invoke(permIntent, 'setPackage', plus.android.invoke(self.main, 'getPackageName'));
       var PendingIntent = plus.android.importClass('android.app.PendingIntent');
       var pi = PendingIntent.getBroadcast(self.main, 0, permIntent, 0);
-      self.um.requestPermission(device, pi);
+      plus.android.invoke(self.um, 'requestPermission', device, pi);
     });
   };
 
   /** 打开设备并锁定 bulk 端点 */
   UsbTetherAndroid.prototype._open = function (device) {
     var UsbConstants = plus.android.importClass('android.hardware.usb.UsbConstants');
-    var connection = this.um.openDevice(device);
+    var connection = plus.android.invoke(this.um, 'openDevice', device);
     if (!connection) throw new Error('打开 USB 设备失败（可能被其他应用占用）');
-    var iface = device.getInterface(0);
+    var iface = plus.android.invoke(device, 'getInterface', 0);
     if (!iface) {
-      connection.close();
+      plus.android.invoke(connection, 'close');
       throw new Error('设备无接口（非 PTP 相机）');
     }
-    if (!connection.claimInterface(iface, true)) {
-      connection.close();
+    if (!plus.android.invoke(connection, 'claimInterface', iface, true)) {
+      plus.android.invoke(connection, 'close');
       throw new Error('claimInterface 失败（设备被占用）');
     }
     var bulkInEp = null, bulkOutEp = null;
-    var n = iface.getEndpointCount();
+    var n = plus.android.invoke(iface, 'getEndpointCount');
     for (var i = 0; i < n; i++) {
-      var ep = iface.getEndpoint(i);
-      if (ep.getType() !== UsbConstants.USB_ENDPOINT_XFER_BULK) continue;
-      if (ep.getDirection() === UsbConstants.USB_DIR_IN) bulkInEp = ep;
-      else if (ep.getDirection() === UsbConstants.USB_DIR_OUT) bulkOutEp = ep;
+      var ep = plus.android.invoke(iface, 'getEndpoint', i);
+      if (plus.android.invoke(ep, 'getType') !== UsbConstants.USB_ENDPOINT_XFER_BULK) continue;
+      if (plus.android.invoke(ep, 'getDirection') === UsbConstants.USB_DIR_IN) bulkInEp = ep;
+      else if (plus.android.invoke(ep, 'getDirection') === UsbConstants.USB_DIR_OUT) bulkOutEp = ep;
     }
     if (!bulkInEp || !bulkOutEp) {
-      connection.close();
+      plus.android.invoke(connection, 'close');
       throw new Error('未找到 bulk 端点（非 PTP 设备）');
     }
     return new AndroidTransport({
@@ -246,12 +253,12 @@
       this._attachReceiver = plus.android.implements('android.content.BroadcastReceiver', {
         onReceive: function (context, intent) {
           try {
-            var dev = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+            var dev = plus.android.invoke(intent, 'getParcelableExtra', UsbManager.EXTRA_DEVICE);
             if (dev && self._attachCallback) self._attachCallback(dev);
           } catch (e) {}
         }
       });
-      this.main.registerReceiver(this._attachReceiver,
+      plus.android.invoke(this.main, 'registerReceiver', this._attachReceiver,
         new IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED));
     }
   };
@@ -270,7 +277,7 @@
           } catch (e) {}
         }
       });
-      this.main.registerReceiver(this._detachReceiver,
+      plus.android.invoke(this.main, 'registerReceiver', this._detachReceiver,
         new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED));
     }
   };
