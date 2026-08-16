@@ -56,7 +56,10 @@
       if (self.released) return reject(new Error('USB 连接已释放'));
       try {
         var size = maxLen || 4096;
-        var jbuf = plus.android.newArray('byte', size);
+        // web-view 桥没有 plus.android.newArray（2026-08-16 实锤 not a function），
+        // bulkOut 已验证 JS 数组可直接作 byte[] 参数，bulkIn 同法（桥自动转换）
+        var jbuf = new Array(size);
+        for (var i = 0; i < size; i++) jbuf[i] = 0;
         var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf, size, timeoutMs || 3000);
         if (n <= 0) return resolve(new Uint8Array(0)); // 超时/无数据
         var u8 = new Uint8Array(n);
