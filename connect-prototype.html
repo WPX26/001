@@ -1411,37 +1411,38 @@
             </button>
           </div>
 
-          <!-- 连接码输入弹层（控制端 B 扫码/输码入口） -->
-          <div class="pair-input-mask" id="pairInputMask">
-            <div class="pair-input-card">
-              <div class="pair-input-title">输入连接码</div>
-              <div class="pair-input-desc">输入被控手机屏幕上显示的 <b style="color:#F0A040">6 位连接码</b>，即可远程按下快门</div>
-              <div class="pair-input-box" id="pairInputBox">
-                <input maxlength="1" inputmode="numeric" aria-label="第1位">
-                <input maxlength="1" inputmode="numeric" aria-label="第2位">
-                <input maxlength="1" inputmode="numeric" aria-label="第3位">
-                <input maxlength="1" inputmode="numeric" aria-label="第4位">
-                <input maxlength="1" inputmode="numeric" aria-label="第5位">
-                <input maxlength="1" inputmode="numeric" aria-label="第6位">
-              </div>
-              <div class="pair-input-actions">
-                <button class="pair-btn ghost" id="pairInputCancel">取消</button>
-                <button class="pair-btn primary" id="pairInputOk">开始连接</button>
-              </div>
+        </div>
+
+        <!-- 连接码输入弹层（控制端 B 扫码/输码入口）——必须挂在 phone-screen 直属层，不能嵌在工作台里（workspace 默认 translateY(100%) 藏屏外，弹层会不可见，2026-08-16 排查实锤） -->
+        <div class="pair-input-mask" id="pairInputMask">
+          <div class="pair-input-card">
+            <div class="pair-input-title">输入连接码</div>
+            <div class="pair-input-desc">输入被控手机屏幕上显示的 <b style="color:#F0A040">6 位连接码</b>，即可远程按下快门</div>
+            <div class="pair-input-box" id="pairInputBox">
+              <input maxlength="1" inputmode="numeric" aria-label="第1位">
+              <input maxlength="1" inputmode="numeric" aria-label="第2位">
+              <input maxlength="1" inputmode="numeric" aria-label="第3位">
+              <input maxlength="1" inputmode="numeric" aria-label="第4位">
+              <input maxlength="1" inputmode="numeric" aria-label="第5位">
+              <input maxlength="1" inputmode="numeric" aria-label="第6位">
+            </div>
+            <div class="pair-input-actions">
+              <button class="pair-btn ghost" id="pairInputCancel">取消</button>
+              <button class="pair-btn primary" id="pairInputOk">开始连接</button>
             </div>
           </div>
+        </div>
 
-          <!-- USB 相机连接弹层（相机互联·有线连接：Native.js 直连 PTP 相机） -->
-          <div class="pair-input-mask" id="usbCamMask">
-            <div class="pair-input-card">
-              <div class="pair-input-title">USB 连接相机</div>
-              <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机，点击「检测设备」</div>
-              <div class="usb-cam-list" id="usbCamList"></div>
-              <div class="usb-cam-status" id="usbCamStatus" style="display:none"></div>
-              <div class="pair-input-actions">
-                <button class="pair-btn ghost" id="usbCamCancel">取消</button>
-                <button class="pair-btn primary" id="usbCamScan">检测设备</button>
-              </div>
+        <!-- USB 相机连接弹层（相机互联·有线连接：Native.js 直连 PTP 相机）——同 pairInputMask，必须挂在 phone-screen 直属层 -->
+        <div class="pair-input-mask" id="usbCamMask">
+          <div class="pair-input-card">
+            <div class="pair-input-title">USB 连接相机</div>
+            <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机，点击「检测设备」</div>
+            <div class="usb-cam-list" id="usbCamList"></div>
+            <div class="usb-cam-status" id="usbCamStatus" style="display:none"></div>
+            <div class="pair-input-actions">
+              <button class="pair-btn ghost" id="usbCamCancel">取消</button>
+              <button class="pair-btn primary" id="usbCamScan">检测设备</button>
             </div>
           </div>
         </div>
