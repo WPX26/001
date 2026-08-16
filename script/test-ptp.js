@@ -21,7 +21,8 @@ const OC = {
   OPEN_SESSION: 0x1002, CLOSE_SESSION: 0x1003, GET_DEVICE_INFO: 0x1001,
   GET_OBJECT_INFO: 0x1008, GET_OBJECT: 0x1009, SET_DEVICE_PROP_VALUE: 0x1016,
   EOS_GET_OBJECT: 0x9104, EOS_GET_PARTIAL_OBJECT: 0x9107,
-  EOS_REMOTE_RELEASE: 0x910F, EOS_SET_REMOTE_MODE: 0x9114,
+  EOS_REMOTE_RELEASE: 0x910F, EOS_REMOTE_RELEASE_ON: 0x9128,
+  EOS_REMOTE_RELEASE_OFF: 0x9129, EOS_SET_REMOTE_MODE: 0x9114,
   EOS_SET_EVENT_MODE: 0x9115, EOS_GET_EVENT: 0x9116,
   EOS_TRANSFER_COMPLETE: 0x9117, EOS_KEEP_DEVICE_ON: 0x911D
 };
@@ -45,6 +46,13 @@ function strBytes(s) {
   b.push(0);
   return b;
 }
+function strBytes16(s) {
+  // 5D2 真机实测格式（2026-08-16）：UTF-16LE，len = 字节数（含结尾 null）
+  const b = [s.length * 2 + 2];
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); b.push(c & 0xFF, (c >>> 8) & 0xFF); }
+  b.push(0, 0);
+  return b;
+}
 const FAKE_JPEG_HEAD = Buffer.from('FFD8FFE0', 'hex');
 
 /* ---------- mock 相机（协议正确实现，与实现解耦） ---------- */
@@ -55,7 +63,9 @@ class MockCamera {
     this.rejectSessionIds = opts.rejectSessionIds || []; // 模拟 0x2004 重试
     this.alreadyOpen = !!opts.alreadyOpen;   // 模拟 SessionAlreadyOpen
     this.busyFirst = !!opts.busyFirst;       // 模拟 DeviceBusy 重试
-    this.focusFail = !!opts.focusFail;       // 快门结果码=1
+    this.focusFail = !!opts.focusFail;       // 0x9128 全按响应结果码=1
+    this.reject9128 = !!opts.reject9128;     // 0x9128 不支持（0x2005）→ 测回退 0x910F
+    this.legacy910f = !!opts.legacy910f;     // 0x910F 可用（老 EOS 模拟），且 0x9128 不支持
     this.rejectDestProp = !!opts.rejectDestProp; // SetDevicePropValue 拒绝
     this.captureDestination = 4;             // 默认 SDRAM（gphoto2 语义）
     this.sessionOpen = false;
@@ -107,10 +117,11 @@ class MockCamera {
         b.push(...u32(0));                                         // DeviceProperties
         b.push(...u32(1), ...u16(0x3801));                         // CaptureFormats
         b.push(...u32(1), ...u16(0x3801));                         // ImageFormats
-        b.push(...strBytes('Canon Inc.'));
-        b.push(...strBytes('Canon EOS 5D Mark II'));
-        b.push(...strBytes('2.1.2'));
-        b.push(...strBytes('mock-5d2-serial'));
+        // 5D2 真机实测：厂商/型号/固件/序列号均为 UTF-16LE（2026-08-16 直连诊断实锤）
+        b.push(...strBytes16('Canon Inc.'));
+        b.push(...strBytes16('Canon EOS 5D Mark II'));
+        b.push(...strBytes16('2.1.2'));
+        b.push(...strBytes16('mock-5d2-serial'));
         return [pkt(2, OC.GET_DEVICE_INFO, tid, b), pkt(3, RC.OK, tid)];
       }
       case OC.SET_DEVICE_PROP_VALUE: {
@@ -122,22 +133,41 @@ class MockCamera {
       case OC.EOS_SET_REMOTE_MODE: this.remoteMode = 1; return [pkt(3, RC.OK, tid)];
       case OC.EOS_SET_EVENT_MODE: this.eventMode = 1; return [pkt(3, RC.OK, tid)];
       case OC.EOS_KEEP_DEVICE_ON: return [pkt(3, RC.OK, tid)];
+      case OC.EOS_REMOTE_RELEASE_ON: {
+        // 0x9128 现代主路径（5D2 实测）：1=半按 2=全按，参数2：0=AF 启用
+        if (this.reject9128) return [pkt(3, 0x2005, tid)]; // OperationNotSupported
+        if (this.busyFirst && !this.busyFired && params[0] === 2) {
+          this.busyFired = true;
+          return [pkt(3, RC.DEVICE_BUSY, tid)];
+        }
+        if (params[0] === 2) {
+          // 全按 → 出片（SDRAM 或卡上）+ 0xC181 事件（每次新 handle，对象独立）
+          const handle = this.nextHandle++;
+          const isSdram = this.captureDestination !== 1;
+          const jpeg = (isSdram && this.bigObject) ? this.bigObject
+            : Buffer.concat([FAKE_JPEG_HEAD, Buffer.alloc(200)]);
+          this.objects[handle] = jpeg;
+          this.events.push({
+            code: EV.OBJECT_ADDED_EX, handle,
+            storageId: isSdram ? 0 : this.storageId,  // SDRAM=0 / 卡=CF id
+            size: jpeg.length
+          });
+          // 全按响应结果码：0=成功；1=触发失败
+          return [pkt(3, RC.OK, tid, u32(this.focusFail ? 1 : 0))];
+        }
+        return [pkt(3, RC.OK, tid, u32(0))]; // 半按 OK
+      }
+      case OC.EOS_REMOTE_RELEASE_OFF:
+        return [pkt(3, RC.OK, tid)];
       case OC.EOS_REMOTE_RELEASE: {
-        if (this.busyFirst && !this.busyFired) { this.busyFired = true; return [pkt(3, RC.DEVICE_BUSY, tid)]; }
-        // 无参快门 → 产生新照片（SDRAM 或卡上）+ 0xC181 事件（每次新 handle，对象独立）
+        // 0x910F 旧式：5D2 真机实测返回结果码 3（反光板抬起失败）；
+        // legacy910f 模式模拟老 EOS（返回 0=成功，用于测回退路径出片）
+        if (!this.legacy910f) return [pkt(3, RC.OK, tid, u32(3))];
         const handle = this.nextHandle++;
-        const isSdram = this.captureDestination !== 1;
-        const jpeg = (isSdram && this.bigObject) ? this.bigObject
-          : Buffer.concat([FAKE_JPEG_HEAD, Buffer.alloc(200)]);
+        const jpeg = Buffer.concat([FAKE_JPEG_HEAD, Buffer.alloc(200)]);
         this.objects[handle] = jpeg;
-        this.events.push({
-          code: EV.OBJECT_ADDED_EX, handle,
-          storageId: isSdram ? 0 : this.storageId,  // SDRAM=0 / 卡=CF id
-          size: jpeg.length
-        });
-        // 结果码：0=成功；1=对焦失败
-        const result = this.focusFail ? 1 : 0;
-        return [pkt(3, RC.OK, tid, u32(result))];
+        this.events.push({ code: EV.OBJECT_ADDED_EX, handle, storageId: this.storageId, size: jpeg.length });
+        return [pkt(3, RC.OK, tid, u32(0))];
       }
       case OC.EOS_GET_EVENT: {
         // 事件链：[size:u32][code:u32][Handle@8][StorageID@0C][OFC@10(u16)][10B][Size@1C][Parent@20][Name@28]
@@ -243,9 +273,13 @@ async function main() {
     ok('CaptureDestination 设为卡', cam.captureDestination === 1, '实际: ' + cam.captureDestination);
 
     await ptp.releaseShutter();
-    const shot = cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE);
-    ok('快门：0x910F 无参数单发', shot.length === 1 && shot[0].params.length === 0,
-      '实际: ' + JSON.stringify(shot));
+    const half = cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE_ON && l.params[0] === 1);
+    const full = cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE_ON && l.params[0] === 2);
+    const off = cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE_OFF);
+    ok('快门：0x9128 半按→全按→全释放（5D2 真机实证路径）',
+      half.length === 1 && full.length === 1 && off.length === 1,
+      '实际 half=' + half.length + ' full=' + full.length + ' off=' + off.length);
+    ok('快门未误走 0x910F', cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE).length === 0);
 
     const obj = await ptp.waitForObject(5000);
     ok('等照片：objectId 来自 0xC181 Handle', obj.objectId === 100, '实际: ' + obj.objectId);
@@ -319,22 +353,37 @@ async function main() {
     const ptp = new PtpCamera(new MockTransport(cam));
     await ptp.openSession();
     await ptp.releaseShutter();
-    ok('Busy 后重试成功', cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE).length === 2);
+    // 半按 1 + 全按 2（首次 Busy 重试） = 3 次 0x9128
+    ok('Busy 后重试成功', cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE_ON).length === 3,
+      '实际: ' + cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE_ON).length);
     const objBusy = await ptp.waitForObject(2000);
     ok('Busy 重试后照片事件仍拿到', !!objBusy && objBusy.objectId === 100, '实际: ' + (objBusy && objBusy.objectId));
   });
 
-  /* ⑦ 快门失败结果码（对焦失败） */
-  await scenario('⑦ 快门失败结果码映射', { focusFail: true }, async () => {
+  /* ⑦ 快门触发失败（全按结果码=1） */
+  await scenario('⑦ 快门触发失败结果码', { focusFail: true }, async () => {
     const cam = new MockCamera({ focusFail: true });
     const ptp = new PtpCamera(new MockTransport(cam));
     await ptp.openSession();
     try {
       await ptp.releaseShutter();
-      ok('对焦失败应抛错', false, '未抛错');
+      ok('触发失败应抛错', false, '未抛错');
     } catch (e) {
-      ok('抛错且文案含「对焦失败」', /对焦失败/.test(e.message), e.message);
+      ok('抛错且文案含「触发失败」', /触发失败/.test(e.message), e.message);
     }
+  });
+
+  /* ⑩ 0x9128 不支持 → 回退 0x910F（老 EOS） */
+  await scenario('⑩ 0x9128 不支持回退 0x910F', { reject9128: true, legacy910f: true }, async () => {
+    const cam = new MockCamera({ reject9128: true, legacy910f: true });
+    const ptp = new PtpCamera(new MockTransport(cam));
+    await ptp.openSession();
+    await ptp.releaseShutter();
+    const fallback = cam.log.filter(l => l.code === OC.EOS_REMOTE_RELEASE);
+    ok('回退走 0x910F', fallback.length === 1 && fallback[0].params.length === 0,
+      '实际: ' + JSON.stringify(fallback));
+    const objFb = await ptp.waitForObject(2000);
+    ok('回退后仍能出片', !!objFb && objFb.objectId === 100, '实际: ' + (objFb && objFb.objectId));
   });
 
   /* ⑧ 旧回复跳过（tid 不匹配） */

@@ -54,7 +54,9 @@
   var PTP_OC_EOS_GET_OBJECT = 0x9104;         // 卡上取图
   var PTP_OC_EOS_GET_PARTIAL_OBJECT = 0x9107; // SDRAM 分块取图
   var PTP_OC_EOS_TRANSFER_COMPLETE = 0x9117;  // SDRAM 读完告知相机
-  var PTP_OC_EOS_REMOTE_RELEASE = 0x910F;     // 快门：无参数单发，响应 Param1=结果码
+  var PTP_OC_EOS_REMOTE_RELEASE = 0x910F;     // 快门（旧式无参单发；5D2 实测结果码 3 失败）
+  var PTP_OC_EOS_REMOTE_RELEASE_ON = 0x9128;  // 快门（现代主路径；gphoto2"用 5Dm2 验证过"）
+  var PTP_OC_EOS_REMOTE_RELEASE_OFF = 0x9129; // 参数1：1=半按 2=全按 / 释放：3=全释放
   var PTP_OC_EOS_GET_REMOTE_MODE = 0x9113;
   var PTP_OC_EOS_SET_REMOTE_MODE = 0x9114;
   var PTP_OC_EOS_SET_EVENT_MODE = 0x9115;
@@ -76,6 +78,7 @@
   var PTP_RC_INCOMPLETE_TRANSFER = 0x2007;
   var PTP_RC_DEVICE_BUSY = 0x2019;               // 曾误标 0x200A（=DevicePropNotSupported）
   var PTP_RC_SESSION_ALREADY_OPEN = 0x201E;
+  var PTP_RC_OPERATION_NOT_SUPPORTED = 0x2005;
 
   /* ---------- 事件码（Canon EOS 段，ptp.h 核实） ---------- */
   var PTP_EC_EOS_OBJECT_ADDED_EX = 0xC181;   // 新照片（等这个），Handle@0x08
@@ -145,10 +148,24 @@
   PacketReader.prototype.u32 = function () { var v = this.dv.getUint32(this.pos, true); this.pos += 4; return v; };
   PacketReader.prototype.str = function () {
     var len = this.u8();
+    if (len === 0 || this.pos >= this.dv.byteLength) return '';
     var s = '';
-    for (var i = 0; i < len && this.pos < this.dv.byteLength; i++) s += String.fromCharCode(this.u8());
-    // PTP 字符串以 null 结尾（长度已含终止符）——剥掉尾部 \0
-    while (s.length && s.charCodeAt(s.length - 1) === 0) s = s.slice(0, -1);
+    // 真机实测（2026-08-16 5D2 直连诊断）：Canon 的 PTP 字符串是 **UTF-16LE**
+    // （"Canon" = 43 00 61 00 6E 00 6F 00 6E 00，len 为字节数含结尾 null）；
+    // ASCII 相机（mock/Nikon 等）为 1 字节/字符。判据：第二字节 == 0 → UTF-16。
+    var b1 = this.dv.getUint8(this.pos + 1);
+    if (b1 === 0) {
+      for (var i = 0; i + 1 < len && this.pos + i + 1 < this.dv.byteLength; i += 2) {
+        var c = this.dv.getUint16(this.pos + i, true);
+        if (c === 0) break; // UTF-16 结尾 null（2 字节）
+        s += String.fromCharCode(c);
+      }
+      this.pos += len;
+    } else {
+      for (var j = 0; j < len && this.pos < this.dv.byteLength; j++) s += String.fromCharCode(this.u8());
+      // PTP 字符串以 null 结尾（长度已含终止符）——剥掉尾部 \0
+      while (s.length && s.charCodeAt(s.length - 1) === 0) s = s.slice(0, -1);
+    }
     return s;
   };
   PacketReader.prototype.arr16 = function () {
@@ -538,27 +555,53 @@
   };
 
   /* ---------- 快门 ---------- */
+  /** 0x910F 旧式路径的结果码 → 用户可见错误 */
+  function shutterResultError(result) {
+    var msg = '拍摄失败';
+    if (result === SHUTTER_FOCUS_FAIL) msg = '对焦失败，未释放快门（检查对焦/半按状态）';
+    else if (result === SHUTTER_MIRROR) msg = '反光板抬起失败（若 5D2 请用 0x9128 路径）';
+    else if (result === SHUTTER_MEDIA_FULL) msg = '存储卡已满或无内存';
+    else if (result === SHUTTER_MEDIA_RO) msg = '存储卡只读';
+    else msg += '（结果码 ' + result + '）';
+    return PtpError(0xF100 + result, msg);
+  }
+
   /**
-   * 按快门（gphoto2 ptp_canon_eos_capture 语义，5D2 实证）：
-   *   0x910F **无参数**单发（NODATA），相机内部完成按下+对焦+释放；
-   *   响应 Param1 = 拍摄结果码：0=成功 / 1=对焦失败 / 3=反光板抬起失败 /
-   *   7=卡满/无内存 / 8=卡只读。
-   *   不要用「按下=0→释放=1」两段式（那是旧文档写法，成功实现无人采用）。
+   * 按快门。
+   *
+   * **5D2 真机实测（2026-08-16 电脑直连诊断）**：
+   *   0x910F 无参单发 → 结果码 **3（反光板抬起失败）**，无法出片；
+   *   0x9128/0x9129（gphoto2 现代主路径，源码注释"用 5Dm2 验证过"）→ 全通并成功出片
+   *   （半按 0x9128(1,0) 对焦 → 全按 0x9128(2,0) 触发，响应 Param1=0 成功 → 0x9129(3) 全释放）。
+   * 策略：优先 0x9128 路径；若相机不支持（0x2005 OperationNotSupported）回退 0x910F。
    */
   PtpCamera.prototype.releaseShutter = function () {
     var self = this;
-    return self.transact(PTP_OC_EOS_REMOTE_RELEASE, []).then(function (res) {
-      var result = res.params[0];
-      if (!result) return; // 0 = 成功
-      var msg = '拍摄失败';
-      if (result === SHUTTER_FOCUS_FAIL) msg = '对焦失败，未释放快门（检查对焦/半按状态）';
-      else if (result === SHUTTER_MIRROR) msg = '反光板抬起失败';
-      else if (result === SHUTTER_MEDIA_FULL) msg = '存储卡已满或无内存';
-      else if (result === SHUTTER_MEDIA_RO) msg = '存储卡只读';
-      else msg += '（结果码 ' + result + '）';
-      var err = PtpError(0xF100 + result, msg);
-      throw err;
-    });
+    return self.transact(PTP_OC_EOS_REMOTE_RELEASE_ON, [1, 0], null, 30000) // 半按（AF 启用）
+      .then(function () {
+        // 等对焦完成（gphoto2 注释：慢镜头最长可阻塞 8 秒；5D2 单反实测 1.5s 足够）
+        return new Promise(function (resolve) { setTimeout(resolve, 1500); });
+      })
+      .then(function () {
+        return self.transact(PTP_OC_EOS_REMOTE_RELEASE_ON, [2, 0], null, 30000); // 全按触发
+      })
+      .then(function (res) {
+        var r = res.params[0];
+        if (r) throw PtpError(0xF200 + r, '快门触发失败（结果码 ' + r + '）');
+      })
+      .then(function () {
+        return self.transact(PTP_OC_EOS_REMOTE_RELEASE_OFF, [3], null, 30000); // 全释放
+      })
+      .catch(function (e) {
+        if (e && e.isPtp && e.code === PTP_RC_OPERATION_NOT_SUPPORTED) {
+          // 回退：0x910F 无参单发（老 EOS / 其他相机）
+          return self.transact(PTP_OC_EOS_REMOTE_RELEASE, []).then(function (res) {
+            var result = res.params[0];
+            if (result) throw shutterResultError(result);
+          });
+        }
+        throw e;
+      });
   };
 
   /* ---------- 事件/照片 ---------- */
