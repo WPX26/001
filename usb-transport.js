@@ -37,21 +37,31 @@
     // 512 已实证可读（2c9316e）。从 512 起，成功×2、失败÷2（512~16384），
     // 兼顾小包零开销与大文件吞吐（PacketStream 本来就是流式拼接）。
     this._readSize = 512;
+    this.bufMode = 'unknown'; // r16 诊断：实际用的读 buffer 形态（java/[B/js）
   }
 
   /**
-   * 创建 bulk 读 buffer（2026-08-16 r15 真机实锤修正）：
+   * 创建 bulk 读 buffer（2026-08-16 r15/r16 真机实锤修正）：
    * **读方向必须用 Java byte[]**——JS 数组直传时桥只做 JS→byte[] 单向转换，
    * bulkTransfer 写进 byte[] 的数据**不会回写 JS 数组**（真机：n=12 但读回全 0，
    * 协议栈解析出"非法包长 0"）。写方向（bulkOut）JS 数组仍可用（命令已实证送达）。
+   * r16：newObject('byte[]') 若桥的类名解析不支持（很可能与 importClass 同病），
+   * 试 JNI 描述符 '[B'；仍失败则 JS 兜底并记录 bufMode 供 USB 诊断实锤。
    */
   AndroidTransport.prototype._makeBuf = function (size) {
     if (typeof plus !== 'undefined' && plus.android) {
-      try {
-        var j = plus.android.newObject('byte[]', size);
-        if (j) return { java: j, js: null };
-      } catch (e) {}
+      for (var m = 0; m < 2; m++) {
+        try {
+          var j = m === 0 ? plus.android.newObject('byte[]', size)
+                          : plus.android.newObject('[B', size);
+          if (j) {
+            this.bufMode = m === 0 ? 'java' : '[B';
+            return { java: j, js: null };
+          }
+        } catch (e) {}
+      }
     }
+    this.bufMode = 'js';
     var arr = new Array(size);
     for (var i = 0; i < size; i++) arr[i] = 0;
     return { java: null, js: arr }; // 兜底（非 App 环境/实验）

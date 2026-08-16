@@ -2824,7 +2824,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r15',               // usb-transport.js 版本指纹（r15：读方向强制 Java byte[]——真机实锤 JS 数组读回全 0（桥不回写），String(ISO-8859-1) 整块转换读回；写方向 JS 数组仍可用）
+      usbVer: '20260816-r16',               // usb-transport.js 版本指纹（r16：newObject('byte[]') 失败试 '[B'；bufMode 诊断字段实锤读 buffer 形态）
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
@@ -2841,6 +2841,7 @@
       uaMobile: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),
       full: q.get('full'),
       usbSupported: typeof UsbTether !== 'undefined' && !!UsbTether.isSupported(),
+      bufMode: (usbCam && usbCam.transport) ? usbCam.transport.bufMode : '未连接', // r16：读 buffer 形态（java/[B/js）——实锤桥的数组创建能力
       maskInDom: !!mask,
       maskShowNow: !!(mask && mask.classList.contains('show')),
       bindWired: (function () {
