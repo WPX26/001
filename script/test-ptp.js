@@ -21,6 +21,13 @@ function pkt(type, code, tid, payloadBytes) {
       .concat(u16(type)).concat(u16(code)).concat(u32(tid)));
   return payloadBytes ? Buffer.concat([head, Buffer.from(payloadBytes)]) : head;
 }
+/* PTP USB init ack（12 字节：byte0=type, byte4..7=length=12） */
+function pktInit(type) {
+  const b = Buffer.alloc(12);
+  b[0] = type;
+  b.writeUInt32LE(12, 4);
+  return b;
+}
 function strBytes(s) {
   const b = [];
   b.push(s.length);
@@ -48,6 +55,9 @@ class MockCamera {
     const type = buf.readUInt16LE(4);
     const code = buf.readUInt16LE(6);
     const tid = buf.readUInt32LE(8);
+    // PTP USB init 块：byte0=type（0x05/0x07），非标准 12 字节头布局
+    if (buf[0] === 0x05) return [pktInit(0x06)];  // Init Command → Init Ack
+    if (buf[0] === 0x07) return [pktInit(0x08)];  // Init Event → Init Event Ack
     if (type !== 1) throw new Error('mock: 期望命令包, 实际 type=' + type);
     const params = [];
     for (let o = 12; o + 4 <= len; o += 4) params.push(buf.readUInt32LE(o));
