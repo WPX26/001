@@ -2668,14 +2668,22 @@
         enterWorkspace();
       }).catch(function (err) {
         usbCam.busy = false;
+        // r19b：失败前保存传输层诊断快照（transport 释放后 diagInfo 就没了，
+        // 诊断 JSON 读不到失败上下文——USB 诊断一锤定音的关键）
         if (usbCam.transport) {
+          try { usbCam.lastTransportDiag = usbCam.transport.diagInfo ? usbCam.transport.diagInfo() : null; } catch (e) {}
           try { usbCam.transport.release(); } catch (e) {}
           usbCam.transport = null;
         }
         usbCam.ptp = null;
+        usbCam.lastErr = {
+          stage: ptpStage,
+          msg: (err && err.message || '未知错误'),
+          stack: (err && err.stack ? String(err.stack).split('\n').slice(0, 3).join(' | ') : '')
+        };
         statusEl.style.display = 'block';
-        statusEl.textContent = '连接失败[PTP:' + ptpStage + ']：' + (err && err.message || '未知错误') +
-          (err && err.stack ? ' | ' + String(err.stack).split('\n').slice(0, 3).join(' | ') : '') + '，请重试';
+        statusEl.textContent = '连接失败[PTP:' + ptpStage + ']：' + usbCam.lastErr.msg +
+          ' | ' + usbCam.lastErr.stack + '，请重试';
       });
     }
 
@@ -2851,7 +2859,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r19',               // r19：WebUSB 传输层全面修复——0x66 默认移除（避免 5D2 复位挂死）、bytesWritten 校验（防写 0 字节假成功）、超时置 stale（防残留读吃掉相机响应）、diagInfo 输出传输层上下文
+      usbVer: '20260816-r19b',              // r19b：连接失败时保存传输层诊断快照（usbCam.lastTransportDiag/lastErr）——失败后 USB 诊断仍能读到写入字节/超时次数/报错阶段
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
@@ -2872,7 +2880,8 @@
       navigatorUsb: !!(navigator.usb && typeof navigator.usb.requestDevice === 'function'), // r18：浏览器原生 WebUSB 能力
       probeByteArray: (typeof UsbTether !== 'undefined' && UsbTether.probeByteArray) ? UsbTether.probeByteArray() : '无', // r17：当场探测 newObject('byte[]')/'[B'（不依赖连接状态）；r18 WebUSB 模式返回 'webusb'
       lastBufMode: (typeof UsbTether !== 'undefined' && UsbTether.lastBufMode) ? UsbTether.lastBufMode() : '未连接', // r17：上次传输实际 buffer 形态（失败后也可读）
-      usbTransportDiag: (typeof window.usbCam !== 'undefined' && window.usbCam.transport && window.usbCam.transport.diagInfo) ? window.usbCam.transport.diagInfo() : null, // r19：WebUSB 传输层最近操作（超时/写入字节/端点）——openSession 超时时一眼定位
+      usbTransportDiag: (typeof window.usbCam !== 'undefined') ? (window.usbCam.lastTransportDiag || (window.usbCam.transport && window.usbCam.transport.diagInfo ? window.usbCam.transport.diagInfo() : null)) : null, // r19：WebUSB 传输层最近操作（超时/写入字节/端点）；r19b：失败后读保存的快照
+      lastErr: (typeof window.usbCam !== 'undefined' && window.usbCam.lastErr) ? window.usbCam.lastErr : null, // r19b：最近一次连接失败的分阶段报错
       maskInDom: !!mask,
       maskShowNow: !!(mask && mask.classList.contains('show')),
       bindWired: (function () {
