@@ -56,14 +56,17 @@
     return new Promise(function (resolve, reject) {
       if (self.released) return reject(new Error('USB 连接已释放'));
       try {
-        var size = maxLen || 4096;
+        // 排查第 12 轮实锤：bulkTransfer(in) 返回 -1 的根因是**读 buffer 必须 ≥ 端点
+        // maxPacketSize**（5D2 USB2.0 高速 bulk 端点 = 512 字节）；之前 expectAck 传
+        // bulkIn(12) 只有 12 字节 buffer → Android 直接返回 -1。bulkOut 写方向无此限制。
+        var size = Math.max(maxLen || 4096, 512);
         // web-view 桥没有 plus.android.newArray（2026-08-16 实锤 not a function），
         // bulkOut 已验证 JS 数组可直接作 byte[] 参数，bulkIn 同法（桥自动转换）
         var jbuf = new Array(size);
         for (var i = 0; i < size; i++) jbuf[i] = 0;
         var n = plus.android.invoke(self.connection, 'bulkTransfer', self.bulkInEp, jbuf, size, timeoutMs || 3000);
-        // 排查第 11 轮：读空时把 n 值打出来——区分 undefined（invoke 参数类型不匹配，
-        // 桥不支持 JS 数组读方向）、0（调用成功但无数据/相机无响应）、-1（USB 层错误）
+        // 读空/错误时把 n 值打出来——区分 undefined（invoke 参数类型不匹配）、
+        // 0（调用成功但无数据）、-1（USB 层错误，如 buffer < maxPacketSize）
         if (!(n > 0)) {
           if (typeof n === 'undefined') throw new Error('bulkTransfer(in) invoke 失败返回 undefined（JS 数组读方向可能不被桥支持）');
           if (n === 0) throw new Error('bulkTransfer(in) 返回 0（相机无响应或无数据，可能是 init 格式/端点问题）');
