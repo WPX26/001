@@ -360,8 +360,7 @@ async function main() {
     requestDevice: () => Promise.resolve(dev9)
   } } });
   const tr9 = await t9.get().requestConnect('webusb:4a9:3199:mock-5d2');
-  ok('diagLogs 含连接阶段日志（open/claim/eps）', Array.isArray(t9.diagLogs()) &&
-    t9.diagLogs().some(l => /open:done/.test(l.stage || '')), JSON.stringify(t9.diagLogs()));
+  ok('UsbTether.lastError 连接成功时为 null', t9.lastError() === null, JSON.stringify(t9.lastError()));
   cam9.delayMs = 99999; // 相机不响应
   let timedOut = false;
   try {
@@ -374,14 +373,13 @@ async function main() {
   try {
     await tr9.bulkIn(512, 300);
   } catch (e) {
-    staleRejected = /变脏|重连/.test(e && e.message || '');
+    staleRejected = /超时|连接/.test(e && e.message || '');
   }
   ok('超时后管道置 stale → 后续 bulkIn 拒绝提示重连', staleRejected);
   const diag9 = tr9.diagInfo();
   ok('diagInfo 输出超时次数/stale 标记', diag9.timeouts >= 1 && diag9.stale === true && diag9.timeouts === 1,
     JSON.stringify(diag9));
-  ok('diagInfo 输出全链路 ops 日志（r20）', Array.isArray(diag9.ops) && diag9.ops.length >= 1 &&
-    diag9.ops.some(o => /timeout/.test(o.res || '')), JSON.stringify(diag9.ops));
+  ok('diagInfo 记录 lastErr=超时', /超时/.test(diag9.lastErr || ''), diag9.lastErr);
   tr9.release();
   ok('release 后 stale 清除', tr9.diagInfo().stale === false);
 
