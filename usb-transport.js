@@ -30,6 +30,7 @@
     this.connection = deps.connection;
     this.bulkInEp = deps.bulkInEp;
     this.bulkOutEp = deps.bulkOutEp;
+    this.ifaceInfo = deps.ifaceInfo;   // 2026-08-16 排查补：接口结构（之前漏存，错误不带结构）
     this.released = false;
   }
 
@@ -239,22 +240,35 @@
     // 遍历全部接口（2026-08-16 全面扫描：5D2 PTP 接口不一定在 interface 0）
     var ifaceCount = 0;
     try { ifaceCount = plus.android.invoke(device, 'getInterfaceCount'); } catch (e) {}
-    var bulkInEp = null, bulkOutEp = null, iface = null, ifaceInfo = [];
+    var cfgInfo = 'cfg?';
+    try {
+      var cfg0 = plus.android.invoke(device, 'getConfiguration');
+      if (cfg0) cfgInfo = 'cfgId=' + plus.android.invoke(cfg0, 'getId');
+    } catch (e) {}
+    var bulkInEp = null, bulkOutEp = null, iface = null, ifaceInfo = [cfgInfo];
     for (var i = 0; i < ifaceCount; i++) {
       var cand = plus.android.invoke(device, 'getInterface', i);
       if (!cand) continue;
+      var ifClass = -1;
+      try { ifClass = plus.android.invoke(cand, 'getInterfaceClass'); } catch (e) {}
       var epCount = 0, epInfo = [];
       try { epCount = plus.android.invoke(cand, 'getEndpointCount'); } catch (e) {}
+      epInfo.push('class=' + ifClass);
       for (var j = 0; j < epCount; j++) {
         var ep = plus.android.invoke(cand, 'getEndpoint', j);
         var eType = plus.android.invoke(ep, 'getType');
         var eDir = plus.android.invoke(ep, 'getDirection');
-        var eAddr = 0;
+        var eAddr = -1;
         try { eAddr = plus.android.invoke(ep, 'getAddress'); } catch (e) {}
-        epInfo.push('ep' + j + ':addr=0x' + (eAddr & 0xFF).toString(16) + ',type=' + eType + ',dir=' + eDir);
+        // 方向判断用地址高位（0x80=IN）更稳，getDirection 在桥里可能返回异常值
+        var dirByAddr = (eAddr >= 0 && (eAddr & 0x80)) ? 'IN' : ((eAddr >= 0) ? 'OUT' : '未知');
+        epInfo.push('ep' + j + ':addr=0x' + (eAddr >= 0 ? (eAddr & 0xFF).toString(16) : '?') +
+          ',type=' + eType + ',dir=' + eDir + '(' + dirByAddr + ')');
         if (eType !== USB_ENDPOINT_XFER_BULK) continue;
-        if (eDir === USB_DIR_IN && !bulkInEp) bulkInEp = ep;
-        else if (eDir === USB_DIR_OUT && !bulkOutEp) bulkOutEp = ep;
+        var isIn = (eDir === USB_DIR_IN) || (eAddr >= 0 && (eAddr & 0x80) && !bulkInEp);
+        var isOut = (eDir === USB_DIR_OUT) || (eAddr >= 0 && !(eAddr & 0x80) && !bulkOutEp);
+        if (isIn && !bulkInEp) bulkInEp = ep;
+        else if (isOut && !bulkOutEp) bulkOutEp = ep;
       }
       ifaceInfo.push('iface' + i + '[' + epInfo.join(' ') + ']');
       if (!iface && bulkInEp && bulkOutEp) iface = cand; // 首个含 bulk 双端点的接口
