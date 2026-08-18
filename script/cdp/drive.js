@@ -33,7 +33,7 @@ ws.onopen = async () => {
       expression: code,
       awaitPromise: true, userGesture: true,
       returnByValue: true,
-      timeout: 60000
+      timeout: 180000 // 会话残留实验含 20s 协议超时重试，放宽到 180s
     });
     if (r.exceptionDetails) {
       console.log('EXCEPTION:', JSON.stringify(r.exceptionDetails.exception && r.exceptionDetails.exception.description || r.exceptionDetails.text));

@@ -15,12 +15,11 @@
 # ============================================================
 FROM nginx:1.27-alpine
 
-# 10 个页面 + admin.html（管理端）+ api.js（根目录下）
-# 教训：新增页面（phone-link-prototype.html）曾漏 COPY → 线上 404（2026-08-15 双导航线上验证暴露）
+# 9 个页面 + admin.html（管理端）+ api.js（根目录下）
 # 注意：online_check.html 是旧副本页（.gitignore 标注不入库），勿加 COPY（加了会因文件不在仓库导致 ACR 构建失败）
+# 注意：phone-link-prototype.html 已下线（2026-08-18 清理，功能已并入 connect-prototype.html），勿恢复 COPY
 COPY album-prototype.html camera-prototype.html connect-prototype.html \
      login-prototype.html memo-home.html message-prototype.html \
-     phone-link-prototype.html \
      photographer-payment.html profile-prototype.html register-prototype.html \
      admin.html \
      /usr/share/nginx/html/
