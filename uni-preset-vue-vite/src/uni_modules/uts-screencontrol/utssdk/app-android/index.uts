@@ -1,14 +1,29 @@
 import { UTSAndroid } from "io.dcloud.uts"
-import { ScreenControlResult, GestureDesc } from '../../index.uts'
+import { ScreenControl } from 'io.dcloud.uni_modules.uts_screencontrol'
 
 /**
- * Android 屏控实现入口（UTS）。
- * 实际逻辑在原生混编的 Kotlin 对象 ScreenControl（同包，无需 import）；
- * 本文件只做 UTS 层适配：取 Activity、组装 ScreenControlResult 对象字面量。
+ * 手机互联「屏控」UTS 插件（仅 Android，不跨端）。
+ * 官方目录规范：只做 Android 插件时，直接在分平台目录 index.uts 写全部实现，不写 interface.uts / 根 index.uts。
+ * 实际原生逻辑在混编 Kotlin 对象 ScreenControl（io.dcloud.uni_modules.uts_screencontrol 包）。
  */
-function ok(code: number, message: string): ScreenControlResult {
-  const r: ScreenControlResult = { code: code, message: message }
-  return r
+
+/** 调用结果。code=0 成功，非 0 失败 */
+export interface ScreenControlResult {
+  code: number
+  message: string
+}
+
+/** 手势描述（坐标已归一化 0~1，相对整屏） */
+export interface GestureDesc {
+  /** tap | swipe | longpress | back | home | recent */
+  action: string
+  /** 归一化坐标 0~1（相对屏幕） */
+  x?: number
+  y?: number
+  x2?: number
+  y2?: number
+  /** 时长 ms（swipe/longpress） */
+  duration?: number
 }
 
 /** 开始录屏：弹出系统授权 → 启动前台服务 → 逐帧回调 onFrame（base64 JPEG dataURL） */
@@ -16,13 +31,13 @@ export function startScreenShare(onFrame: (frame: string) => void): Promise<Scre
   return new Promise<ScreenControlResult>((resolve, reject) => {
     const activity = UTSAndroid.getUniActivity()
     if (activity == null) {
-      resolve(ok(1, "无法获取 Activity"))
+      resolve({ code: 1, message: "无法获取 Activity" })
     } else {
       const code = ScreenControl.tryStart(activity, onFrame)
       if (code == 0) {
-        resolve(ok(0, "已开始录屏"))
+        resolve({ code: 0, message: "已开始录屏" })
       } else {
-        resolve(ok(3, "启动授权页失败"))
+        resolve({ code: 3, message: "启动授权页失败" })
       }
     }
   })
@@ -39,11 +54,11 @@ export function injectGesture(g: GestureDesc): Promise<ScreenControlResult> {
   return new Promise<ScreenControlResult>((resolve, reject) => {
     const code = ScreenControl.injectGesture(g.action, g.x, g.y, g.x2, g.y2, g.duration)
     if (code == 0) {
-      resolve(ok(0, "ok"))
+      resolve({ code: 0, message: "ok" })
     } else if (code == 1) {
-      resolve(ok(1, "无障碍服务未开启：请到系统设置开启本 App 的无障碍服务"))
+      resolve({ code: 1, message: "无障碍服务未开启：请到系统设置开启本 App 的无障碍服务" })
     } else {
-      resolve(ok(4, "未知手势: " + g.action))
+      resolve({ code: 4, message: "未知手势: " + g.action })
     }
   })
 }
