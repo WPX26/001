@@ -1,3 +1,5 @@
+package io.dcloud.uni_modules.uts_screencontrol
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -81,7 +83,7 @@ class ScreenControlService : Service() {
     reader.setOnImageAvailableListener({ r ->
       val now = System.currentTimeMillis()
       if (now - lastTs >= 200) {
-        // 到帧间隔：取一帧 RGBA → JPEG → base64 回调（无裸 return，纯 if/else 兼容 UTS）
+        // 到帧间隔：取一帧 RGBA → JPEG → base64 回调
         lastTs = now
         val image = r.acquireLatestImage()
         if (image != null) {

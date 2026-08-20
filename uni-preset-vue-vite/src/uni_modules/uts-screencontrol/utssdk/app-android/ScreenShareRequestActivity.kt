@@ -1,3 +1,5 @@
+package io.dcloud.uni_modules.uts_screencontrol
+
 import android.app.Activity
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
@@ -5,7 +7,7 @@ import android.os.Bundle
 
 /**
  * 透明授权页：MediaProjection 必须通过 startActivityForResult 让用户确认。
- * 拿到 resultCode + data 后回调给 index.uts 启动前台录屏服务，随后 finish。
+ * 拿到 resultCode + data 后回调给 ScreenControl 启动前台录屏服务，随后 finish。
  */
 class ScreenShareRequestActivity : Activity() {
   companion object {

@@ -1,3 +1,5 @@
+package io.dcloud.uni_modules.uts_screencontrol
+
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
