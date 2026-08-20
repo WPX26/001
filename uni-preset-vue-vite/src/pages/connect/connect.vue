@@ -79,6 +79,21 @@ export default {
 
     // ---------- 屏控控制 ----------
     startScreen() {
+      // 无障碍未开启：手势注入会无效 → 先引导用户去系统设置开启
+      let a11yOn = false
+      try { a11yOn = ScreenControl.isAccessibilityEnabled() } catch (e) {}
+      if (!a11yOn) {
+        uni.showModal({
+          title: '需先开启无障碍',
+          content: '远程控制手势需要开启「无障碍」服务。点确定跳转系统设置，找到并开启「地图相册」，然后回到本页重试。',
+          confirmText: '去开启',
+          cancelText: '暂不',
+          success: (res) => {
+            if (res.confirm) ScreenControl.openAccessibilitySettings()
+          },
+        })
+        return
+      }
       ScreenControl.startScreenShare((frame) => {
         this.pushFrame(frame)
       }).then((res) => {
