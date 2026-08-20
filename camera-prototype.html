@@ -987,22 +987,23 @@
   function enrichPhotoWithCaptureData(photoData) {
     var getShot = new Promise(function(resolve) {
       if (camLastPhotoFile) {
-        Promise.all([blobToThumbnail(camLastPhotoFile), parseExifDateTime(camLastPhotoFile)])
-          .then(function(r) { resolve({ thumb: r[0], exifDate: exifStringToDate(r[1]) }); })
-          .catch(function() { resolve({ thumb: null, exifDate: null }); });
+        Promise.all([blobToDataUrl(camLastPhotoFile), blobToThumbnail(camLastPhotoFile), parseExifDateTime(camLastPhotoFile)])
+          .then(function(r) { resolve({ full: r[0], thumb: r[1], exifDate: exifStringToDate(r[2]) }); })
+          .catch(function() { resolve({ full: null, thumb: null, exifDate: null }); });
       } else {
         // 模拟图：与联机工作台一致的 Unsplash 静态图 → 缩略图 dataURL
         fetch('https://images.unsplash.com/photo-1516528387618-afa90b13e000?auto=format&fit=crop&w=150&q=80')
           .then(function(res) { return res.blob(); })
           .then(function(blob) {
             return Promise.all([blobToThumbnail(blob), parseExifDateTime(blob)])
-              .then(function(r) { return { thumb: r[0], exifDate: exifStringToDate(r[1]) }; });
+              .then(function(r) { return { full: r[0], thumb: r[0], exifDate: exifStringToDate(r[1]) }; });
           })
-          .catch(function() { resolve({ thumb: null, exifDate: null }); }); // 离线兜底
+          .catch(function() { resolve({ full: null, thumb: null, exifDate: null }); }); // 离线兜底
       }
     });
     getShot.then(function(r) {
-      var update = { photoDataUrl: r.thumb || solidThumbDataUrl(photoData.color) };
+      var update = { photoDataUrl: r.full || r.thumb || solidThumbDataUrl(photoData.color) };
+      if (r.thumb) update.thumbDataUrl = r.thumb;
       if (r.exifDate) { // EXIF 拍摄时间优先
         update.hour = r.exifDate.getHours();
         update.timeStr = String(update.hour).padStart(2, '0') + ':' + String(r.exifDate.getMinutes()).padStart(2, '0');
@@ -1030,6 +1031,17 @@
       };
       img.onerror = function() { resolve(null); };
       img.src = url;
+    });
+  }
+
+  // Blob/File → 全分辨率 JPEG dataURL（拍照原图；修复：原只存 200px 缩略图导致相册照片模糊）
+  function blobToDataUrl(blob) {
+    return new Promise(function(resolve) {
+      if (!blob) { resolve(null); return; }
+      var reader = new FileReader();
+      reader.onerror = function() { resolve(null); };
+      reader.onload = function(e) { resolve(e.target.result); };
+      reader.readAsDataURL(blob);
     });
   }
 
