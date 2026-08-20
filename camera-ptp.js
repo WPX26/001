@@ -44,7 +44,7 @@
   var PTP_OC_CLOSE_SESSION = 0x1003;          // 曾误标 0x1002（=OpenSession）
   var PTP_OC_GET_DEVICE_INFO = 0x1001;        // 曾误标 0x1004（=GetStorageIDs）
   var PTP_OC_GET_STORAGE_IDS = 0x1004;        // 保活降级兜底（r44：非远程模式 0x911D 可能被拒时改用）
-  var PTP_OC_GET_NUM_OBJECTS = 0x1006;        // r45 轮询兜底：存储内对象计数（GetNumObjects）
+  var PTP_OC_GET_NUM_OBJECTS = 0x1006;        // r48 废弃：5D2 真机对 0x1006 一律回 0x201d（EOS 不支持，gphoto2 canon 驱动从不调用）
   var PTP_OC_GET_OBJECT_HANDLES = 0x1007;     // r45 轮询兜底：存储内对象句柄枚举（GetObjectHandles）
   var PTP_OC_GET_OBJECT_INFO = 0x1008;
   var PTP_OC_GET_OBJECT = 0x1009;             // 曾误标 0x100A（=GetThumb）
@@ -785,10 +785,13 @@
     var m = (e && e.message || '').toString();
     return /disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(m);
   }
-  /** 初始化轮询基线（每会话一次，跨 waitForObject 保持）：发现存储 + 对象计数 + 句柄集。
+  /** 初始化轮询基线（每会话一次，跨 waitForObject 保持）：发现存储 + 句柄集（GetObjectHandles）。
    *  r47：存储枚举探测（短超时 3s）——真机 r46 实锤 0x1004 在等待循环里 20s 读超时并毒化管道，
    *  每次轮询都卡 20s 会饿死事件循环（r45「6 分钟零检测+掉线」主因）。探测失败 → 立即关闭
-   *  轮询兜底（仅靠事件通道），绝不反复试探；成功才启用。所有命令经全局 mutex 串行。 */
+   *  轮询兜底（仅靠事件通道），绝不反复试探；成功才启用。所有命令经全局 mutex 串行。
+   *  r48：真机实锤——5D2 对 GetNumObjects(0x1006) 一律回 PTP 错误 0x201d（Invalid Parameter，
+   *  EOS 不实现该命令；gphoto2 的 canon 驱动也从不调 0x1006，只用 GetObjectHandles(0x1007)）。
+   *  轮询改为纯句柄枚举：基线 = 每存储的句柄集，检测 = 句柄集差集（与 gphoto2 同款语义）。 */
   PtpCamera.prototype._pollEnsureBaseline = function () {
     var self = this;
     if (self._pollState) return Promise.resolve(self._pollState);
@@ -801,17 +804,15 @@
       // 顺序遍历（mutex 已全局串行，双保险——单 bulk 管道绝不允许并发 transact 抢包）
       return storages.reduce(function (chain, s) {
         return chain.then(function () {
-          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0], null, 2500).then(function (r) {
-            st.counts[s] = parseParams(r.data)[0] || 0;
-            return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0], null, 2500).then(function (h) {
-              st.handles[s] = parseParams(h.data) || [];
-              return true;
-            }).catch(function (e) {
-              self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（句柄集为空，计数照记）');
-              return true;
-            });
+          return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0], null, 2500).then(function (h) {
+            st.handles[s] = parseParams(h.data) || [];
+            st.counts[s] = st.handles[s].length;
+            return true;
           }).catch(function (e) {
-            self._diag('轮询 GetNumObjects(0x1006) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（计数记 0）');
+            if (_pollDisconnectRe(e)) throw e;
+            st.handles[s] = [];
+            st.counts[s] = 0;
+            self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（句柄集记 0，继续等）');
             return true;
           });
         });
@@ -828,7 +829,8 @@
       return null;
     });
   };
-  /** 轮询检测新照片（best-effort）：返回 {objectId, storageId, source} 或 null；断开类错误抛出 */
+  /** 轮询检测新照片（best-effort）：返回 {objectId, storageId, source} 或 null；断开类错误抛出。
+   *  r48：真机 0x1006=0x201d → 纯 GetObjectHandles(0x1007) 句柄差集（gphoto2 canon 驱动同款语义） */
   PtpCamera.prototype._pollDetectNew = function () {
     var self = this;
     if (self._storageOk === false) return Promise.resolve(null); // r47：探测失败 → 轮询彻底关闭（防反复 20s 卡死）
@@ -843,32 +845,24 @@
       return st.storages.reduce(function (chain, s) {
         return chain.then(function (found) {
           if (found) return found;
-          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0], null, 2500).then(function (r) {
-            var n = parseParams(r.data)[0] || 0;
+          return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0], null, 2500).then(function (h) {
+            var hs = parseParams(h.data) || [];
+            var known = st.handles[s] || [];
+            var fresh = hs.filter(function (x) { return known.indexOf(x) < 0; });
+            var n = hs.length;
             var oldN = st.counts[s] || 0;
-            if (n <= oldN) return null;
-            return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0]).then(function (h) {
-              var hs = parseParams(h.data) || [];
-              var known = st.handles[s] || [];
-              var fresh = hs.filter(function (x) { return known.indexOf(x) < 0; });
-              if (!fresh.length) {
-                st.counts[s] = n; // 计数变但无新句柄 → 更新计数继续等
-                self._diag('轮询: 计数 0x' + s.toString(16) + ' ' + oldN + '→' + n + ' 但无新句柄（更新基线继续等）');
-                return null;
-              }
-              var handle = fresh[0];
-              st.counts[s] = n;
-              st.handles[s] = hs;
-              self._diag('轮询命中: 0x' + s.toString(16) + ' 计数 ' + oldN + '→' + n + ' 新句柄 0x' + handle.toString(16));
-              return { objectId: handle, storageId: s, source: '轮询(GetNumObjects)' };
-            }, function (e) {
-              if (_pollDisconnectRe(e)) throw e;
-              self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50));
+            st.counts[s] = n;
+            if (!fresh.length) {
+              if (n !== oldN) { st.handles[s] = hs; self._diag('轮询: 0x' + s.toString(16) + ' 张数 ' + oldN + '→' + n + ' 但无新句柄（更新基线继续等）'); }
               return null;
-            });
+            }
+            var handle = fresh[0];
+            st.handles[s] = hs;
+            self._diag('轮询命中: 0x' + s.toString(16) + ' 张数 ' + oldN + '→' + n + ' 新句柄 0x' + handle.toString(16));
+            return { objectId: handle, storageId: s, source: '轮询(GetObjectHandles)' };
           }, function (e) {
             if (_pollDisconnectRe(e)) throw e;
-            self._diag('轮询 GetNumObjects(0x1006) 失败: ' + ((e && e.message) || e).toString().slice(0, 50));
+            self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50));
             return null;
           });
         });
@@ -881,8 +875,9 @@
    *      （startEvents 已把中断包解析进 _pendingEvents，这里消费，含 .source 标注来源）；
    *   ② GetEvent(0x9116) 轮询 EOS ObjectAddedEx(0xC181)——仅远程模式（r46 起非远程跳过：
    *      真机高频 GetEvent 挂起/异常嫌疑 → 拖死循环 → 轮询兜底轮不到）；
-   *   ③ r45 轮询兜底 GetNumObjects(0x1006)+GetObjectHandles(0x1007)——计数增长 → 枚举差异
-   *      出新句柄。即使中断端点/GetEvent 都不产生事件，按快门后照片也会在几秒内被发现。
+   *   ③ r48 轮询兜底 GetObjectHandles(0x1007) 句柄差集（r45 曾用 GetNumObjects 计数，真机实锤
+   *      5D2 对 0x1006 回 0x201d 不支持，已废弃；gphoto2 canon 驱动同款语义）。即使中断端点/
+   *      GetEvent 都不产生事件，按快门后照片也会在几秒内被发现。
    * 每轮轮询前按 10s 间隔保活；事件轮询间隔 250ms（gphoto2 是紧密排空，Android 上
    * 250ms 避免打满带宽，事件不丢——0x9116 数据是积攒式的）；兜底轮询间隔默认 2s。
    * @param {number} timeoutMs 总超时（默认 90s = gphoto2 EOS_CAPTURE_TIMEOUT）

@@ -63,6 +63,7 @@ class MockUsbCamera {
     this.getEventCalls = 0;          // r46：统计 GetEvent(0x9116) 被调用次数（非远程应为 0）
     this.hangGetEvent = false;       // r46：模拟真机 GetEvent 挂起（无应答，读端等到超时）
     this.hangStorage = false;        // r47：模拟真机标准 PTP 存储命令挂起（0x1004/0x1006/0x1007 无应答）
+    this.getNumObjectsCalls = 0;     // r48：守卫——轮询绝不允许再调 0x1006（真机回 0x201d）
   }
   /** 模拟相机把标准 PTP 事件（type=4 容器）发到中断IN端点——非远程模式 5D2 的 ObjectAdded 通道 */
   pushIntrEvent(buf) {
@@ -74,7 +75,7 @@ class MockUsbCamera {
       w({ status: 'ok', data: copyBuf(ev) });
     }
   }
-  /** r45：模拟拍卡——卡上新增一个对象（GetNumObjects 计数 +1，GetObjectHandles 含新句柄） */
+  /** r45：模拟拍卡——卡上新增一个对象（GetObjectHandles 句柄集 +1；r48 起计数通道已废弃） */
   pushStoredObject(handle) {
     this.store.push(handle);
   }
@@ -127,9 +128,9 @@ class MockUsbCamera {
         this.getStorageIdsCalls = (this.getStorageIdsCalls || 0) + 1;
         if (this.hangStorage) return []; // r47：挂起——无应答 → 读端空读转圈到短超时
         return [pkt(2, OC.GET_STORAGE_IDS, tid, u32(1).concat(u32(0x00010001))), pkt(3, RC.OK, tid)];
-      case OC.GET_NUM_OBJECTS: // r45 轮询兜底：对象计数
-        if (this.hangStorage) return []; // r47：挂起
-        return [pkt(2, OC.GET_NUM_OBJECTS, tid, u32(this.store.length)), pkt(3, RC.OK, tid)];
+      case OC.GET_NUM_OBJECTS: // r48：真机 5D2 对 0x1006 回 0x201d（EOS 不支持该命令）——守卫轮询不再用它
+        this.getNumObjectsCalls = (this.getNumObjectsCalls || 0) + 1;
+        return [pkt(3, 0x201d, tid)];
       case OC.GET_OBJECT_HANDLES: { // r45 轮询兜底：句柄枚举
         if (this.hangStorage) return []; // r47：挂起
         const hb = [];
@@ -589,8 +590,8 @@ async function main() {
     'keepDeviceOn=' + cam16.keepDeviceOnCalls + ' storageIds=' + cam16.getStorageIdsCalls);
   tr16.release();
 
-  /* ===== 13. r45 轮询兜底：无任何事件通道也能发现新照片（GetNumObjects 计数变） ===== */
-  console.log('\n[13] 无事件 → 轮询兜底检测新照片');
+  /* ===== 13. r45 轮询兜底：无任何事件通道也能发现新照片（r48 起纯 GetObjectHandles 句柄差集） ===== */
+  console.log('\n[13] 无事件 → 轮询兜底检测新照片（纯 GetObjectHandles，0x1006 永不调用）');
   const cam17 = new MockUsbCamera();
   const dev17 = makeUsbDevice(cam17, {});
   const t17 = loadModule({ navigator: { usb: {
@@ -606,9 +607,11 @@ async function main() {
   const wait17 = ptp17.waitForObject(9000);
   setTimeout(() => cam17.pushStoredObject(0x456), 800); // 800ms 后卡上多一张
   const obj17 = await wait17;
-  ok('无事件 → 轮询兜底发现新照片（objectId=0x456, source=轮询）',
-    obj17 && obj17.objectId === 0x456 && /轮询/.test(obj17.source || ''),
+  ok('无事件 → 轮询兜底发现新照片（objectId=0x456, source=轮询(GetObjectHandles)）',
+    obj17 && obj17.objectId === 0x456 && /轮询\(GetObjectHandles\)/.test(obj17.source || ''),
     JSON.stringify(obj17));
+  ok('r48：轮询全程未调用 GetNumObjects(0x1006)（getNumObjectsCalls=0）',
+    cam17.getNumObjectsCalls === 0, 'getNumObjectsCalls=' + cam17.getNumObjectsCalls);
   ptp17.stopEvents();
   tr17.release();
 
