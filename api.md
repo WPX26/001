@@ -698,8 +698,9 @@ GET /tether/session/{sessionId}/photos
 
 ## 8.10 手机互联（Phone Link）
 
-> **2026-08-15 王总定稿 UI 后新增**：手机与手机互联（scrcpy 式远程快门）——被控端 A（装了 APP 的 Android/iPhone）创建配对获得 6 位连接码，控制端 B（网页）输入/扫码加入后，B 实时看到 A 的屏幕画面并**只能按快门**，照片自动在 A 的 APP 生成坐标点。
-> 画面流（MJPEG/WebRTC）由 A 端本地服务直连 B 或二期 SRS 中转，**不走本模块 WS 通道**；本模块只负责配对与命令/信令转发。
+> **2026-08-15 王总定稿 UI 后新增；2026-08-20 升级为「屏控」**：手机与手机互联（scrcpy/AirDroid 式远程控制）——被控端 A（装了 APP 的 Android）创建配对获得 6 位连接码，控制端 B（网页）输入/扫码加入后，B **实时看到 A 的屏幕画面并可远程点/滑/长按/系统键操作 A（含系统相机快门）**，照片自动在 A 的 APP 生成坐标点。
+> 画面流（MJPEG，帧走 WS 的 `frame` 消息原样透传）由 A 端 App UTS 插件录屏产生；B 端手势走 `touch` 消息原样透传到 A 端 App 注入。本模块只负责配对与消息透传，**后端零改动**。
+> **iOS**：Apple 无第三方触摸注入 API，App 内无法复刻控屏；Facetime 远程控制权（iOS 18+）为 Apple 自家能力——第 2 期做「一键引导」跳转 Facetime 现成控屏。
 
 ### 8.10.1 创建配对（被控端 A）
 ```
@@ -750,6 +751,10 @@ POST /phonelink/pairs/{code}/close    （需登录 + 必须是创建者，幂等
 - host = 被控端 A；client = 控制端 B；同码同角色只允许一个连接（新连接顶掉旧连接）
 - 两端消息原样透传（`{ type, data }`，type=signal/command 等业务自定义）；`ping` 保活回 `pong`
 - 服务端事件：`client_joined`（→host）、`host_ready`（→client）、`peer_left`（→对端）
+- **屏控消息**（2026-08-20，业务自定义透传）：
+  - `frame`（A→B）：`{ type:'frame', data:<base64 JPEG dataURL> }` — A 端屏幕帧（App 录屏注入网页后沿此通道推送，B 端显示逻辑复用）
+  - `screen_on` / `screen_off`（A→B）：屏控启停通知，B 据此显示/隐藏触摸层
+  - `touch`（B→A）：`{ type:'touch', data:{ action:'tap'|'swipe'|'longpress'|'back'|'home', x,y,x2?,y2? } }` — 坐标归一化 0~1，A 端 App 按真实屏幕像素换算后注入
 - host 断开 → 配对自动置 closed；心跳 30s 探活
 
 **命令语义（业务层约定，后端透传）**：`{ "type": "capture" }` 远程快门；`{ "type": "status", "data": {...} }` 状态同步。

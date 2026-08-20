@@ -174,7 +174,11 @@
 
 ### 6.3 手机互联（⑥，已上线待两机实测）
 
-**定稿**（王总 08-15）：**手机控制手机**（scrcpy/AirDroid 式）——A 拍照 B 控制 B 看 A 屏幕；**首版只支持 Android 被控**（MediaProjection 录屏 + 无障碍手势注入）；iPhone 被控不可能（Apple 无触摸注入 API，越狱除外；iOS 只可 ReplayKit 监看不控制二期选项 +1-2 周）；控制端 = B 用网页浏览器；纯自研不接第三方 SDK。拍照瞬间照片自动在 APP 生成坐标点（被控端开我们 APP 相机页 → 现有链路自动落点，零新增）。
+**定稿**（王总 08-15）：**手机控制手机**（scrcpy/AirDroid 式）——A 拍照 B 控制 B 看 A 屏幕；**首版只支持 Android 被控**（MediaProjection 录屏 + 无障碍手势注入）；控制端 = B 用网页浏览器；纯自研不接第三方 SDK。拍照瞬间照片自动在 APP 生成坐标点（被控端开我们 APP 相机页 → 现有链路自动落点，零新增）。
+
+**屏控实现（2026-08-20）**：安卓 UTS 插件 `src/uni_modules/uts-screencontrol`（MediaProjection 录屏 ~5fps → JPEG base64 回调 + AccessibilityService dispatchGesture：tap/swipe/longpress/back/home）+ connect.vue evalJS 桥（帧注入）+ connect-prototype.html A 端帧源切换（`__plScreenFrame`/`__plScreenStatus`）与 B 端触摸层（`screen_on/off` 控制显隐，`touch` 消息归一化坐标）。WS 消息 `frame/screen_on/screen_off/touch` 后端原样透传**零改动**。真机验证：A 开 App 联机页 → 屏幕共享（授权+无障碍）→ B 输码 → 看 A 屏并点/滑。
+
+**iOS 定稿修正（2026-08-20）**：Facetime 远程控制权**真实存在**（iOS 18+，A/B 互存联系人，Facetime 通话中可请求/提供控制权）——但为 **Apple 自家 Facetime App 专属**，第三方无公开 API（Splashtop 官方：iOS 只能 view-only）。结论：我们 App 内**无法复刻**控屏，第 2 期做「一键引导」用 Facetime 现成控屏（App 内入口 + 引导页）。
 
 **已上线**：63a2599（后端 phonelink 配对 + WS 通道 + UI 并入）+ f416d56（去模拟化：/tether/detect 真实 SSDP 扫描 239.255.255.250:1900 + A 端 getUserMedia 真实帧推流 320 JPEG ~6fps + B 按快门 → A 真实截帧 + GPS + 缩略图落 pendingPhotos + photo_ready 回传）。
 - 后端：phonelink-pair.model.js（6 位码、10min TTL、状态机 pending/joined/closed）+ controller（POST /pairs、/pairs/join 原子抢占、/pairs/:code/close）+ WS（/api/v1/phonelink/ws?code=&role=host|client，30s 心跳）；api.md §8.10

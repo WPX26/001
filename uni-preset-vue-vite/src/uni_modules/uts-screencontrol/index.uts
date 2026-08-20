@@ -1,0 +1,51 @@
+/**
+ * 手机互联「屏控」UTS 插件（Android）
+ *
+ * 能力：
+ * 1. startScreenShare：MediaProjection 录屏 → 逐帧 JPEG（base64 dataURL）回调（约 5fps）
+ * 2. injectGesture：无障碍服务手势注入（tap / swipe / longpress / back / home / recent）
+ *
+ * 桥接：web-view 页面 ⇄ uni.postMessage / evalJS ⇄ App vue 层 ⇄ 本插件 ⇄ Android
+ */
+
+export interface ScreenControlResult {
+  code: number
+  message: string
+}
+
+export interface GestureDesc {
+  /** tap | swipe | longpress | back | home | recent */
+  action: string
+  /** 归一化坐标 0~1（相对屏幕） */
+  x?: number
+  y?: number
+  x2?: number
+  y2?: number
+  /** 时长 ms（swipe/longpress） */
+  duration?: number
+}
+
+/** 开始录屏。onFrame 每帧回调 base64 JPEG dataURL；返回 { code:0 } 表示已启动 */
+export function startScreenShare(onFrame: (frame: string) => void): Promise<ScreenControlResult> {
+  return androidStartScreenShare(onFrame)
+}
+
+/** 停止录屏（前台服务与投影一并释放） */
+export function stopScreenShare(): void {
+  androidStopScreenShare()
+}
+
+/** 注入手势（需用户在系统设置开启本 App 的无障碍服务） */
+export function injectGesture(g: GestureDesc): Promise<ScreenControlResult> {
+  return androidInjectGesture(g)
+}
+
+/** 跳转系统无障碍设置页 */
+export function openAccessibilitySettings(): void {
+  androidOpenAccessibilitySettings()
+}
+
+/** 本 App 的无障碍服务是否已开启 */
+export function isAccessibilityEnabled(): boolean {
+  return androidIsAccessibilityEnabled()
+}

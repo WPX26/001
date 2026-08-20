@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- 录屏：前台服务 + 通知 -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- 无障碍服务 -->
+  <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+
+  <application>
+    <!-- 透明授权页：向用户申请录屏（MediaProjection 必须 startActivityForResult） -->
+    <activity
+        android:name="io.dcloud.uni_modules.uts_screencontrol.ScreenShareRequestActivity"
+        android:theme="@android:style/Theme.Translucent.NoTitleBar"
+        android:launchMode="singleInstance"
+        android:excludeFromRecents="true"
+        android:exported="false" />
+
+    <!-- 录屏前台服务（Android 10+ 必须前台服务，Android 14 需 mediaProjection 类型） -->
+    <service
+        android:name="io.dcloud.uni_modules.uts_screencontrol.ScreenControlService"
+        android:foregroundServiceType="mediaProjection"
+        android:exported="false" />
+
+    <!-- 无障碍手势注入服务（需用户手动开启） -->
+    <service
+        android:name="io.dcloud.uni_modules.uts_screencontrol.ScreenControlAccessibilityService"
+        android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+        android:exported="true">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data
+          android:name="android.accessibilityservice"
+          android:resource="@xml/screencontrol_accessibility" />
+    </service>
+  </application>
+</manifest>

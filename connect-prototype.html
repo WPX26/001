@@ -1017,6 +1017,57 @@
   .pair-host-cam-status b { color: #4CAF50; font-weight: 600; }
   .pair-host-cam-status.err { color: #F0A040; }
 
+  /* 屏控（2026-08-20 定稿：scrcpy 式「B 看 A 屏 + B 控 A」）
+     A 端 App：UTS 插件 MediaProjection 录屏 → evalJS 注入帧 → 现有 frame 通道推给 B
+     B 端网页：触摸层 → {type:'touch'} → 后端透传 → A 页 → postMessage → 插件 dispatchGesture */
+  .pl-screen-btn { display: none; position: relative; z-index: 2; flex: none; width: min(300rem, 82%); }
+  body.app-webview .pl-screen-btn { display: flex; }
+  .pl-screen-status {
+    position: relative; z-index: 2;
+    font-size: 12rem;
+    color: rgba(245, 223, 192, 0.9);
+    background: rgba(0, 0, 0, 0.45);
+    padding: 4rem 12rem;
+    border-radius: 8rem;
+  }
+  .pl-screen-status.on { color: #4CAF50; }
+  .pl-screen-status.on::before { content: '\25CF '; }
+
+  /* B 端触摸层（屏控激活时显示）：覆盖远程画面，捕获点击/滑动/长按 */
+  .pl-touch-layer {
+    position: absolute; inset: 0; z-index: 3;
+    touch-action: none;
+    cursor: crosshair;
+    background: transparent;
+  }
+  .pl-touch-cursor {
+    position: absolute; z-index: 4;
+    width: 40rem; height: 40rem;
+    margin: -20rem 0 0 -20rem;
+    border: 3rem solid rgba(240, 160, 64, 0.9);
+    border-radius: 50%;
+    background: rgba(240, 160, 64, 0.15);
+    pointer-events: none;
+    display: none;
+  }
+  .pl-touch-cursor.show { display: block; }
+
+  /* B 端系统键条（返回 / 主页） */
+  .pl-syskeys {
+    position: absolute; left: 50%; bottom: 14rem; transform: translateX(-50%);
+    display: flex; gap: 10rem; z-index: 5;
+  }
+  .pl-syskeys button {
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(245, 223, 192, 0.95);
+    border: 1rem solid rgba(245, 223, 192, 0.35);
+    border-radius: 8rem;
+    font-size: 12rem;
+    padding: 6rem 16rem;
+    cursor: pointer;
+  }
+  .pl-syskeys button:active { background: rgba(240, 160, 64, 0.4); }
+
   /* 相机互联真实空态（未检测到相机） */
   .detect-empty {
     display: none;
@@ -1122,6 +1173,13 @@
       else document.addEventListener('DOMContentLoaded', add);
     }
     var isAppWebview = !!(window.uni && uni.postMessage) || (typeof plus !== 'undefined' && plus.android);
+    window.__isAppWebview = isAppWebview; // 供后续脚本（手机互联屏控）判断 App 内环境
+    if (isAppWebview) {
+      // 给 body 加 app-webview 标记：App 内才显示「屏幕共享」等原生能力入口
+      var addAppCls = function () { document.body.classList.add('app-webview'); };
+      if (document.body) addAppCls();
+      else document.addEventListener('DOMContentLoaded', addAppCls);
+    }
     var isPhone = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 600;
     if (params.get('full') === '1' && isPhone) {
       // App web-view 内嵌 / 手机浏览器 full=1：全屏 + 保留 H5 导航（App 壳无 tabBar，导航由网页承担）
@@ -1405,10 +1463,13 @@
             </div>
             <div class="pair-host-expire">连接码 <b id="pairExpireText">10:00</b> 后过期</div>
 
-            <!-- 真实相机区（去模拟化：getUserMedia 真实相机 → 帧推流给控制端） -->
+            <!-- 真实相机区（去模拟化：getUserMedia 真实相机 → 帧推流给控制端）
+                 屏控（App 内）：屏幕共享按钮 = 启动 MediaProjection 录屏，把整屏帧推给控制端 -->
             <div class="pair-host-cam">
               <video id="plHostVideo" autoplay playsinline muted style="display:none"></video>
               <button class="pair-btn primary" id="plHostCamBtn">开启相机</button>
+              <button class="pair-btn ghost pl-screen-btn" id="plScreenBtn">屏幕共享</button>
+              <div class="pl-screen-status" id="plScreenStatus" style="display:none"></div>
               <div class="pair-host-cam-status" id="plHostCamStatus">开启相机后，控制端即可看到实时画面</div>
             </div>
           </div>
@@ -1425,6 +1486,14 @@
                   </svg>
                   <span>等待被控手机画面…</span>
                 </div>
+                <!-- 屏控触摸层（收到 screen_on 后显示）：点/滑/长按 → 远程注入被控机 -->
+                <div class="pl-touch-layer" id="plTouchLayer" style="display:none"></div>
+                <div class="pl-touch-cursor" id="plTouchCursor"></div>
+              </div>
+              <!-- 屏控系统键：返回 / 主页 -->
+              <div class="pl-syskeys" id="plSysKeys" style="display:none">
+                <button id="plKeyBack">返回</button>
+                <button id="plKeyHome">主页</button>
               </div>
             </div>
             <div class="remote-badge">
@@ -1908,6 +1977,14 @@
     // ---------- 断开清理（closeRemote: 是否告知后端 host 关闭） ----------
     function plTeardown(closeRemote) {
       plStopCamera(); // 关闭真实相机（getUserMedia 释放）
+      // 屏控清理：通知 App 停止录屏 + 复位 A/B 端屏控 UI
+      plScreenActive = false;
+      try { if (plIsApp()) plPostToApp('pl_screen_stop'); } catch (e) {}
+      plScreenBtn.textContent = '屏幕共享';
+      plScreenStatusEl.style.display = 'none';
+      plTouchLayer.style.display = 'none';
+      plSysKeys.style.display = 'none';
+      $('phoneWsHint').textContent = '只能按下快门 · 其余操作请在被控手机上完成';
       plStopCountdown();
       if (plWs) {
         try { plWs.close(); } catch (e) {}
@@ -2072,6 +2149,19 @@
           badge.classList.add('show');
           $('phoneGallery').style.display = '';
           if (msg.data && msg.data.thumb) $('phoneGalleryImg').src = msg.data.thumb;
+        } else if (msg.type === 'screen_on') {
+          // client：被控端已开启屏幕共享 → 显示触摸层（可点/滑/长按操作被控机）
+          plTouchLayer.style.display = '';
+          plSysKeys.style.display = '';
+          $('phoneWsHint').textContent = '已接管屏幕 · 点击 / 滑动即可远程操作被控手机';
+        } else if (msg.type === 'screen_off') {
+          // client：被控端关闭屏幕共享 → 隐藏触摸层，回到仅快门模式
+          plTouchLayer.style.display = 'none';
+          plSysKeys.style.display = 'none';
+          $('phoneWsHint').textContent = '只能按下快门 · 其余操作请在被控手机上完成';
+        } else if (msg.type === 'touch') {
+          // host：控制端远程手势 → App 内转发给 UTS 插件注入（纯浏览器端无注入能力，忽略）
+          if (plIsApp()) plPostToApp('pl_touch', msg.data);
         } else if (msg.type === 'peer_left') {
           if (plRole === 'client') showToast('被控手机已断开连接');
           plTeardown(false);
@@ -2268,6 +2358,7 @@
       var canvas = document.createElement('canvas');
       plFrameTimer = setInterval(function () {
         if (!plStream || !plWs || plWs.readyState !== 1 || plRole !== 'host') return;
+        if (plScreenActive) return; // 屏控激活：帧源切换为屏幕（evalJS 注入），停用相机帧
         var vw = plVideo.videoWidth, vh = plVideo.videoHeight;
         if (!vw || !vh) return;
         var scale = 720 / vw;
@@ -2286,6 +2377,143 @@
     function plTeardownHostCaptureReady() {
       // host 视图：控制端已加入（真实拍摄由 plCapturePhoto 接管）
     }
+
+    // =====================================================================
+    // 屏控（2026-08-20 定稿：scrcpy 式「B 看 A 屏 + B 控 A」）
+    //  A 端（App 内）：UTS 插件 MediaProjection 录屏 → connect.vue evalJS 注入
+    //    __plScreenFrame → 本页沿现有 frame 通道推给 B（B 端显示逻辑零改动）
+    //  B 端（网页）：触摸层 → {type:'touch'} → 后端透传 → A 页 → postMessage
+    //    → App 层 → UTS 插件 dispatchGesture 注入（tap/swipe/longpress/back/home）
+    // =====================================================================
+    var plScreenActive = false;           // 帧源已切换为屏幕
+    var plScreenBtn = $('plScreenBtn');
+    var plScreenStatusEl = $('plScreenStatus');
+    var plTouchLayer = $('plTouchLayer');
+    var plTouchCursor = $('plTouchCursor');
+    var plSysKeys = $('plSysKeys');
+
+    // ---- A 端：网页 ← App（evalJS 注入，connect.vue 桥） ----
+    window.__plScreenFrame = function (dataUrl) {
+      // App 原生录屏帧注入：仅 host 且连接正常且屏控激活时沿 frame 通道推送
+      if (plRole !== 'host' || !plWs || plWs.readyState !== 1 || !plScreenActive) return;
+      plWs.send(JSON.stringify({ type: 'frame', data: dataUrl }));
+    };
+    window.__plScreenStatus = function (status) {
+      if (status && status.ok) {
+        plScreenActive = true;
+        plScreenBtn.textContent = '停止共享';
+        plScreenStatusEl.style.display = '';
+        plScreenStatusEl.textContent = '屏幕共享中 · 控制端可远程操作';
+        plScreenStatusEl.className = 'pl-screen-status on';
+        plStopFramePush(); // 帧源唯一：屏控激活时停 getUserMedia 推流
+        if (plWs && plWs.readyState === 1) plWs.send(JSON.stringify({ type: 'screen_on' }));
+      } else {
+        var wasActive = plScreenActive;
+        plScreenActive = false;
+        plScreenBtn.textContent = '屏幕共享';
+        plScreenStatusEl.style.display = (status && status.message) ? '' : 'none';
+        plScreenStatusEl.textContent = (status && status.message) || '';
+        plScreenStatusEl.className = 'pl-screen-status';
+        if (wasActive && plWs && plWs.readyState === 1) plWs.send(JSON.stringify({ type: 'screen_off' }));
+      }
+    };
+
+    // ---- A 端：网页 → App（uni.postMessage，connect.vue 桥） ----
+    function plPostToApp(type, data) {
+      if (window.uni && uni.postMessage) {
+        try { uni.postMessage({ data: { type: type, data: data } }); } catch (e) {}
+      }
+    }
+    function plIsApp() { return !!window.__isAppWebview; }
+
+    plScreenBtn.addEventListener('click', function () {
+      if (!plIsApp()) {
+        showToast('屏幕共享需在 App 内使用（Android）');
+        return;
+      }
+      if (plScreenActive) {
+        plPostToApp('pl_screen_stop');
+        window.__plScreenStatus({ ok: false, message: '' });
+      } else {
+        plPostToApp('pl_ready'); // 确保 App 侧 webReady（帧注入就绪）
+        plScreenStatusEl.style.display = '';
+        plScreenStatusEl.textContent = '等待系统授权…';
+        plScreenStatusEl.className = 'pl-screen-status';
+        plPostToApp('pl_screen_start');
+      }
+    });
+
+    // ---- B 端：触摸层 → 远程注入（坐标归一化 0~1，A 端按真实屏幕像素换算） ----
+    function plTouchPoint(clientX, clientY) {
+      var rect = plTouchLayer.getBoundingClientRect();
+      var x = Math.min(1, Math.max(0, (clientX - rect.left) / (rect.width || 1)));
+      var y = Math.min(1, Math.max(0, (clientY - rect.top) / (rect.height || 1)));
+      return { x: x, y: y };
+    }
+    function plTouchSend(msg) {
+      if (!plWs || plWs.readyState !== 1 || plRole !== 'client') return;
+      plWs.send(JSON.stringify({ type: 'touch', data: msg }));
+    }
+    function plTouchShowCursor(x, y, show) {
+      if (!show) { plTouchCursor.classList.remove('show'); return; }
+      plTouchCursor.style.left = (x * 100) + '%';
+      plTouchCursor.style.top = (y * 100) + '%';
+      plTouchCursor.classList.add('show');
+    }
+    var plTouchDown = null;
+    var plTouchMoved = false;
+    var plLongFired = false;
+    var plLongTimer = null;
+
+    plTouchLayer.addEventListener('pointerdown', function (e) {
+      if (plTouchLayer.style.display === 'none') return;
+      e.preventDefault();
+      try { plTouchLayer.setPointerCapture(e.pointerId); } catch (err) {}
+      var p = plTouchPoint(e.clientX, e.clientY);
+      plTouchDown = p;
+      plTouchMoved = false;
+      plLongFired = false;
+      plTouchShowCursor(p.x, p.y, true);
+      if (plLongTimer) clearTimeout(plLongTimer);
+      plLongTimer = setTimeout(function () {
+        if (plTouchDown && !plTouchMoved && !plLongFired) {
+          plLongFired = true;
+          plTouchSend({ action: 'longpress', x: plTouchDown.x, y: plTouchDown.y });
+        }
+      }, 600);
+    });
+    plTouchLayer.addEventListener('pointermove', function (e) {
+      if (!plTouchDown) return;
+      e.preventDefault();
+      var p = plTouchPoint(e.clientX, e.clientY);
+      if (Math.abs(p.x - plTouchDown.x) > 0.03 || Math.abs(p.y - plTouchDown.y) > 0.03) plTouchMoved = true;
+      plTouchShowCursor(p.x, p.y, true);
+    });
+    plTouchLayer.addEventListener('pointerup', function (e) {
+      if (!plTouchDown) return;
+      e.preventDefault();
+      if (plLongTimer) { clearTimeout(plLongTimer); plLongTimer = null; }
+      var p = plTouchPoint(e.clientX, e.clientY);
+      plTouchShowCursor(p.x, p.y, false);
+      if (!plLongFired) {
+        var dx = p.x - plTouchDown.x, dy = p.y - plTouchDown.y;
+        if (!plTouchMoved || Math.sqrt(dx * dx + dy * dy) < 0.03) {
+          plTouchSend({ action: 'tap', x: p.x, y: p.y });
+        } else {
+          plTouchSend({ action: 'swipe', x: plTouchDown.x, y: plTouchDown.y, x2: p.x, y2: p.y });
+        }
+      }
+      plTouchDown = null;
+    });
+    plTouchLayer.addEventListener('pointercancel', function () {
+      if (plLongTimer) { clearTimeout(plLongTimer); plLongTimer = null; }
+      plTouchDown = null;
+      plTouchShowCursor(0, 0, false);
+    });
+
+    // 系统键：返回 / 主页（注入被控机）
+    $('plKeyBack').addEventListener('click', function () { plTouchSend({ action: 'back' }); });
+    $('plKeyHome').addEventListener('click', function () { plTouchSend({ action: 'home' }); });
 
     // ---------- 快门（client）：发送 capture ----------
     phoneShutter.addEventListener('click', function () {
