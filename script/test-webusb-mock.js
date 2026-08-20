@@ -62,6 +62,7 @@ class MockUsbCamera {
     this.store = [0x100, 0x200, 0x300]; // 已存对象句柄（r45 轮询兜底）
     this.getEventCalls = 0;          // r46：统计 GetEvent(0x9116) 被调用次数（非远程应为 0）
     this.hangGetEvent = false;       // r46：模拟真机 GetEvent 挂起（无应答，读端等到超时）
+    this.hangStorage = false;        // r47：模拟真机标准 PTP 存储命令挂起（0x1004/0x1006/0x1007 无应答）
   }
   /** 模拟相机把标准 PTP 事件（type=4 容器）发到中断IN端点——非远程模式 5D2 的 ObjectAdded 通道 */
   pushIntrEvent(buf) {
@@ -124,10 +125,13 @@ class MockUsbCamera {
         return [pkt(3, RC.OK, tid)];
       case OC.GET_STORAGE_IDS: // 保活降级兜底：0x1004 应答一张 CF 卡
         this.getStorageIdsCalls = (this.getStorageIdsCalls || 0) + 1;
+        if (this.hangStorage) return []; // r47：挂起——无应答 → 读端空读转圈到短超时
         return [pkt(2, OC.GET_STORAGE_IDS, tid, u32(1).concat(u32(0x00010001))), pkt(3, RC.OK, tid)];
       case OC.GET_NUM_OBJECTS: // r45 轮询兜底：对象计数
+        if (this.hangStorage) return []; // r47：挂起
         return [pkt(2, OC.GET_NUM_OBJECTS, tid, u32(this.store.length)), pkt(3, RC.OK, tid)];
       case OC.GET_OBJECT_HANDLES: { // r45 轮询兜底：句柄枚举
+        if (this.hangStorage) return []; // r47：挂起
         const hb = [];
         for (const h of this.store) hb.push(...u32(h));
         return [pkt(2, OC.GET_OBJECT_HANDLES, tid, hb), pkt(3, RC.OK, tid)];
@@ -637,6 +641,36 @@ async function main() {
     JSON.stringify(diags));
   ptp18.stopEvents();
   tr18.release();
+
+  /* ===== 15. r47 回归：存储枚举挂起 → 3s 探测失败即关闭轮询兜底，中断事件通道仍检测 ===== */
+  console.log('\n[15] r47：存储挂起 → 探测关轮询，中断事件仍检测');
+  const cam19 = new MockUsbCamera();
+  cam19.hangStorage = true; // 0x1004/0x1006/0x1007 无应答（r46 真机：0x1004 挂 20s 毒化管道）
+  const dev19 = makeUsbDevice(cam19);
+  const t19 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev19]),
+    requestDevice: () => Promise.resolve(dev19)
+  } } });
+  const tr19 = await t19.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera19 = require('../camera-ptp.js');
+  const ptp19 = new PtpCamera19(tr19);
+  await ptp19.openSession();
+  await ptp19.getDeviceInfo();
+  const diags19 = [];
+  ptp19.onDiag((m) => diags19.push(m));
+  ptp19.startEvents(); // 存储挂起时唯一的检测通道 = 中断端点
+  const wait19 = ptp19.waitForObject(12000); // 默认非远程
+  setTimeout(() => cam19.pushIntrEvent(intrPkt(0x4002, [0x9AB, 0x00010001])), 4500); // 探测 3s 失败后再来事件
+  const obj19 = await wait19;
+  ok('存储挂起 → 探测失败关轮询后，中断事件(0x4002)仍检测到（objectId=0x9AB, source=中断端点）',
+    obj19 && obj19.objectId === 0x9AB && obj19.source === '中断端点(0x4002)',
+    JSON.stringify(obj19));
+  ok('存储挂起 → 轮询兜底被关闭（_storageOk=false）',
+    ptp19._storageOk === false, '_storageOk=' + ptp19._storageOk);
+  ok('诊断含「关闭轮询兜底」',
+    diags19.some((m) => /关闭轮询/.test(m)), JSON.stringify(diags19));
+  ptp19.stopEvents();
+  tr19.release();
 
   /* ===== 结果 ===== */
   console.log('\n结果: ' + passed + ' 通过, ' + failed + ' 失败');

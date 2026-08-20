@@ -396,7 +396,33 @@
    * @param {Uint8Array} [outData] 命令携带的 data 阶段负载
    * @returns {Promise<{data:Uint8Array, params:number[]}>}
    */
+  /** r47：全栈事务串行化——单 bulk 管道绝不允许两个 transact 并发。
+   *  PTP 规范：收到上一条响应前不得发下一条；并发 = 后到的命令被相机丢弃/错位 →
+   *  真机 r46 实测 0x1004 GetStorageIDs 在 keepAlive(0x911D) 尚在飞行时被丢 → 20s 读超时 →
+   *  管道毒化（后续写也 4s 超时）→ 会话 24s 内死。此前 keepAlive 是 fire-and-forget 不 await，
+   *  与轮询/GetEvent 同管道并发——本文件 _pollEnsureBaseline 注释早已警告同类抢包。
+   *  mutex 让 fire-and-forget 也只是排队，永不并发（与 gphoto2 严格串行一致）。 */
+  PtpCamera.prototype._txRun = function (fn) {
+    var self = this;
+    var run = (self._txChain || Promise.resolve()).then(function () { return fn(); });
+    self._txChain = run.then(function () {}, function () {}); // 吞错保链，错误仍由调用方处理
+    return run;
+  };
   PtpCamera.prototype.transact = function (code, params, outData, timeoutMs) {
+    var self = this;
+    var t0 = Date.now();
+    return self._txRun(function () { return self._transactImpl(code, params, outData, timeoutMs); })
+      .then(function (res) {
+        var ms = Date.now() - t0;
+        if (ms > 800) self._diag('⏱ 命令 0x' + (code || 0).toString(16) + ' 耗时 ' + ms + 'ms'); // r47 慢命令追踪
+        return res;
+      }, function (e) {
+        var ms = Date.now() - t0;
+        if (ms > 800) self._diag('⏱ 命令 0x' + (code || 0).toString(16) + ' 耗时 ' + ms + 'ms 后失败: ' + ((e && e.message) || e).toString().slice(0, 40));
+        throw e;
+      });
+  };
+  PtpCamera.prototype._transactImpl = function (code, params, outData, timeoutMs) {
     var self = this;
     var t = timeoutMs || 20000;
     var busytries = 0;
@@ -759,25 +785,25 @@
     var m = (e && e.message || '').toString();
     return /disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(m);
   }
-  /** 初始化轮询基线（每会话一次，跨 waitForObject 保持）：发现存储 + 对象计数 + 句柄集 */
+  /** 初始化轮询基线（每会话一次，跨 waitForObject 保持）：发现存储 + 对象计数 + 句柄集。
+   *  r47：存储枚举探测（短超时 3s）——真机 r46 实锤 0x1004 在等待循环里 20s 读超时并毒化管道，
+   *  每次轮询都卡 20s 会饿死事件循环（r45「6 分钟零检测+掉线」主因）。探测失败 → 立即关闭
+   *  轮询兜底（仅靠事件通道），绝不反复试探；成功才启用。所有命令经全局 mutex 串行。 */
   PtpCamera.prototype._pollEnsureBaseline = function () {
     var self = this;
     if (self._pollState) return Promise.resolve(self._pollState);
-    return self.transact(PTP_OC_GET_STORAGE_IDS, []).then(function (res) {
+    if (self._storageOk === false) return Promise.resolve(null);
+    return self.transact(PTP_OC_GET_STORAGE_IDS, [], null, 3000).then(function (res) {
       var ids = parseParams(res.data);
-      return (ids && ids.length) ? ids : [0x00010001];
-    }, function (e) {
-      self._diag('轮询 GetStorageIDs(0x1004) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（兜底 0x00010001）');
-      return [0x00010001];
-    }).then(function (storages) {
+      var storages = (ids && ids.length) ? ids : [0x00010001];
+      self._storageOk = true;
       var st = { storages: storages, counts: {}, handles: {} };
-      // 顺序遍历（勿并发！单 bulk 管道共享 _waitResponse，并发 transact 会互相抢包，
-      // data 分支等到另一个 DATA 包 → 抛「期望响应包，收到 type=2」）
+      // 顺序遍历（mutex 已全局串行，双保险——单 bulk 管道绝不允许并发 transact 抢包）
       return storages.reduce(function (chain, s) {
         return chain.then(function () {
-          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0]).then(function (r) {
+          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0], null, 2500).then(function (r) {
             st.counts[s] = parseParams(r.data)[0] || 0;
-            return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0]).then(function (h) {
+            return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0], null, 2500).then(function (h) {
               st.handles[s] = parseParams(h.data) || [];
               return true;
             }).catch(function (e) {
@@ -794,12 +820,20 @@
         self._diag('轮询基线: ' + storages.map(function (s) { return '0x' + s.toString(16) + '=' + (st.counts[s] || 0); }).join(' ') + ' 张');
         return st;
       });
+    }, function (e) {
+      if (_pollDisconnectRe(e)) throw e;
+      self._storageOk = false;
+      self._pollDisabledReason = ((e && e.message) || e).toString().slice(0, 60);
+      self._diag('存储枚举 GetStorageIDs(0x1004) 失败: ' + self._pollDisabledReason + ' → 关闭轮询兜底，仅靠事件通道（中断端点/GetEvent）');
+      return null;
     });
   };
   /** 轮询检测新照片（best-effort）：返回 {objectId, storageId, source} 或 null；断开类错误抛出 */
   PtpCamera.prototype._pollDetectNew = function () {
     var self = this;
+    if (self._storageOk === false) return Promise.resolve(null); // r47：探测失败 → 轮询彻底关闭（防反复 20s 卡死）
     return self._pollEnsureBaseline().then(function (st) {
+      if (!st) return null;
       // r46 诊断：心跳（每 15 轮≈30s 一行）证明轮询活着 + 实时张数
       self._pollDiagN = (self._pollDiagN || 0) + 1;
       if (self._pollDiagN % 15 === 1) {
@@ -809,7 +843,7 @@
       return st.storages.reduce(function (chain, s) {
         return chain.then(function (found) {
           if (found) return found;
-          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0]).then(function (r) {
+          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0], null, 2500).then(function (r) {
             var n = parseParams(r.data)[0] || 0;
             var oldN = st.counts[s] || 0;
             if (n <= oldN) return null;
@@ -895,7 +929,7 @@
         if (/disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(kMsg)) throw kErr;
       }
       var now = Date.now();
-      if (now - self._lastKeepAlive > 10000) {
+      if (self._storageOk !== false && now - self._lastKeepAlive > 10000) {
         self._lastKeepAlive = now;
         var kaMode = self._keepAliveUseFallback ? '0x1004降级' : '0x911D';
         if (self._keepAliveDiagMode !== kaMode) { self._keepAliveDiagMode = kaMode; self._diag('保活走 ' + kaMode); }
@@ -909,7 +943,7 @@
       }
       // 轮询兜底（r46：独立于 GetEvent 执行——GetEvent 不再能拖死它）
       function runPoll() {
-        if (pollEnabled && Date.now() - lastPoll >= pollInterval) {
+        if (pollEnabled && self._storageOk !== false && Date.now() - lastPoll >= pollInterval) {
           lastPoll = Date.now();
           return self._pollDetectNew().then(function (hit) {
             if (hit) return self._resolveStdObject(hit.objectId, hit.storageId)
@@ -923,7 +957,7 @@
         if (!self._skipGeDiag) { self._skipGeDiag = true; self._diag('非远程模式：跳过 GetEvent(0x9116)，中断端点 + 轮询兜底'); }
         return runPoll();
       }
-      return self.transact(PTP_OC_EOS_GET_EVENT, []).then(function (res) {
+      return self.transact(PTP_OC_EOS_GET_EVENT, [], null, 2000).then(function (res) {
         var found = null;
         var evs = parseEosEvents(res.data);
         for (var j = 0; j < evs.length; j++) {
