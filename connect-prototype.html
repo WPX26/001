@@ -465,6 +465,25 @@
   .ws-close { cursor: pointer; padding: 4rem; }
   .ws-close svg { width: 24rem; height: 24rem; color: white; }
 
+  /* r37：机身快门测试按钮（工作台顶部，web-gphoto2 会话内零编译实测） */
+  .ws-bodytest-gp {
+    display: flex;
+    align-items: center;
+    gap: 6rem;
+    margin: 0 auto 0 12rem;
+    padding: 7rem 14rem;
+    background: rgba(232, 144, 32, 0.12);
+    border: 1rem solid rgba(232, 144, 32, 0.5);
+    border-radius: 14rem;
+    color: #E89020;
+    font-size: 12rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ws-bodytest-gp:hover { background: rgba(232, 144, 32, 0.22); }
+  .ws-bodytest-gp:active { transform: scale(0.96); }
+
   .ws-viewfinder {
     flex: 1;
     background: #111;
@@ -544,11 +563,13 @@
   /* 底部快门区 */
   .ws-bottom {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     padding: 10rem 30rem 30rem;
-    background: #1C1C1E;
+    background: #000;
   }
+  /* r32 2026-08-19 王总：底部只保留左下角相框，快门/占位隐藏，区域填黑（DOM 保留可恢复） */
+  .ws-bottom > *:not(.ws-gallery) { display: none; }
   
   .ws-shutter {
     width: 68rem; height: 68rem;
@@ -1455,13 +1476,17 @@
         <div class="pair-input-mask" id="usbCamMask">
           <div class="pair-input-card">
             <div class="pair-input-title">USB 连接相机</div>
-            <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机，点击「检测设备」</div>
+            <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机</div>
             <div class="usb-cam-list" id="usbCamList"></div>
             <div class="usb-cam-status" id="usbCamStatus" style="display:none"></div>
+            <div style="font-size:12rem;color:rgba(245,223,192,0.8);margin-top:2rem;line-height:1.8;" id="usbCamBodyHint">
+              点下方相机 → 连接后<b>在相机机身上按快门</b>，照片<b>自动进入左下角相册</b>（实时取景下一步接入）
+            </div>
             <div class="pair-input-actions">
               <button class="pair-btn ghost" id="usbCamCancel">取消</button>
               <button class="pair-btn primary" id="usbCamScan">检测设备</button>
             </div>
+            <div id="usbCamLegacyLink" style="margin-top:10px;text-align:center;font-size:11rem;color:rgba(245,223,192,0.4);cursor:pointer;text-decoration:underline;">旧版：实时取景模式（照片不自动进相册）</div>
           </div>
         </div>
 
@@ -1478,6 +1503,8 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;color:#888;"><rect x="2" y="7" width="16" height="10" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
               </div>
             </div>
+            <button class="ws-bodytest-gp" id="wsBodyTestGp" title="测试机身快门：直接在相机机身上按快门，验证能否拍照并自动导入（无需退出实时取景）">机身快门测试</button>
+            <button class="ws-bodytest-gp" id="wsRemoteToggle" title="r38：远程模式开关（诊断）——切换 setConfigValue('remotemode')，验证机身快门/实时取景与远程模式的因果关系">远程模式: 关</button>
             <div class="ws-close" id="wsClose">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </div>
@@ -2589,11 +2616,24 @@
       deviceInfo: null,
       busy: false,
       photoCount: 0,
-      keepTimer: null
+      keepTimer: null,
+      gpCamera: null // r31：web-gphoto2 实例（webusbMode 专用）
     };
 
     function isUsbEnv() {
       return typeof UsbTether !== 'undefined' && UsbTether.isSupported();
+    }
+
+    // r31：动态加载本地化的 web-gphoto2（WASM libgphoto2，与 web-gphoto2.rreverser.com demo 同源）
+    var _gpModulePromise = null;
+    function loadGpCamera() {
+      if (!_gpModulePromise) {
+        _gpModulePromise = import('./lib/web-gphoto2/build/camera.js').catch(function (e) {
+          _gpModulePromise = null;
+          throw e;
+        });
+      }
+      return _gpModulePromise;
     }
 
     // ---------- 环境诊断（2026-08-15 USB 排查用：web-view 里有哪些桥可用）----------
@@ -2714,17 +2754,72 @@
       statusEl.style.display = 'block';
       statusEl.textContent = '正在连接相机…';
       var ptpStage = 'requestConnect'; // PTP 阶段标记（2026-08-16 排查：无 [stage] 前缀说明错误不在授权链路）
+      // r41：统一为自研栈「普通会话 + 自动导入」——王总要求：点进去后按机身快门照片自动进相册，不要两个模式。
+      // web-gphoto2(wasm) 路径移入 connectLegacy 备用（实时取景可用，但照片不自动进相册）。
+      if (typeof UsbTether !== 'undefined' && UsbTether.webusbMode) {
+        if (usbCam.gpCamera) {
+          showToast('⚠️ 请先断开工作台连接（右上角 ×），并拔插相机 USB 复位（否则接口仍被占用），再点相机连接');
+          usbCam.busy = false;
+          return;
+        }
+        usbCam.busy = false;
+        showBodyTestConfirm();
+        return;
+      }
       UsbTether.get().requestConnect(deviceId).then(function (transport) {
         ptpStage = 'transport';
         usbCam.transport = transport;
         ptpStage = 'newPtp';
         var ptp = new PtpCamera(transport);
         usbCam.ptp = ptp;
-        ptpStage = 'openSession';
-        return ptp.openSession().then(function () {
-          ptpStage = 'getDeviceInfo';
-          return ptp.getDeviceInfo();
-        });
+        // r27 修正（2026-08-18 截图实锤）：连接前不再发 CloseSession——5D2 在无会话状态下
+        // 收到 CloseSession 会 STALL/挂起 OUT 端点，把后续 OpenSession 的 transferOut 堵在同一
+        // 队列 → 4s 假超时（r26 实测 out 超时即此因）。openSession 本身容忍 0x201E 已开会话，
+        // 残留清理由断开时的 CloseSession 负责。
+        ptpStage = 'clearPipe';
+        return transport.clearPipe().then(function () { // r28：端点卫生——先清 IN/OUT halt 再开会话
+          ptpStage = 'openSession';
+          return ptp.openSession();
+        })
+          .catch(function (openErr) {
+            // r25/r27：首次 openSession 失败 → 0x66 兜底重试（独立传输层发送后立即释放，
+            // 防其 transferOut 挂起阻塞重试的 openSession；再全新连接开会话）
+            ptpStage = 'resetRetry';
+            if (usbCam.transport) { try { usbCam.transport.release(); } catch (e) {} }
+            usbCam.transport = null;
+            usbCam.ptp = null;
+            return UsbTether.get().requestConnect(deviceId).then(function (t2) {
+              var ptp2 = new PtpCamera(t2);
+              usbCam.transport = t2;
+              usbCam.ptp = ptp2;
+              return t2.clearPipe().then(function () { // r28：0x66 前同样先清端点 halt
+                return ptp2.deviceReset(3000, true); // 只发不读
+              })
+                .catch(function () {})
+                .then(function () {
+                  // 立即释放 0x66 用的传输层（abort 其挂起 transferOut），换全新队列开会话
+                  try { if (t2) t2.release(); } catch (e) {}
+                  usbCam.transport = null;
+                  usbCam.ptp = null;
+                  return UsbTether.get().requestConnect(deviceId).then(function (t3) {
+                    usbCam.transport = t3;
+                    var ptp3 = new PtpCamera(t3);
+                    usbCam.ptp = ptp3;
+                    return t3.clearPipe().then(function () { // r28：重试连接同样先清端点 halt
+                      return ptp3.openSession();
+                    });
+                  });
+                });
+            }).catch(function (retryErr) {
+              var msg = (openErr && openErr.message || 'openSession 失败') +
+                '；0x66 重试后仍失败：' + (retryErr && retryErr.message || retryErr);
+              throw new Error(msg);
+            });
+          })
+          .then(function () {
+            ptpStage = 'getDeviceInfo';
+            return usbCam.ptp.getDeviceInfo();
+          });
       }).then(function (info) {
         ptpStage = 'setRemoteMode';
         usbCam.deviceInfo = info;
@@ -2756,9 +2851,13 @@
           usbCam.transport = null;
         }
         usbCam.ptp = null;
+        // r30（2026-08-18 根因实锤）：5D2 PTP 固件在每次宿主会话结束后进入假死状态，
+        // 必须物理拔插/断电重启才能恢复（连 gphoto2 都无法软件重连）——超时类错误给出明确引导
+        var rawMsg = (err && err.message || '未知错误');
+        var isNoResponse = /超时|管道已超时|transfer error|no response/i.test(rawMsg);
         usbCam.lastErr = {
           stage: ptpStage,
-          msg: (err && err.message || '未知错误'),
+          msg: rawMsg + (isNoResponse ? '｜相机会话未复位（5D2 固件限制）：请拔插 USB 线或相机断电重启后重试' : ''),
           stack: (err && err.stack ? String(err.stack).split('\n').slice(0, 3).join(' | ') : '')
         };
         statusEl.style.display = 'block';
@@ -2767,11 +2866,470 @@
       });
     }
 
+    // ---------- 旧版连接（r41：wasm/web-gphoto2 备用路径——实时取景可用，但照片不自动进相册） ----------
+    function connectLegacy(deviceId) {
+      if (usbCam.busy) return;
+      usbCam.busy = true;
+      var statusEl = $('usbCamStatus');
+      statusEl.style.display = 'block';
+      statusEl.textContent = '正在连接相机（旧版实时取景模式）…';
+      var ptpStage = 'webGphoto2';
+      loadGpCamera().then(function (GP) {
+        var cam = new GP.Camera();
+        usbCam.gpCamera = cam;
+        return cam.connect();
+      }).then(function () {
+        return navigator.usb.getDevices().then(function (ds) {
+          var d = ds.find(function (x) { return x.vendorId === 0x04A9; });
+          return d ? (d.productName || '佳能 EOS') : '佳能 EOS';
+        });
+      }).then(function (modelName) {
+        usbCam.connected = true;
+        usbCam.busy = false;
+        usbCam.deviceInfo = { model: modelName };
+        closeConnector();
+        enterWorkspace();
+      }).catch(function (err) {
+        usbCam.busy = false;
+        usbCam.gpCamera = null;
+        var rawMsg = (err && err.message || '未知错误');
+        var isNoResponse = /超时|管道已超时|transfer error|no response/i.test(rawMsg);
+        usbCam.lastErr = {
+          stage: ptpStage,
+          msg: rawMsg + (isNoResponse ? '｜相机会话未复位（5D2 固件限制）：请拔插 USB 线或相机断电重启后重试' : ''),
+          stack: (err && err.stack ? String(err.stack).split('\n').slice(0, 3).join(' | ') : '')
+        };
+        statusEl.style.display = 'block';
+        statusEl.textContent = '连接失败[PTP:' + ptpStage + ']：' + usbCam.lastErr.msg +
+          ' | ' + usbCam.lastErr.stack + '，请重试';
+      });
+    }
+
+    // ---------- 实时取景（r35：web-gphoto2 live preview，与 web-gphoto2.rreverser.com demo 同链路） ----------
+    // 连续调用 capturePreviewAsBlob() 轮询取景帧 → 实时刷到取景器。
+    // 5D2 需先打开机身 Live View（LV 开关）才有画面；未开时保留提示，不打断循环。
+    function startLiveView() {
+      if (!usbCam.gpCamera) return;
+      usbCam._lvStop = false;
+      usbCam._lvGotFrame = false;
+      clearTimeout(usbCam._lvTimer);
+      var hint = document.getElementById('wsUsbLiveHint');
+      if (hint) hint.style.display = 'flex';
+      liveViewFrame();
+    }
+    function liveViewFrame() {
+      if (usbCam._lvStop || !usbCam.connected || !usbCam.gpCamera) return;
+      usbCam.gpCamera.capturePreviewAsBlob().then(function (blob) {
+        if (usbCam._lvStop || !usbCam.connected) return;
+        if (blob && blob.size) {
+          var vf = $('wsViewfinderImg');
+          if (vf) {
+            if (usbCam._lvUrl) { try { URL.revokeObjectURL(usbCam._lvUrl); } catch (e) {} }
+            usbCam._lvUrl = URL.createObjectURL(blob);
+            vf.src = usbCam._lvUrl;
+            vf.style.display = '';
+            vf.style.background = '#000';
+          }
+          var hint = document.getElementById('wsUsbLiveHint');
+          if (hint) hint.style.display = 'none';
+          usbCam._lvGotFrame = true;
+        } else {
+          // 无有效帧（相机处于光学取景模式）→ 黑屏 + 状态提示（r37 王总设计）
+          markLvOff();
+        }
+      }).catch(function () {
+        // 预览失败（常见：相机 Live View 未打开/光学取景模式）→ 黑屏 + 状态提示
+        markLvOff();
+      }).then(function () {
+        if (usbCam._lvStop) return;
+        // r36：去掉固定 200ms 间隔 → 与参考 demo 相同的紧连续轮询：
+        // 上一帧完成后立刻抓下一帧，帧率由相机预览输出自限（不再人为加延迟）
+        liveViewFrame();
+      });
+    }
+    function stopLiveView() {
+      usbCam._lvStop = true;
+      clearTimeout(usbCam._lvTimer);
+      usbCam._lvTimer = null;
+      if (usbCam._lvUrl) { try { URL.revokeObjectURL(usbCam._lvUrl); } catch (e) {} usbCam._lvUrl = null; }
+      usbCam._lvGotFrame = false;
+    }
+    // r37 王总设计：相机处于光学取景模式（LV 关/无预览帧）时，软件取景器显示黑色 + 状态提示，
+    // 绝不残留上一帧或占位图——避免「看似实时其实已停」的误导。
+    function markLvOff() {
+      var vf = $('wsViewfinderImg');
+      if (vf) {
+        if (usbCam._lvUrl) { try { URL.revokeObjectURL(usbCam._lvUrl); } catch (e) {} usbCam._lvUrl = null; }
+        vf.src = '';
+        vf.removeAttribute('src');
+        vf.style.display = 'none';
+      }
+      var hint = document.getElementById('wsUsbLiveHint');
+      if (hint) hint.style.display = 'flex';
+      usbCam._lvGotFrame = false;
+    }
+
+    // ---------- r38：远程模式开关（诊断） ----------
+    // libapi.wasm 已补丁：5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)，会话默认不进远程模式。
+    // 本开关用 setConfigValue('remotemode', '0'/'1') 手动切换（走 _put_Canon_RemoteMode 直发 0x9114），
+    // 用于同一会话内验证「实时取景需要远程模式吗 / 机身快门需要非远程吗」的因果关系（Cascable 切换假设）。
+    function toggleRemoteMode() {
+      var btn = document.getElementById('wsRemoteToggle');
+      if (!usbCam.connected || !usbCam.gpCamera) { showToast('⚠️ 请先连接相机后再切换'); return; }
+      var next = usbCam._remoteMode ? 0 : 1;
+      stopLiveView(); // 切换期间暂停取景轮询，避免与 setConfigValue 排队互相干扰
+      showToast('正在切换远程模式 → ' + (next ? '开(1)' : '关(0)') + ' …');
+      usbCam.gpCamera.setConfigValue('remotemode', String(next)).then(function () {
+        usbCam._remoteMode = next;
+        var label = next ? '远程模式: 开' : '远程模式: 关';
+        btn.textContent = label;
+        showToast('✅ 已切换为' + label + '（' + (next ? '实时取景应恢复、机身快门将锁定' : '机身快门应可用；取景视相机固件而定') + '）');
+        startLiveView();
+      }).catch(function (err) {
+        showToast('❌ 切换失败：' + (err && err.message || err) + '（相机可能需拔插复位）');
+        startLiveView();
+      });
+    }
+
+    // ---------- r37/r38：机身快门测试（web-gphoto2 会话 · 零编译） ----------
+    // r38 起会话默认非远程（wasm 补丁 0x9114→0x9115），机身快门不再被软件锁定。
+    // 此测试（王总确认：实时取景下按机身快门是标配，无需退出取景）：
+    // 仅暂停页面取景轮询（避开 USB 抢带宽），相机实时取景保持开启；
+    // 用 consumeEvents() 监听 60s：王总在机身上按快门 → 5D2 拍照（张数+1）并产生 EOS 事件。
+    // 判定：有事件 + 张数+1 → 路线乙（机身快门+自动导入）可行；张数+1 但无事件 → 机身可用、事件链路待修；
+    // 按不动（buSy）→ 仍被远程模式锁定（补丁未生效/缓存旧 wasm），需强刷或拔插。
+    function logBodyTestGp(msg) {
+      var el = document.getElementById('wsBodyTestGpLog');
+      if (!el) return;
+      var div = document.createElement('div');
+      div.textContent = msg;
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+    function startBodyTestGp() {
+      if (!usbCam.connected || !usbCam.gpCamera) {
+        showToast('⚠️ 请先连接相机（检测设备 → 点相机行连接）后再测');
+        return;
+      }
+      if (usbCam._bodyTestGp) return;
+      usbCam._bodyTestGp = true;
+      stopLiveView(); // 仅暂停页面抓帧（避开 USB 抢带宽）；相机实时取景保持开启，直接按机身快门即可
+      var box = document.createElement('div');
+      box.id = 'wsBodyTestGpBox';
+      box.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:24px;';
+      box.innerHTML =
+        '<div style="background:#1c0f08;border:1px solid rgba(232,144,32,0.5);border-radius:16px;padding:20px;max-width:440px;width:100%;">' +
+          '<div style="font-size:15px;font-weight:600;color:#E89020;margin-bottom:4px;">📷 机身快门测试</div>' +
+          '<div style="font-size:12px;color:#F5DFC0;line-height:1.8;margin-bottom:12px;">已暂停页面画面刷新（相机实时取景保持开启，无需退出）。<br>' +
+            '<b style="color:#E89020;">直接在相机机身上按一次快门</b>（实时取景下按快门是标配，拍完自动回到实时画面），<br>' +
+            '页面 60 秒内监听相机事件。</div>' +
+          '<div id="wsBodyTestGpLog" style="font-family:monospace;font-size:11px;color:#9fd7a6;background:#000;border-radius:8px;padding:10px;min-height:120px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all;"></div>' +
+          '<button id="wsBodyTestGpClose" style="margin-top:12px;width:100%;padding:10px;border:none;border-radius:10px;background:#E89020;color:#1c0f08;font-weight:600;cursor:pointer;">关闭并恢复实时取景</button>' +
+        '</div>';
+      document.body.appendChild(box);
+      document.getElementById('wsBodyTestGpClose').addEventListener('click', function () {
+        stopBodyTestGp(true);
+      });
+      logBodyTestGp('已暂停页面画面刷新（相机实时取景保持开启，无需退出）');
+      logBodyTestGp('▶ 请在相机机身上按一次快门…（60 秒）');
+      var t0 = Date.now();
+      var deadline = t0 + 60000;
+      var lastHeart = t0;
+      function poll() {
+        if (!usbCam._bodyTestGp) return;
+        if (!usbCam.connected || !usbCam.gpCamera) {
+          logBodyTestGp('⚠️ 连接已断开，测试结束。');
+          return;
+        }
+        var now = Date.now();
+        if (now > deadline) {
+          logBodyTestGp('⏰ 60 秒内没有收到相机事件。请确认相机屏幕上：');
+          logBodyTestGp('① 按机身快门时有没有快门声/照片写入（张数是否 +1）？');
+          logBodyTestGp('→ 快门能按、张数+1 但页面没事件 ＝ 机身可用，事件链路待修（下一步接 ObjectAdded 下载）；');
+          logBodyTestGp('→ 快门按不动（buSy）＝ 仍被远程模式锁定：先强刷页面（Ctrl+F5）确保加载 r38 补丁版 wasm，再拔插相机重连；');
+          logBodyTestGp('→ 若已强刷仍锁定，可用顶部「远程模式开关」诊断验证因果关系。');
+          return;
+        }
+        usbCam.gpCamera.consumeEvents().then(function (hadEvents) {
+          if (!usbCam._bodyTestGp) return;
+          if (hadEvents) {
+            // r37 王总实测：事件类型尚无法区分（consumeEvents 只返 bool），故改为中性表述，
+            // 避免把「锁死反馈/其它事件」误报成「拍摄事件」误导判断。
+            logBodyTestGp('📸 检测到相机事件！');
+            logBodyTestGp('✅ 联机事件链路已通（机身快门 → 相机事件 → 页面收到）。');
+            logBodyTestGp('→ 下一步：解析事件详情并按路径下载照片，实现自动导入左下角相册。');
+            return;
+          }
+          if (now - lastHeart >= 10000) {
+            lastHeart = now;
+            logBodyTestGp('· 监听中… ' + Math.round((now - t0) / 1000) + 's（没动静，继续等）');
+          }
+          setTimeout(poll, 700);
+        }).catch(function (err) {
+          logBodyTestGp('⚠️ 事件监听出错：' + (err && err.message || err));
+          logBodyTestGp('→ 请关闭面板，拔插相机后重试。');
+        });
+      }
+      poll();
+    }
+    function stopBodyTestGp(restoreLv) {
+      if (!usbCam._bodyTestGp) return;
+      usbCam._bodyTestGp = false;
+      var box = document.getElementById('wsBodyTestGpBox');
+      if (box && box.parentNode) box.parentNode.removeChild(box);
+      if (restoreLv && usbCam.connected && usbCam.gpCamera) startLiveView();
+    }
+
+    // ---------- 联机实测（r36：路线乙 机身快门可行性验证） ----------
+    // 自研 PTP 栈「普通会话」连接（openSession，不进远程控制模式）+ 只开事件通知，
+    // 验证 5D2 联机状态机身快门能否按下、照片事件能否收到并自动导入。
+    function testBodyShutter() {
+      if (usbCam.busy) return;
+      if (usbCam.gpCamera) {
+        showToast('⚠️ 请先断开工作台连接（右上角 ×），并拔插相机 USB 复位（否则接口仍被占用），再点「机身快门·自动导入」');
+        return;
+      }
+      showBodyTestConfirm();
+    }
+
+    // r36：测试前确认——5D2 每次会话结束必假死，不拔插直接连 = 白等 20s 超时
+    function showBodyTestConfirm() {
+      var box = document.createElement('div');
+      box.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.78);display:flex;align-items:center;justify-content:center;padding:24px;';
+      box.innerHTML = '<div style="background:#1c0f08;border:1px solid rgba(212,165,116,0.35);border-radius:16px;padding:20px;max-width:420px;width:100%;">' +
+        '<div style="font-size:15px;font-weight:600;color:#E89020;margin-bottom:10px;">📷 连接相机前确认</div>' +
+        '<div style="font-size:13px;color:#F5DFC0;line-height:1.9;">相机 USB 是<b>刚插上</b>的吗？<br>5D2 每次用过连接后都会卡死，必须先拔插复位：<br>① 拔掉 USB 线<br>② 等 3 秒<br>③ 重新插上，等相机屏幕亮起</div>' +
+        '<button id="bodyTestGo" style="width:100%;margin-top:14px;padding:11px;border:none;border-radius:10px;background:#E89020;color:#1c0f08;font-weight:700;cursor:pointer;">相机是刚插上的，开始连接</button>' +
+        '<button id="bodyTestNotReady" style="width:100%;margin-top:8px;padding:11px;border:1px solid rgba(212,165,116,0.4);border-radius:10px;background:transparent;color:rgba(245,223,192,0.8);font-weight:600;cursor:pointer;">还没，我先去拔插</button></div>';
+      document.body.appendChild(box);
+      box.querySelector('#bodyTestGo').addEventListener('click', function () {
+        box.parentNode.removeChild(box);
+        startBodyTestConnect();
+      });
+      box.querySelector('#bodyTestNotReady').addEventListener('click', function () {
+        box.parentNode.removeChild(box);
+        showToast('请先：拔掉 USB 线 → 等 3 秒 → 重新插上 → 相机亮起后，再点一次相机连接');
+      });
+    }
+
+    function startBodyTestConnect() {
+      usbCam.busy = true;
+      usbCam._bodyStop = false;
+      var bodyStage = 'scan'; // 阶段追踪：定位超时发生在哪一步
+      var statusEl = $('usbCamStatus');
+      statusEl.style.display = 'block';
+      statusEl.textContent = '联机实测：正在建立普通会话…（若超时说明相机未复位，请拔插后重试）';
+      var tether = UsbTether.get();
+      tether.scan().then(function (devices) {
+        var canon = devices.filter(function (d) { return d.isCanon; })[0];
+        if (!canon) throw new Error('未找到已授权的佳能相机（请先点「检测设备」授权）');
+        // r40：5D2 常有多接口，逐个候选接口尝试 openSession（class6 优先）；
+        // 第一个无响应自动换下一接口（不用拔插），全部失败才报错提示拔插复位
+        var cands = (tether.listCandidates ? tether.listCandidates() : []);
+        var attempts = Math.max(1, cands.length);
+        var tried = 0;
+        function attemptConnect() {
+          var ifaceIdx = Math.min(tried, attempts - 1);
+          bodyStage = 'claim(接口#' + ifaceIdx + ')';
+          return tether.requestConnect(canon.id, { iface: ifaceIdx }).then(function (transport) {
+            usbCam.transport = transport;
+            usbCam.ptp = new PtpCamera(transport);
+            usbCam._ifaceIdx = ifaceIdx; // r42：供外层 getDeviceInfo 阶段标签用
+            bodyStage = 'clearPipe(接口#' + ifaceIdx + ')';
+            return usbCam.transport.clearPipe().then(function () {
+              bodyStage = 'openSession(接口#' + ifaceIdx + ')';
+              // 与 connectDevice 同一套端点卫生 + openSession（普通会话，不设远程模式）
+              return usbCam.ptp.openSession();
+            });
+          }).catch(function (err) {
+            // r41：释放前先存传输层诊断快照（release 后 diagInfo 就没了，外层 catch 才能展示）
+            if (usbCam.transport && typeof usbCam.transport.diagInfo === 'function') {
+              try { usbCam.lastTransportDiag = usbCam.transport.diagInfo(); } catch (e) {}
+            }
+            if (usbCam.transport) { try { usbCam.transport.release(); } catch (e) {} }
+            usbCam.transport = null;
+            usbCam.ptp = null;
+            var isTimeout = /超时|timeout|stale/i.test(err && err.message || '');
+            if (isTimeout && tried + 1 < attempts) {
+              tried++;
+              statusEl.textContent = '接口#' + ifaceIdx + ' 无响应，自动换下一接口 (' + (tried + 1) + '/' + attempts + ')…';
+              return attemptConnect();
+            }
+            throw err;
+          });
+        }
+        return attemptConnect();
+      }).then(function () {
+        // r42：gphoto2 实锤——OpenSession 后必须 GetDeviceInfo(0x1001) 相机才进入 EOS 扩展会话，
+        // 5D2 在收到 GetDeviceInfo 前不响应任何 0x9100 系列命令（r41 实测 setEventMode 读超时的根因；
+        // 诊断里「已读:12B」是 openSession 的成功响应，超时发生在下一个命令）
+        bodyStage = 'getDeviceInfo(接口#' + (usbCam._ifaceIdx || 0) + ')';
+        return usbCam.ptp.getDeviceInfo().then(function (di) {
+          usbCam.deviceInfo = di || null;
+          return di;
+        });
+      }).then(function () {
+        bodyStage = 'setEventMode';
+        // 只开事件通知（不开则相机不排队 ObjectAdded、拍照还 Busy）；不进远程控制 → 机身快门应保持可用
+        return usbCam.ptp.setEventMode();
+      }).then(function () {
+        bodyStage = 'drainEvents';
+        return usbCam.ptp.drainEosEvents(4);
+      }).then(function () {
+        bodyStage = 'startEvents';
+        // r44：启动中断端点事件监听——非远程模式 5D2 拍卡后 ObjectAdded(0x4002) 走中断端点，
+        // 自研栈此前只轮询 GetEvent(0x9116) 等 0xC181（那是远程模式通道）→ 事件全丢。
+        // r45：中断监听即使报错/无端点也不影响取图——waitForObject 已内置 GetNumObjects 轮询兜底。
+        usbCam.ptp.startEvents();
+        usbCam.ptp.onEventError(function (err) {
+          if (usbCam._bodyLog) usbCam._bodyLog('⚠️ 中断事件监听停止(不影响取图,已启用轮询兜底): ' + ((err && err.message) || err).slice(0, 60));
+        });
+      }).then(function () {
+        usbCam.connected = true;
+        usbCam.busy = false;
+        usbCam.deviceInfo = (usbCam.deviceInfo && usbCam.deviceInfo.model)
+          ? usbCam.deviceInfo
+          : { model: '佳能 EOS（普通会话）' }; // r42：优先用 GetDeviceInfo 读到的真实型号
+        closeConnector();
+        enterBodyTest();
+      }).catch(function (err) {
+        usbCam.busy = false;
+        var rawMsg = (err && err.message || '未知错误');
+        var d = null;
+        if (usbCam.transport && typeof usbCam.transport.diagInfo === 'function') {
+          try { d = usbCam.transport.diagInfo(); } catch (e) {}
+        }
+        if (!d && usbCam.lastTransportDiag) d = usbCam.lastTransportDiag; // r41：换接口路径已在释放前存了快照
+        if (usbCam.transport) { try { usbCam.transport.release(); } catch (e) {} }
+        usbCam.transport = null;
+        usbCam.ptp = null;
+        // r40/r41：诊断带上「写/读哪步超时 + 已写/已读字节 + 全部候选接口」，一眼区分假死 vs 选错接口
+        var detail = [];
+        if (d) {
+          if (d.lastErr) detail.push('超时点:' + d.lastErr);
+          if (typeof d.lastOutBytes === 'number' && d.lastOutBytes >= 0) detail.push('已写:' + d.lastOutBytes + 'B');
+          if (typeof d.lastInBytes === 'number' && d.lastInBytes >= 0) detail.push('已读:' + d.lastInBytes + 'B');
+          if (d.lastOutHex) detail.push('写hex:' + d.lastOutHex);
+          if (d.lastInHex) detail.push('读hex:' + d.lastInHex);
+          if (d.timeouts) detail.push('超时数:' + d.timeouts);
+          detail.push('端点:' + (d.iface || '?'));
+        }
+        if (tether && tether.describeCandidates) {
+          try { var ci = tether.describeCandidates(); if (ci) detail.push('候选:' + ci); } catch (e) {}
+        }
+        var isTimeout = /超时|timeout|stale/i.test(rawMsg);
+        statusEl.style.display = 'block';
+        statusEl.textContent = isTimeout
+          ? '❌ 相机没响应（步骤:' + bodyStage + '）[' + detail.join(' | ') + ']。请：①拔USB线 ②等3秒 ③重插 ④相机亮起 ⑤再点相机连接'
+          : '联机实测连接失败（步骤:' + bodyStage + '）：' + rawMsg;
+        if (isTimeout) {
+          var retryBtn = document.getElementById('usbCamRetry');
+          if (!retryBtn) {
+            retryBtn = document.createElement('button');
+            retryBtn.id = 'usbCamRetry';
+            retryBtn.textContent = '我拔插好了，重试';
+            retryBtn.style.cssText = 'margin-top:10px;width:100%;padding:11px;border:none;border-radius:10px;background:#E89020;color:#1c0f08;font-weight:700;cursor:pointer;';
+            retryBtn.addEventListener('click', function () {
+              retryBtn.style.display = 'none';
+              statusEl.textContent = '联机实测：正在重试…';
+              startBodyTestConnect();
+            });
+            statusEl.appendChild(retryBtn);
+          }
+          retryBtn.style.display = 'block';
+        }
+      });
+    }
+
+    function enterBodyTest() {
+      var panel = document.createElement('div');
+      panel.id = 'wsBodyTest';
+      panel.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,6,3,0.94);display:flex;align-items:center;justify-content:center;padding:24px;';
+      panel.innerHTML = '<div style="background:#1c0f08;border:1px solid rgba(212,165,116,0.4);border-radius:16px;padding:20px;max-width:540px;width:100%;">' +
+        '<div style="font-size:15px;font-weight:600;color:#E89020;margin-bottom:2px;">📷 相机已连接</div>' +
+        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260821-r45 · 事件+轮询兜底</div>' +
+        '<div style="font-size:12px;color:#F5DFC0;line-height:1.6;margin-bottom:10px;"><b>请在相机机身上按一次快门</b>，照片会自动下载并进入左下角相册（角标 +1）。<br>' +
+        '<span style="color:#c9a06a;">实时取景下一步接入。若快门按不动（buSy）→ 相机仍被锁定，退出后拔插复位再连。</span></div>' +
+        '<div id="wsBodyTestLog" style="font-family:monospace;font-size:11px;color:#9fd7a6;background:#000;border-radius:8px;padding:10px;min-height:130px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;"></div>' +
+        '<div id="wsBodyTestShot" style="margin-top:10px;text-align:center;min-height:60px;"></div>' +
+        '<div style="font-size:11px;color:#c9a06a;margin-top:8px;">测试完成后，相机需拔插一次复位（5D2 固件特性）</div>' +
+        '<button id="wsBodyTestStop" style="margin-top:12px;width:100%;padding:10px;border:none;border-radius:10px;background:#E89020;color:#1c0f08;font-weight:600;cursor:pointer;">停止并断开</button></div>';
+      document.body.appendChild(panel);
+      var logEl = document.getElementById('wsBodyTestLog');
+      function log(s) { if (logEl) logEl.textContent += new Date().toLocaleTimeString() + '  ' + s + '\n'; }
+      usbCam._bodyLog = log;
+      document.getElementById('wsBodyTestStop').addEventListener('click', function () {
+        stopBodyTest();
+        if (panel.parentNode) panel.parentNode.removeChild(panel);
+      });
+      log('已连接，开始监听照片（事件通道 + 轮询兜底）…');
+      log('请在相机上按一次快门');
+      bodyPollLoop();
+    }
+
+    function bodyPollLoop() {
+      if (!usbCam.connected || !usbCam.ptp || usbCam._bodyStop) return;
+      var ptp = usbCam.ptp;
+      var t0 = Date.now();
+      ptp.waitForObject(10000).then(function (obj) {
+        if (usbCam._bodyStop) return;
+        if (usbCam._bodyLog) usbCam._bodyLog('📸 收到新照片事件(' + (obj.source || '?') + ') objectId=0x' + (obj.objectId || 0).toString(16) +
+          ' storageId=' + obj.storageId + ' size=' + (obj.size || '?'));
+        return ptp.getObject(obj).then(function (jpeg) {
+          var blob = new Blob([jpeg], { type: 'image/jpeg' });
+          var url = URL.createObjectURL(blob);
+          var shot = document.getElementById('wsBodyTestShot');
+          if (shot) shot.innerHTML = '<img src="' + url + '" style="max-height:200px;border-radius:8px;">' +
+            '<div style="font-size:12px;color:#7ee787;margin-top:6px;">✅ 机身快门照片已收到，正在导入左下角相册…</div>';
+          // 复用出片管线：左下角相册 + 待归类 pendingPhotos
+          return handleShotJpeg(jpeg, Date.now());
+        }).catch(function (e) {
+          if (usbCam._bodyLog) usbCam._bodyLog('⚠️ 照片下载失败: ' + (e && e.message || e));
+        });
+      }).catch(function (e) {
+        var msg = (e && e.message || '').toString();
+        if (/超时/i.test(msg)) return; // 正常空转：等待期间无事件，静默重试
+        if (usbCam._bodyLog) usbCam._bodyLog('…等待事件（' + msg.slice(0, 60) + '）');
+        // r44：设备级断开（USB 掉线/相机断电/接口被占）→ 停止轮询，明确提示拔插，避免无声空转
+        if (/disconnected|NotFoundError|设备已断开|设备已拔出|Access denied|拒绝访问|接口被占用|device was disconnected/i.test(msg)) {
+          usbCam._bodyStop = true;
+          if (usbCam._bodyLog) usbCam._bodyLog('❌ 相机 USB 已断开。请拔下 USB 线 → 等 3 秒 → 重插 → 相机亮起 → 重新连接');
+        }
+      }).then(function () {
+        if (usbCam._bodyStop) return;
+        setTimeout(bodyPollLoop, 400);
+      });
+    }
+
+    function stopBodyTest() {
+      usbCam._bodyStop = true;
+      var ptp = usbCam.ptp;
+      usbCam.ptp = null;
+      usbCam.connected = false;
+      if (ptp) {
+        // r44：先停中断事件监听（挂起的 transferIn 由随后 release()/device.close() 回收）
+        try { ptp.stopEvents(); } catch (e) {}
+        // 快速关会话（noWait）→ 释放设备（5D2 会话结束后固件假死，仅拔插恢复——测试结束即建议拔插）
+        ptp.closeSession(3000, true).catch(function () {});
+        setTimeout(function () {
+          if (usbCam.transport) { try { usbCam.transport.release(); } catch (e) {} }
+          usbCam.transport = null;
+        }, 500);
+      } else if (usbCam.transport) {
+        try { usbCam.transport.release(); } catch (e) {}
+        usbCam.transport = null;
+      }
+    }
+
     // ---------- 工作台 ----------
     function enterWorkspace() {
       var model = (usbCam.deviceInfo && usbCam.deviceInfo.model) || '佳能 EOS';
       var wsCamInfo = $('workspace').querySelector('.ws-cam-info span');
       if (wsCamInfo) wsCamInfo.textContent = model;
+      // r38：补丁版会话默认非远程模式（关），同步开关文案与状态
+      usbCam._remoteMode = false;
+      var rmtBtn = document.getElementById('wsRemoteToggle');
+      if (rmtBtn) rmtBtn.textContent = '远程模式: 关';
       // 取景器：真实 EVF 为二期；清掉模拟风景图，显示连接态占位（去模拟化）
       var vf = $('wsViewfinderImg');
       vf.style.display = 'none';
@@ -2783,8 +3341,8 @@
         hint.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10rem;background:#141414;';
         hint.innerHTML = '<div style="font-size:26rem;">📷</div>' +
           '<div style="font-size:14rem;color:#F5DFC0;font-weight:600;">已连接 ' + model + '</div>' +
-          '<div style="font-size:11rem;color:rgba(245,223,192,0.55);">按快门拍摄，照片实时进入待归类</div>' +
-          '<div style="font-size:10rem;color:rgba(245,223,192,0.35);">实时取景将在二期开放</div>';
+          '<div style="font-size:11rem;color:rgba(245,223,192,0.55);">光学取景模式：未开 Live View 时无实时画面——按机身 Live View 开关切到实时取景，画面即出现，机身快门随时可拍照</div>' +
+          '<div style="font-size:10rem;color:rgba(245,223,192,0.35);">拍摄的照片会出现在左下角相册</div>';
         vfBox.appendChild(hint);
       } else { hint.style.display = 'flex'; }
       // 连接状态行 + 图库重置
@@ -2797,12 +3355,26 @@
       // 保活：每 10s 发 KeepDeviceOn 防相机休眠断链（gphoto2 camera_keep_device_on 同频）
       clearInterval(usbCam.keepTimer);
       usbCam.keepTimer = setInterval(function () {
-        if (usbCam.connected && usbCam.ptp) usbCam.ptp.keepAlive().catch(function () {});
+        if (!(usbCam.connected && usbCam.ptp)) return;
+        usbCam.ptp.keepAlive().catch(function (e) {
+          // r44：工作台保活失败不再无声吞——设备级断开直接标记掉线并提示拔插（相机休眠断链不再无人知晓）
+          var em = (e && e.message || '').toString();
+          if (/disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(em)) {
+            usbCam.connected = false;
+            clearInterval(usbCam.keepTimer);
+            if (usbCam._bodyLog) usbCam._bodyLog('❌ 相机 USB 已断开。请拔下 USB 线 → 等 3 秒 → 重插 → 相机亮起 → 重新连接');
+            showToast('❌ 相机 USB 已断开：拔下 USB 线 → 等 3 秒 → 重插 → 相机亮起 → 重新连接');
+          } else if (usbCam._bodyLog) {
+            usbCam._bodyLog('⚠️ 保活失败: ' + em.slice(0, 60));
+          }
+        });
       }, 10000);
-      // 5D2 固件行为提示：USB 连接后机身按键会锁定显示 buSy（gphoto2 社区多年实证，
-      // 无软件解），拔线自动恢复——提前告知避免误以为相机故障
-      showToast('✅ 已连接 ' + model + '（相机按键将锁定 buSy，拔线恢复）');
+      // r37：不再断言机身锁定——Cascable 证实 5D2 联机可用机身快门；是否可用由工作台
+      // 「机身快门测试」实测确认。实时取景下按机身快门是标配（拍完自动回实时画面），无需退出 LV。
+      showToast('✅ 已连接 ' + model + '（实时取景就绪；机身快门可用性可点顶部「机身快门测试」验证）');
       $('workspace').classList.add('active');
+      // r35：web-gphoto2 连上即启动实时取景（capturePreviewAsBlob 轮询，同 demo 链路）
+      if (usbCam.gpCamera) startLiveView();
     }
 
     // ---------- 拍照（真实链路：快门 → 事件 → 下载 JPEG → 落管线） ----------
@@ -2811,7 +3383,6 @@
       if (!usbCam.connected) return false;
       if (usbCam.busy) return true; // 防连拍重入
       usbCam.busy = true;
-      var ptp = usbCam.ptp;
       var t0 = Date.now();
       // 快门反馈：闪光屏效 + 震动（与模拟拍摄一致）
       var flash = $('wsFlash');
@@ -2819,44 +3390,22 @@
       void flash.offsetWidth;
       flash.classList.add('active');
       if (navigator.vibrate) navigator.vibrate(50);
-      ptp.releaseShutter()
-        // 等照片默认 90s（gphoto2 EOS_CAPTURE_TIMEOUT；RAW/写卡慢时 30s 不够）
-        .then(function () { return ptp.waitForObject(); })
-        // waitForObject 返回 {objectId, storageId}——storageId=0(SDRAM) 走 0x9107 分块取图
-        .then(function (obj) { return ptp.getObject(obj); })
-        .then(function (jpeg) {
-          var blob = new Blob([jpeg], { type: 'image/jpeg' });
-          var url = URL.createObjectURL(blob);
-          // 取景器显示刚拍的真实照片（替代模拟图）；图库缩略图 + 角标
-          var vf = $('wsViewfinderImg');
-          vf.src = url;
-          vf.style.display = '';
-          var hint = document.getElementById('wsUsbLiveHint');
-          if (hint) hint.style.display = 'none';
-          var img = $('wsGalleryImg');
-          img.src = url;
-          img.style.filter = '';
-          usbCam.photoCount++;
-          $('wsBadge').textContent = usbCam.photoCount;
-          $('wsBadge').classList.add('show');
-          // 落待归类管线：缩略图 + EXIF 拍摄时间 + GPS（与工作台 wsSaveShotToPending 一致）
-          var shot = Promise.all([blobToDataUrl(blob), blobToThumbnail(blob), parseExifDateTime(blob)])
-            .then(function (r) { return { full: r[0], thumb: r[1], exifDate: exifStringToDate(r[2]) }; })
-            .catch(function () { return { full: null, thumb: null, exifDate: null }; });
-          var loc = new Promise(function (resolve, reject) {
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
-            } else { reject(new Error('无定位能力')); }
-          });
-          return Promise.all([shot, loc]).then(function (r) {
-            wsWritePending(r[0].full, r[0].thumb, r[0].exifDate, r[1].coords.longitude, r[1].coords.latitude);
-          }).catch(function () {
-            return shot.then(function (r) {
-              wsWritePending(r.full, r.thumb, r.exifDate,
-                120.3826 + (Math.random() - 0.5) * 0.003, 36.0671 + (Math.random() - 0.5) * 0.003, 'approx');
-            });
-          });
-        })
+      var shotPromise;
+      if (usbCam.gpCamera) {
+        // r31：web-gphoto2（WASM libgphoto2）全链路拍摄——快门+下载一体（gphoto2 captureImage）
+        shotPromise = usbCam.gpCamera.captureImageAsFile().then(function (file) {
+          return file.arrayBuffer ? file.arrayBuffer() : file;
+        }).then(function (buf) { return new Uint8Array(buf); });
+      } else {
+        var ptp = usbCam.ptp;
+        shotPromise = ptp.releaseShutter()
+          // 等照片默认 90s（gphoto2 EOS_CAPTURE_TIMEOUT；RAW/写卡慢时 30s 不够）
+          .then(function () { return ptp.waitForObject(); })
+          // waitForObject 返回 {objectId, storageId}——storageId=0(SDRAM) 走 0x9107 分块取图
+          .then(function (obj) { return ptp.getObject(obj); });
+      }
+      shotPromise
+        .then(function (jpeg) { return handleShotJpeg(jpeg, t0); })
         .then(function () {
           usbCam.busy = false;
           showToast('✅ 照片已保存（' + ((Date.now() - t0) / 1000).toFixed(1) + 's）');
@@ -2868,13 +3417,54 @@
       return true;
     }
 
+    // r31：JPEG 出片管线（两套传输层共用）——取景器/图库/落 pendingPhotos
+    function handleShotJpeg(jpeg, t0) {
+      var blob = new Blob([jpeg], { type: 'image/jpeg' });
+      var url = URL.createObjectURL(blob);
+      var vf = $('wsViewfinderImg');
+      vf.src = url;
+      vf.style.display = '';
+      var hint = document.getElementById('wsUsbLiveHint');
+      if (hint) hint.style.display = 'none';
+      var img = $('wsGalleryImg');
+      img.src = url;
+      img.style.filter = '';
+      usbCam.photoCount++;
+      $('wsBadge').textContent = usbCam.photoCount;
+      $('wsBadge').classList.add('show');
+      var shot = Promise.all([blobToDataUrl(blob), blobToThumbnail(blob), parseExifDateTime(blob)])
+        .then(function (r) { return { full: r[0], thumb: r[1], exifDate: exifStringToDate(r[2]) }; })
+        .catch(function () { return { full: null, thumb: null, exifDate: null }; });
+      var loc = new Promise(function (resolve, reject) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        } else { reject(new Error('无定位能力')); }
+      });
+      return Promise.all([shot, loc]).then(function (r) {
+        wsWritePending(r[0].full, r[0].thumb, r[0].exifDate, r[1].coords.longitude, r[1].coords.latitude);
+      }).catch(function () {
+        return shot.then(function (r) {
+          wsWritePending(r.full, r.thumb, r.exifDate,
+            120.3826 + (Math.random() - 0.5) * 0.003, 36.0671 + (Math.random() - 0.5) * 0.003, 'approx');
+        });
+      });
+    }
+
     // ---------- 断开 ----------
     function disconnect() {
       clearInterval(usbCam.keepTimer);
-      if (usbCam.transport) { try { usbCam.transport.release(); } catch (e) {} }
+      stopLiveView(); // r35：断开即停实时取景循环
+      // r31：web-gphoto2 会话断开（gphoto2 退出清理，含 CloseSession）
+      if (usbCam.gpCamera) { try { usbCam.gpCamera.disconnect(); } catch (e) {} usbCam.gpCamera = null; }
+      // r25：优雅关闭——先 CloseSession(0x1003) 清掉相机侧会话（防残留卡死，2026-08-18 真机实锤），
+      // 完成后再释放传输层；失败/超时忽略（相机深度卡死时 CloseSession 也无响应，只能物理断电恢复）
+      var t = usbCam.transport, p = usbCam.ptp;
       usbCam.transport = null;
       usbCam.ptp = null;
       usbCam.connected = false;
+      var finishRelease = function () { if (t) { try { t.release(); } catch (e) {} } };
+      if (p) { p.closeSession(3000, true).then(finishRelease); } // r26：只发不读，防超时毒化
+      else finishRelease();
       usbCam.deviceInfo = null;
       var hint = document.getElementById('wsUsbLiveHint');
       if (hint) hint.parentNode.removeChild(hint);
@@ -2892,6 +3482,11 @@
     // ---------- 绑定 ----------
     $('usbCamCancel').addEventListener('click', closeConnector);
     $('usbCamScan').addEventListener('click', scanDevices);
+    // r41：统一单一流程——点相机连接即自研栈「普通会话+自动导入」；wasm 旧路径仅保留底部备用链接
+    var _legacyLink = document.getElementById('usbCamLegacyLink');
+    if (_legacyLink) _legacyLink.addEventListener('click', function () { connectLegacy(null); });
+    $('wsBodyTestGp').addEventListener('click', startBodyTestGp);
+    $('wsRemoteToggle').addEventListener('click', toggleRemoteMode);
     // 工作台关闭：已连接 USB 时同时断开释放设备（否则保持原有关闭行为）
     var _wsCloseBound = $('wsClose').onclick || null;
     $('wsClose').addEventListener('click', function () {
@@ -2939,7 +3534,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260816-r24',               // r24：传输层精简重写（六轮补丁去冗余）——核心逻辑保持，诊断收敛为 diagInfo/lastError
+      usbVer: '20260821-r45',               // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
@@ -2961,6 +3556,7 @@
       probeByteArray: (typeof UsbTether !== 'undefined' && UsbTether.probeByteArray) ? UsbTether.probeByteArray() : '无', // r17：当场探测 newObject('byte[]')/'[B'（不依赖连接状态）；r18 WebUSB 模式返回 'webusb'
       lastBufMode: (typeof UsbTether !== 'undefined' && UsbTether.lastBufMode) ? UsbTether.lastBufMode() : '未连接', // r17：上次传输实际 buffer 形态（失败后也可读）
       usbTransportDiag: (typeof window.usbCam !== 'undefined') ? (window.usbCam.lastTransportDiag || (window.usbCam.transport && window.usbCam.transport.diagInfo ? window.usbCam.transport.diagInfo() : null)) : null, // 传输层最近操作（超时/写入字节/端点）
+      usbCandidates: (typeof UsbTether !== 'undefined' && UsbTether.describeCandidates) ? UsbTether.describeCandidates() : '无', // r40：全部候选接口（class6 优先 + 接口号）
       lastErr: (typeof window.usbCam !== 'undefined' && window.usbCam.lastErr) ? window.usbCam.lastErr : null, // 最近一次连接失败的分阶段报错
       usbLastError: (typeof UsbTether !== 'undefined' && UsbTether.lastError) ? UsbTether.lastError() : null, // r24：传输层最近一次失败（open/claim 阶段）
       maskInDom: !!mask,
@@ -2994,7 +3590,8 @@
         });
       });
     }
-    addDiagBtn();
+    // r32 王总：UI 只留左下角相框，USB诊断浮动按钮移除（window.__usbDiag 仍可从控制台调用）
+    // addDiagBtn();
   };
   if (document.body) bind();
   else document.addEventListener('DOMContentLoaded', bind);

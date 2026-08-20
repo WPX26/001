@@ -32,9 +32,16 @@ function strBytes16(s) {
   b.push(0, 0);
   return b;
 }
+/* 标准 PTP 事件容器（type=4）：12B 头 + 平铺 u32 参数——模拟中断端点收到 ObjectAdded */
+function intrPkt(code, params) {
+  const payload = [];
+  for (const p of (params || [])) payload.push(...u32(p));
+  return Buffer.from(u32(12 + payload.length).concat(u16(4)).concat(u16(code)).concat(u32(0)).concat(payload));
+}
 const OC = { OPEN_SESSION: 0x1002, GET_DEVICE_INFO: 0x1001,
   SET_DEVICE_PROP_VALUE: 0x1016, EOS_SET_REMOTE_MODE: 0x9114,
-  EOS_SET_EVENT_MODE: 0x9115, EOS_GET_EVENT: 0x9116, EOS_KEEP_DEVICE_ON: 0x911D };
+  EOS_SET_EVENT_MODE: 0x9115, EOS_GET_EVENT: 0x9116, EOS_KEEP_DEVICE_ON: 0x911D,
+  GET_STORAGE_IDS: 0x1004, GET_NUM_OBJECTS: 0x1006, GET_OBJECT_HANDLES: 0x1007 };
 const RC = { OK: 0x2001 };
 const EV = { OBJECT_ADDED_EX: 0xC181 };
 const DPC = { CAPTURE_DESTINATION: 0xD11C };
@@ -50,6 +57,23 @@ class MockUsbCamera {
     this.captureDestination = 4;     // 默认 SDRAM
     this.stallNextIn = 0;            // 模拟端点 STALL 次数
     this.delayMs = 0;                // 模拟设备处理延迟（ZLP 前空读）
+    this.intrEvents = [];            // 中断端点事件队列（标准 PTP 事件，r44）
+    this._intrWait = null;           // 常驻中断读的等待器
+    this.store = [0x100, 0x200, 0x300]; // 已存对象句柄（r45 轮询兜底）
+  }
+  /** 模拟相机把标准 PTP 事件（type=4 容器）发到中断IN端点——非远程模式 5D2 的 ObjectAdded 通道 */
+  pushIntrEvent(buf) {
+    this.intrEvents.push(buf);
+    if (this._intrWait) {
+      const w = this._intrWait;
+      this._intrWait = null;
+      const ev = this.intrEvents.shift();
+      w({ status: 'ok', data: copyBuf(ev) });
+    }
+  }
+  /** r45：模拟拍卡——卡上新增一个对象（GetNumObjects 计数 +1，GetObjectHandles 含新句柄） */
+  pushStoredObject(handle) {
+    this.store.push(handle);
   }
   handleWrite(buf) {
     if (buf.length < 12) throw new Error('mock: 包过短');
@@ -90,7 +114,29 @@ class MockUsbCamera {
       case OC.EOS_SET_EVENT_MODE: this.eventMode = 1; return [pkt(3, RC.OK, tid)];
       case OC.EOS_GET_EVENT:
         return [pkt(2, OC.EOS_GET_EVENT, tid, u32(8).concat(u32(0))), pkt(3, RC.OK, tid)]; // 空事件链
-      case OC.EOS_KEEP_DEVICE_ON: return [pkt(3, RC.OK, tid)];
+      case OC.EOS_KEEP_DEVICE_ON:
+        this.keepDeviceOnCalls = (this.keepDeviceOnCalls || 0) + 1;
+        if (this.rejectKeepDeviceOn) return [pkt(3, 0x2002, tid)]; // 模拟非远程模式拒绝（PTP 错误，非断开）
+        return [pkt(3, RC.OK, tid)];
+      case OC.GET_STORAGE_IDS: // 保活降级兜底：0x1004 应答一张 CF 卡
+        this.getStorageIdsCalls = (this.getStorageIdsCalls || 0) + 1;
+        return [pkt(2, OC.GET_STORAGE_IDS, tid, u32(1).concat(u32(0x00010001))), pkt(3, RC.OK, tid)];
+      case OC.GET_NUM_OBJECTS: // r45 轮询兜底：对象计数
+        return [pkt(2, OC.GET_NUM_OBJECTS, tid, u32(this.store.length)), pkt(3, RC.OK, tid)];
+      case OC.GET_OBJECT_HANDLES: { // r45 轮询兜底：句柄枚举
+        const hb = [];
+        for (const h of this.store) hb.push(...u32(h));
+        return [pkt(2, OC.GET_OBJECT_HANDLES, tid, hb), pkt(3, RC.OK, tid)];
+      }
+      case 0x1008: { // GET_OBJECT_INFO：标准 ObjectAdded 事件缺 storageId 时 _resolveStdObject 用它补齐
+        const b = [];
+        b.push(...u32(0x00010001), ...u16(0x3801), ...u16(0)); // StorageID=CF / ObjectFormat=JPEG / Protection
+        b.push(...u32(0x12345));                                // CompressedSize
+        b.push(...u16(0), ...u32(0), ...u32(0), ...u32(0));     // Thumb 区
+        b.push(...u32(4000), ...u32(3000), ...u32(24));         // 图像尺寸/位深
+        b.push(...u32(0), ...u16(0), ...u32(0), ...u32(0));     // Parent/Assoc/Sequence
+        return [pkt(2, 0x1008, tid, b), pkt(3, RC.OK, tid)];
+      }
       default: return [pkt(3, 0x2002, tid)];
     }
   }
@@ -119,7 +165,7 @@ function makeUsbDevice(camera, opts) {
         alternates: [{ endpoints: [
           { endpointNumber: 1, type: 'bulk', direction: 'in', packetSize: 512 },
           { endpointNumber: 2, type: 'bulk', direction: 'out', packetSize: 512 },
-          { endpointNumber: 3, type: 'interrupt', direction: 'in', packetSize: 16 }
+          ...(opts.noIntr ? [] : [{ endpointNumber: 3, type: 'interrupt', direction: 'in', packetSize: 16 }])
         ] }]
       }]
     }],
@@ -139,6 +185,14 @@ function makeUsbDevice(camera, opts) {
       return Promise.resolve({ status: 'ok', bytesWritten: data.byteLength });
     },
     transferIn(epNum, len) {
+      // 中断端点（标准 PTP 事件通道）：事件未到则挂起（常驻读语义），pushIntrEvent 时解挂
+      if (epNum === 3) {
+        if (camera.intrEvents.length) {
+          const ev = camera.intrEvents.shift();
+          return Promise.resolve({ status: 'ok', data: copyBuf(ev) });
+        }
+        return new Promise(resolve => { camera._intrWait = resolve; });
+      }
       if (camera.stallNextIn > 0) {
         camera.stallNextIn--;
         return Promise.resolve({ status: 'stall' });
@@ -149,21 +203,25 @@ function makeUsbDevice(camera, opts) {
         return new Promise(resolve => setTimeout(() => {
           const c2 = camera.readChunk(len);
           resolve(c2 === null
-            ? { status: 'ok', data: new ArrayBuffer(0) }
+            ? { status: 'ok', data: new DataView(new ArrayBuffer(0)) }
             : { status: 'ok', data: copyBuf(c2) });
         }, camera.delayMs));
       }
       return Promise.resolve(chunk === null
-        ? { status: 'ok', data: new ArrayBuffer(0) }
+        ? { status: 'ok', data: new DataView(new ArrayBuffer(0)) }
         : { status: 'ok', data: copyBuf(chunk) });
     },
     close() { this.opened = false; return Promise.resolve(); }
   };
 }
+/* r43 回归修复：真实 WebUSB 的 transferIn 返回 { data: DataView }（不是 ArrayBuffer！）。
+ * 旧 mock 返回 ArrayBuffer 导致 `new Uint8Array(ArrayBuffer)` 正常、测试全绿，
+ * 而真机 `new Uint8Array(DataView)` 静默返回空数组——bug 全被 mock 放跑。
+ * 现在 mock 与 Chrome 一致：data 为 DataView（可带 byteOffset），transport 必须正确取视图。 */
 function copyBuf(b) {
   const out = new ArrayBuffer(b.length);
   new Uint8Array(out).set(new Uint8Array(b.buffer, b.byteOffset, b.byteLength));
-  return out;
+  return new DataView(out, 0, out.byteLength);
 }
 
 /* ---------- 加载被测代码（先设 navigator 环境再 require） ---------- */
@@ -416,6 +474,135 @@ async function main() {
   ok('首次连接 0x66 不被调用（避免复位设备）', !ctrl66Called);
   ok('首次连接 clearHalt 也不调用', dev11._halts.length === 0, dev11._halts.join(','));
   tr11.release();
+
+  /* ===== 9. 中断端点识别（r44：标准 PTP 事件通道） ===== */
+  console.log('\n[9] 中断端点识别');
+  const cam12 = new MockUsbCamera();
+  const dev12 = makeUsbDevice(cam12);
+  const t12 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev12]),
+    requestDevice: () => Promise.resolve(dev12)
+  } } });
+  const tr12 = await t12.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  ok('候选含中断IN端点（intrInEpNum=3）', tr12.intrInEpNum === 3, 'got=' + tr12.intrInEpNum);
+  ok('diagInfo 暴露 epIntr=3 / evtReader=false', tr12.diagInfo().epIntr === 3 && tr12.diagInfo().evtReader === false,
+    JSON.stringify(tr12.diagInfo()));
+  const cands12 = await t12.describeCandidates();
+  ok('candidatesInfo 标注中断端点', /intr|中断/.test(JSON.stringify(cands12) || ''), JSON.stringify(cands12));
+  tr12.release();
+
+  /* ===== 10. 中断端点事件 → waitForObject 双通道（r44 主导修复） ===== */
+  console.log('\n[10] 中断事件(0x4002)经 startEvents → waitForObject 消费');
+  const cam13 = new MockUsbCamera();
+  const dev13 = makeUsbDevice(cam13);
+  const t13 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev13]),
+    requestDevice: () => Promise.resolve(dev13)
+  } } });
+  const tr13 = await t13.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera13 = require('../camera-ptp.js');
+  const ptp13 = new PtpCamera13(tr13);
+  await ptp13.openSession();
+  await ptp13.getDeviceInfo();
+  await ptp13.setEventMode();
+  ptp13.startEvents();                       // 启动常驻中断读（模拟 5D2 非远程模式主通道）
+  ok('startEvents 后 evtReader 激活', tr13.diagInfo().evtReader === true);
+  const wait13 = ptp13.waitForObject(5000);
+  setTimeout(() => cam13.pushIntrEvent(intrPkt(0x4002, [0x100, 0x00010001])), 100); // handle=0x100, StorageID=CF
+  const obj13 = await wait13;
+  ok('waitForObject 拿到标准 ObjectAdded', obj13 && obj13.objectId === 0x100 && obj13.storageId === 0x00010001,
+    JSON.stringify(obj13));
+  ok('事件来源标注为中断端点', obj13.source === '中断端点(0x4002)', obj13.source);
+  ok('中断端点收到字节被记录', tr13.diagInfo().intrInBytes > 0, 'bytes=' + tr13.diagInfo().intrInBytes);
+  ptp13.stopEvents();
+  tr13.release();
+
+  /* ===== 11. 标准事件缺 storageId → GetObjectInfo(0x1008) 补齐 + 无中断端点降级 ===== */
+  console.log('\n[11] ObjectAdded 缺 storageId 补齐 + 无中断端点降级');
+  const cam14 = new MockUsbCamera();
+  const dev14 = makeUsbDevice(cam14);
+  const t14 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev14]),
+    requestDevice: () => Promise.resolve(dev14)
+  } } });
+  const tr14 = await t14.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera14 = require('../camera-ptp.js');
+  const ptp14 = new PtpCamera14(tr14);
+  await ptp14.openSession();
+  await ptp14.getDeviceInfo();
+  ptp14.startEvents();
+  const wait14 = ptp14.waitForObject(5000);
+  setTimeout(() => cam14.pushIntrEvent(intrPkt(0x4002, [0x200])), 100); // 仅 handle，无 storageId
+  const obj14 = await wait14;
+  ok('缺 storageId → GetObjectInfo 补齐（storageId=CF, size=0x12345）',
+    obj14 && obj14.objectId === 0x200 && obj14.storageId === 0x00010001 && obj14.size === 0x12345,
+    JSON.stringify(obj14));
+  ptp14.stopEvents();
+  tr14.release();
+
+  // 无中断端点的接口：startEvents 不崩溃，onEventError 收到降级提示
+  const cam15 = new MockUsbCamera();
+  const dev15 = makeUsbDevice(cam15, { noIntr: true });
+  const t15 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev15]),
+    requestDevice: () => Promise.resolve(dev15)
+  } } });
+  const tr15 = await t15.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  ok('无中断端点 → intrInEpNum=null', tr15.intrInEpNum === null);
+  const PtpCamera15 = require('../camera-ptp.js');
+  const ptp15 = new PtpCamera15(tr15);
+  await ptp15.openSession();
+  let intrErrMsg = null;
+  ptp15.onEventError(function (e) { intrErrMsg = (e && e.message) || String(e); });
+  ptp15.startEvents();
+  ok('无中断端点 → 不崩溃且报降级', /无中断IN端点/.test(intrErrMsg || ''), intrErrMsg);
+  ptp15.stopEvents();
+  tr15.release();
+
+  // [12] 保活降级：5D2 非远程模式拒 0x911D（PTP 错误）→ 自动改走 0x1004 保持总线活动
+  const cam16 = new MockUsbCamera();
+  cam16.rejectKeepDeviceOn = true;
+  const dev16 = makeUsbDevice(cam16, {});
+  const t16 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev16]),
+    requestDevice: () => Promise.resolve(dev16)
+  } } });
+  const tr16 = await t16.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera16 = require('../camera-ptp.js');
+  const ptp16 = new PtpCamera16(tr16);
+  await ptp16.openSession();
+  await ptp16.keepAlive();   // 第一次：0x911D 被拒 → 降级 0x1004 成功
+  ok('0x911D 被拒 → 降级 0x1004 保活成功',
+    ptp16._keepAliveUseFallback === true && cam16.keepDeviceOnCalls === 1 && cam16.getStorageIdsCalls === 1,
+    'keepDeviceOn=' + cam16.keepDeviceOnCalls + ' storageIds=' + cam16.getStorageIdsCalls);
+  await ptp16.keepAlive();   // 第二次：不再重试 0x911D，直接走 0x1004
+  ok('再次保活直接走 0x1004（不重试 0x911D）',
+    cam16.keepDeviceOnCalls === 1 && cam16.getStorageIdsCalls === 2,
+    'keepDeviceOn=' + cam16.keepDeviceOnCalls + ' storageIds=' + cam16.getStorageIdsCalls);
+  tr16.release();
+
+  /* ===== 13. r45 轮询兜底：无任何事件通道也能发现新照片（GetNumObjects 计数变） ===== */
+  console.log('\n[13] 无事件 → 轮询兜底检测新照片');
+  const cam17 = new MockUsbCamera();
+  const dev17 = makeUsbDevice(cam17, {});
+  const t17 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev17]),
+    requestDevice: () => Promise.resolve(dev17)
+  } } });
+  const tr17 = await t17.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera17 = require('../camera-ptp.js');
+  const ptp17 = new PtpCamera17(tr17);
+  await ptp17.openSession();
+  await ptp17.getDeviceInfo();
+  // 不启动中断事件监听：模拟真机「中断端点不产生事件 / 该接口无中断端点」的失败情形
+  const wait17 = ptp17.waitForObject(9000);
+  setTimeout(() => cam17.pushStoredObject(0x456), 800); // 800ms 后卡上多一张
+  const obj17 = await wait17;
+  ok('无事件 → 轮询兜底发现新照片（objectId=0x456, source=轮询）',
+    obj17 && obj17.objectId === 0x456 && /轮询/.test(obj17.source || ''),
+    JSON.stringify(obj17));
+  ptp17.stopEvents();
+  tr17.release();
 
   /* ===== 结果 ===== */
   console.log('\n结果: ' + passed + ' 通过, ' + failed + ' 失败');
