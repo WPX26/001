@@ -532,6 +532,14 @@
     this._onEventError = fn;
   };
 
+  /** r46：注册诊断回调（页面日志）——真机定位「轮询/保活/GetEvent」实际行为 */
+  PtpCamera.prototype.onDiag = function (fn) {
+    this._onDiag = fn;
+  };
+  PtpCamera.prototype._diag = function (msg) {
+    if (this._onDiag) { try { this._onDiag(msg); } catch (e) {} }
+  };
+
   /**
    * 标准 ObjectAdded(0x4002) 事件只有 handle（部分机身带 StorageID 参数）。
    * 缺 storage 时用 GetObjectInfo(0x1008) 补齐（并顺带拿到文件大小），
@@ -758,7 +766,10 @@
     return self.transact(PTP_OC_GET_STORAGE_IDS, []).then(function (res) {
       var ids = parseParams(res.data);
       return (ids && ids.length) ? ids : [0x00010001];
-    }, function () { return [0x00010001]; }).then(function (storages) {
+    }, function (e) {
+      self._diag('轮询 GetStorageIDs(0x1004) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（兜底 0x00010001）');
+      return [0x00010001];
+    }).then(function (storages) {
       var st = { storages: storages, counts: {}, handles: {} };
       // 顺序遍历（勿并发！单 bulk 管道共享 _waitResponse，并发 transact 会互相抢包，
       // data 分支等到另一个 DATA 包 → 抛「期望响应包，收到 type=2」）
@@ -769,34 +780,63 @@
             return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0]).then(function (h) {
               st.handles[s] = parseParams(h.data) || [];
               return true;
-            }).catch(function () { return true; });
-          }).catch(function () { return true; });
+            }).catch(function (e) {
+              self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（句柄集为空，计数照记）');
+              return true;
+            });
+          }).catch(function (e) {
+            self._diag('轮询 GetNumObjects(0x1006) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（计数记 0）');
+            return true;
+          });
         });
-      }, Promise.resolve()).then(function () { self._pollState = st; return st; });
+      }, Promise.resolve()).then(function () {
+        self._pollState = st;
+        self._diag('轮询基线: ' + storages.map(function (s) { return '0x' + s.toString(16) + '=' + (st.counts[s] || 0); }).join(' ') + ' 张');
+        return st;
+      });
     });
   };
   /** 轮询检测新照片（best-effort）：返回 {objectId, storageId, source} 或 null；断开类错误抛出 */
   PtpCamera.prototype._pollDetectNew = function () {
     var self = this;
     return self._pollEnsureBaseline().then(function (st) {
+      // r46 诊断：心跳（每 15 轮≈30s 一行）证明轮询活着 + 实时张数
+      self._pollDiagN = (self._pollDiagN || 0) + 1;
+      if (self._pollDiagN % 15 === 1) {
+        self._diag('轮询心跳: ' + st.storages.map(function (s) { return '0x' + s.toString(16) + '=' + (st.counts[s] || 0); }).join(' ') + ' 张');
+      }
       // 顺序遍历（勿并发，理由见 _pollEnsureBaseline）
       return st.storages.reduce(function (chain, s) {
         return chain.then(function (found) {
           if (found) return found;
           return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0]).then(function (r) {
             var n = parseParams(r.data)[0] || 0;
-            if (n <= (st.counts[s] || 0)) return null;
+            var oldN = st.counts[s] || 0;
+            if (n <= oldN) return null;
             return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0]).then(function (h) {
               var hs = parseParams(h.data) || [];
               var known = st.handles[s] || [];
               var fresh = hs.filter(function (x) { return known.indexOf(x) < 0; });
-              if (!fresh.length) { st.counts[s] = n; return null; } // 计数变但无新句柄 → 更新计数继续等
+              if (!fresh.length) {
+                st.counts[s] = n; // 计数变但无新句柄 → 更新计数继续等
+                self._diag('轮询: 计数 0x' + s.toString(16) + ' ' + oldN + '→' + n + ' 但无新句柄（更新基线继续等）');
+                return null;
+              }
               var handle = fresh[0];
               st.counts[s] = n;
               st.handles[s] = hs;
+              self._diag('轮询命中: 0x' + s.toString(16) + ' 计数 ' + oldN + '→' + n + ' 新句柄 0x' + handle.toString(16));
               return { objectId: handle, storageId: s, source: '轮询(GetNumObjects)' };
+            }, function (e) {
+              if (_pollDisconnectRe(e)) throw e;
+              self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50));
+              return null;
             });
-          }, function (e) { if (_pollDisconnectRe(e)) throw e; return null; });
+          }, function (e) {
+            if (_pollDisconnectRe(e)) throw e;
+            self._diag('轮询 GetNumObjects(0x1006) 失败: ' + ((e && e.message) || e).toString().slice(0, 50));
+            return null;
+          });
         });
       }, Promise.resolve(null));
     }).catch(function (e) { if (_pollDisconnectRe(e)) throw e; return null; });
@@ -805,7 +845,8 @@
    * 等待新照片事件/新对象（三通道，r45 起事件无关）：
    *   ① 中断端点标准 PTP ObjectAdded(0x4002)——非远程模式 5D2 拍卡后的候选主通道
    *      （startEvents 已把中断包解析进 _pendingEvents，这里消费，含 .source 标注来源）；
-   *   ② GetEvent(0x9116) 轮询 EOS ObjectAddedEx(0xC181)——远程模式通道（保留）；
+   *   ② GetEvent(0x9116) 轮询 EOS ObjectAddedEx(0xC181)——仅远程模式（r46 起非远程跳过：
+   *      真机高频 GetEvent 挂起/异常嫌疑 → 拖死循环 → 轮询兜底轮不到）；
    *   ③ r45 轮询兜底 GetNumObjects(0x1006)+GetObjectHandles(0x1007)——计数增长 → 枚举差异
    *      出新句柄。即使中断端点/GetEvent 都不产生事件，按快门后照片也会在几秒内被发现。
    * 每轮轮询前按 10s 间隔保活；事件轮询间隔 250ms（gphoto2 是紧密排空，Android 上
@@ -822,9 +863,15 @@
     var pollEnabled = (o.poll !== false);      // r45：默认开启轮询兜底
     var lastPoll = 0;
     var pollInterval = o.pollIntervalMs || 2000;
+    // r46：远程模式才轮询 GetEvent(0x9116)。r45 真机「6 分钟零事件 + 到点掉线」——
+    // 连接阶段 drainEosEvents(4) 的 GetEvent 能快速空返回，但等待循环里高频 GetEvent 是否
+    // 也正常无法排除；非远程模式本就没有 0xC181 事件源，GetEvent 只是白耗，跳过它 →
+    // 中断端点 + 轮询兜底成为唯一依赖，GetEvent 无论挂起/超时/被拒都不再拖死循环。
+    var remoteMode = !!o.remoteMode || !!self._remoteMode;
+    function schedule() { return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(poll); }
     function poll() {
       if (Date.now() > deadline) throw PtpTimeoutError('等待照片事件超时');
-      // 先查队列里已有的事件（GetEvent 轮询插入的 .eos + 中断端点插入的 .intr）
+      // 先查队列里已有的事件（GetEvent 插入的 .eos + 中断端点插入的 .intr）
       var evts = self.drainEvents();
       for (var i = 0; i < evts.length; i++) {
         if (evts[i].eos && evts[i].eos.code === PTP_EC_EOS_OBJECT_ADDED_EX) {
@@ -840,7 +887,7 @@
       }
       // 保活：每 10s 一次（gphoto2 camera_keep_device_on 同频）
       // r44：失败不再无声吞掉——非断开类失败记录后继续等（不打断等待），
-      // 设备级断开让轮询抛错 → 页面掉线分支明示「拔插重连」。
+      // 设备级断开让轮询抛错 → 页面掉线分支明示「拔插重连」。r46：结果上报诊断。
       if (self._lastKeepAliveErr) {
         var kErr = self._lastKeepAliveErr;
         self._lastKeepAliveErr = null;
@@ -850,7 +897,31 @@
       var now = Date.now();
       if (now - self._lastKeepAlive > 10000) {
         self._lastKeepAlive = now;
-        self.keepAlive().catch(function (e) { self._lastKeepAliveErr = e; });
+        var kaMode = self._keepAliveUseFallback ? '0x1004降级' : '0x911D';
+        if (self._keepAliveDiagMode !== kaMode) { self._keepAliveDiagMode = kaMode; self._diag('保活走 ' + kaMode); }
+        self.keepAlive().then(function () {
+          var m2 = self._keepAliveUseFallback ? '0x1004降级' : '0x911D';
+          if (self._keepAliveDiagMode !== m2) { self._keepAliveDiagMode = m2; self._diag('保活走 ' + m2); }
+        }).catch(function (e) {
+          self._lastKeepAliveErr = e;
+          self._diag('保活失败: ' + ((e && e.message) || e).toString().slice(0, 60));
+        });
+      }
+      // 轮询兜底（r46：独立于 GetEvent 执行——GetEvent 不再能拖死它）
+      function runPoll() {
+        if (pollEnabled && Date.now() - lastPoll >= pollInterval) {
+          lastPoll = Date.now();
+          return self._pollDetectNew().then(function (hit) {
+            if (hit) return self._resolveStdObject(hit.objectId, hit.storageId)
+              .then(function (obj) { obj.source = hit.source; return obj; });
+            return schedule();
+          });
+        }
+        return schedule();
+      }
+      if (!remoteMode) {
+        if (!self._skipGeDiag) { self._skipGeDiag = true; self._diag('非远程模式：跳过 GetEvent(0x9116)，中断端点 + 轮询兜底'); }
+        return runPoll();
       }
       return self.transact(PTP_OC_EOS_GET_EVENT, []).then(function (res) {
         var found = null;
@@ -862,16 +933,11 @@
           }
         }
         if (found) return found;
-        // r45：事件无关兜底——GetEvent 空 → 每 pollInterval 查一次对象计数/句柄差异
-        if (pollEnabled && Date.now() - lastPoll >= pollInterval) {
-          lastPoll = Date.now();
-          return self._pollDetectNew().then(function (hit) {
-            if (hit) return self._resolveStdObject(hit.objectId, hit.storageId)
-              .then(function (obj) { obj.source = hit.source; return obj; });
-            return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(poll);
-          });
-        }
-        return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(poll);
+        return runPoll();
+      }, function (e) {
+        // r46：GetEvent 挂起/超时/被拒——非断开类错误视为空，继续轮询兜底
+        if (_pollDisconnectRe(e)) throw e;
+        return runPoll();
       });
     }
     return poll();

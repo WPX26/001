@@ -60,6 +60,8 @@ class MockUsbCamera {
     this.intrEvents = [];            // 中断端点事件队列（标准 PTP 事件，r44）
     this._intrWait = null;           // 常驻中断读的等待器
     this.store = [0x100, 0x200, 0x300]; // 已存对象句柄（r45 轮询兜底）
+    this.getEventCalls = 0;          // r46：统计 GetEvent(0x9116) 被调用次数（非远程应为 0）
+    this.hangGetEvent = false;       // r46：模拟真机 GetEvent 挂起（无应答，读端等到超时）
   }
   /** 模拟相机把标准 PTP 事件（type=4 容器）发到中断IN端点——非远程模式 5D2 的 ObjectAdded 通道 */
   pushIntrEvent(buf) {
@@ -113,6 +115,8 @@ class MockUsbCamera {
       case OC.EOS_SET_REMOTE_MODE: this.remoteMode = 1; return [pkt(3, RC.OK, tid)];
       case OC.EOS_SET_EVENT_MODE: this.eventMode = 1; return [pkt(3, RC.OK, tid)];
       case OC.EOS_GET_EVENT:
+        this.getEventCalls = (this.getEventCalls || 0) + 1;
+        if (this.hangGetEvent) return []; // r46：挂起——无任何应答，传输层读端空读转圈直到超时
         return [pkt(2, OC.EOS_GET_EVENT, tid, u32(8).concat(u32(0))), pkt(3, RC.OK, tid)]; // 空事件链
       case OC.EOS_KEEP_DEVICE_ON:
         this.keepDeviceOnCalls = (this.keepDeviceOnCalls || 0) + 1;
@@ -603,6 +607,36 @@ async function main() {
     JSON.stringify(obj17));
   ptp17.stopEvents();
   tr17.release();
+
+  /* ===== 14. r46 回归：非远程模式跳过 GetEvent——GetEvent 挂起也不拖死轮询兜底 ===== */
+  console.log('\n[14] r46：GetEvent 挂起时轮询兜底仍检测（非远程跳过 GetEvent）');
+  const cam18 = new MockUsbCamera();
+  cam18.hangGetEvent = true; // 0x9116 无应答 = 挂起（旧 r45 循环会卡死在 GetEvent，轮询轮不到）
+  const dev18 = makeUsbDevice(cam18);
+  const t18 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev18]),
+    requestDevice: () => Promise.resolve(dev18)
+  } } });
+  const tr18 = await t18.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera18 = require('../camera-ptp.js');
+  const ptp18 = new PtpCamera18(tr18);
+  await ptp18.openSession();
+  await ptp18.getDeviceInfo();
+  const diags = [];
+  ptp18.onDiag((m) => diags.push(m));
+  const wait18 = ptp18.waitForObject(9000); // 默认非远程
+  setTimeout(() => cam18.pushStoredObject(0x789), 800); // 800ms 后卡上多一张
+  const obj18 = await wait18;
+  ok('GetEvent 挂起 + 非远程 → 轮询仍检测到新照片（objectId=0x789）',
+    obj18 && obj18.objectId === 0x789 && /轮询/.test(obj18.source || ''),
+    JSON.stringify(obj18));
+  ok('非远程模式 waitForObject 全程未调用 GetEvent(0x9116)（getEventCalls=0）',
+    cam18.getEventCalls === 0, 'getEventCalls=' + cam18.getEventCalls);
+  ok('诊断日志含「跳过 GetEvent」与「轮询基线」',
+    diags.some((m) => /跳过 GetEvent/.test(m)) && diags.some((m) => /轮询基线/.test(m)),
+    JSON.stringify(diags));
+  ptp18.stopEvents();
+  tr18.release();
 
   /* ===== 结果 ===== */
   console.log('\n结果: ' + passed + ' 通过, ' + failed + ' 失败');
