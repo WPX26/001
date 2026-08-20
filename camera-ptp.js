@@ -498,19 +498,28 @@
   };
 
   /** 排空相机事件队列：连续 GetEvent 直到空（gphoto2 prepare_capture 前必做，防拍照 Busy）。
-   *  r49：非远程模式直接跳过——r48 实测非远程会话连上后机身快门被锁；GetEvent(0x9116) 是
-   *  远程通道命令，gphoto2 非远程(SetEventMode)会话从不调它（r46 亦证非远程无事件可排）。
-   *  页面非远程连接时置 ptp._remoteMode=false → 此处不执行；远程模式照常排空。 */
+   *  r50【锁机身快门根因修复】：非远程会话【必须】排空。真机证据链——r38/r43/r44
+   *  （连接时 drainEosEvents + 等待循环 GetEvent 轮询）→ 机身快门可用；r47/r48/r49
+   *  （r46 起非远程删光 GetEvent、r49 再跳过连接排空）→ 机身快门锁死。机制：SetEventMode(0x9115)
+   *  开启事件模式后相机端排队事件，宿主从不 GetEvent 排空 → 相机报 Busy → 锁机身快门
+   *  （gphoto2 canon 驱动 prepare_capture 前必先排空防 Busy，同此机制）。r46 删 GetEvent 的
+   *  理由「高频 GetEvent 挂起拖死循环」是误诊——真凶是 keepAlive(0x911D) 与轮询并发抢包
+   *  （r47 全局 mutex 已根治），GetEvent 本身不挂。r50：无论远程与否都排空；每轮 1.5s 短超时、
+   *  非断开类错误视为空继续（最坏退化为 r49 行为，绝不会更差）。 */
   PtpCamera.prototype.drainEosEvents = function (maxRounds) {
     var self = this;
-    if (!self._remoteMode) return Promise.resolve(); // r49：非远程不碰 GetEvent
     var rounds = 0;
     function poll() {
       if (rounds++ > (maxRounds || 8)) return Promise.resolve();
-      return self.transact(PTP_OC_EOS_GET_EVENT, []).then(function (res) {
+      return self.transact(PTP_OC_EOS_GET_EVENT, [], null, 1500).then(function (res) {
         var evts = parseEosEvents(res.data);
         if (evts.length) { self._queueEosEvents(evts); return poll(); }
         return undefined; // 空 → 排空完成
+      }, function (e) {
+        // 非断开类错误：视为无事件可排，停止（不打断连接流程）
+        var msg = (e && e.message || '').toString();
+        if (/disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(msg)) throw e;
+        return undefined;
       });
     }
     return poll();
@@ -897,11 +906,14 @@
     var pollEnabled = (o.poll !== false);      // r45：默认开启轮询兜底
     var lastPoll = 0;
     var pollInterval = o.pollIntervalMs || 2000;
-    // r46：远程模式才轮询 GetEvent(0x9116)。r45 真机「6 分钟零事件 + 到点掉线」——
-    // 连接阶段 drainEosEvents(4) 的 GetEvent 能快速空返回，但等待循环里高频 GetEvent 是否
-    // 也正常无法排除；非远程模式本就没有 0xC181 事件源，GetEvent 只是白耗，跳过它 →
-    // 中断端点 + 轮询兜底成为唯一依赖，GetEvent 无论挂起/超时/被拒都不再拖死循环。
-    var remoteMode = !!o.remoteMode || !!self._remoteMode;
+    // r50【锁机身快门根因修复】：无论远程与否都轮询 GetEvent(0x9116)——SetEventMode(0x9115)
+    // 开启事件模式后相机端排队事件，宿主必须持续 GetEvent 排空，否则相机报 Busy → 锁机身快门。
+    // 真机证据：r38/r43/r44（连接排空 + 等待循环 GetEvent 轮询）→ 机身快门可用；r47/r48/r49
+    // （r46 起非远程跳过 GetEvent、r49 再跳连接排空）→ 机身锁死。r46 删 GetEvent 的理由
+    // 「高频 GetEvent 挂起拖死循环」是误诊（真凶是 keepAlive 与轮询并发抢包，r47 mutex 已根治）。
+    // 现在 GetEvent 每轮都跑：2s 短超时 + 非断开类错误视为空 → 最坏退化为 r48/r49 行为，绝不拖死。
+    // 轮询兜底（GetObjectHandles 0x1007）保留作检测备份通道。
+    var remoteMode = !!o.remoteMode || !!self._remoteMode; // r50：仅用于注释/诊断；GetEvent 两种模式都轮询
     function schedule() { return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(poll); }
     function poll() {
       if (Date.now() > deadline) throw PtpTimeoutError('等待照片事件超时');
@@ -952,10 +964,6 @@
           });
         }
         return schedule();
-      }
-      if (!remoteMode) {
-        if (!self._skipGeDiag) { self._skipGeDiag = true; self._diag('非远程模式：跳过 GetEvent(0x9116)，中断端点 + 轮询兜底'); }
-        return runPoll();
       }
       return self.transact(PTP_OC_EOS_GET_EVENT, [], null, 2000).then(function (res) {
         var found = null;
