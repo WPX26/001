@@ -41,7 +41,7 @@ function intrPkt(code, params) {
 const OC = { OPEN_SESSION: 0x1002, GET_DEVICE_INFO: 0x1001,
   SET_DEVICE_PROP_VALUE: 0x1016, EOS_SET_REMOTE_MODE: 0x9114,
   EOS_SET_EVENT_MODE: 0x9115, EOS_GET_EVENT: 0x9116, EOS_KEEP_DEVICE_ON: 0x911D,
-  GET_STORAGE_IDS: 0x1004 };
+  GET_STORAGE_IDS: 0x1004, GET_NUM_OBJECTS: 0x1006, GET_OBJECT_HANDLES: 0x1007 };
 const RC = { OK: 0x2001 };
 const EV = { OBJECT_ADDED_EX: 0xC181 };
 const DPC = { CAPTURE_DESTINATION: 0xD11C };
@@ -59,6 +59,7 @@ class MockUsbCamera {
     this.delayMs = 0;                // 模拟设备处理延迟（ZLP 前空读）
     this.intrEvents = [];            // 中断端点事件队列（标准 PTP 事件，r44）
     this._intrWait = null;           // 常驻中断读的等待器
+    this.store = [0x100, 0x200, 0x300]; // 已存对象句柄（r45 轮询兜底）
   }
   /** 模拟相机把标准 PTP 事件（type=4 容器）发到中断IN端点——非远程模式 5D2 的 ObjectAdded 通道 */
   pushIntrEvent(buf) {
@@ -69,6 +70,10 @@ class MockUsbCamera {
       const ev = this.intrEvents.shift();
       w({ status: 'ok', data: copyBuf(ev) });
     }
+  }
+  /** r45：模拟拍卡——卡上新增一个对象（GetNumObjects 计数 +1，GetObjectHandles 含新句柄） */
+  pushStoredObject(handle) {
+    this.store.push(handle);
   }
   handleWrite(buf) {
     if (buf.length < 12) throw new Error('mock: 包过短');
@@ -116,6 +121,13 @@ class MockUsbCamera {
       case OC.GET_STORAGE_IDS: // 保活降级兜底：0x1004 应答一张 CF 卡
         this.getStorageIdsCalls = (this.getStorageIdsCalls || 0) + 1;
         return [pkt(2, OC.GET_STORAGE_IDS, tid, u32(1).concat(u32(0x00010001))), pkt(3, RC.OK, tid)];
+      case OC.GET_NUM_OBJECTS: // r45 轮询兜底：对象计数
+        return [pkt(2, OC.GET_NUM_OBJECTS, tid, u32(this.store.length)), pkt(3, RC.OK, tid)];
+      case OC.GET_OBJECT_HANDLES: { // r45 轮询兜底：句柄枚举
+        const hb = [];
+        for (const h of this.store) hb.push(...u32(h));
+        return [pkt(2, OC.GET_OBJECT_HANDLES, tid, hb), pkt(3, RC.OK, tid)];
+      }
       case 0x1008: { // GET_OBJECT_INFO：标准 ObjectAdded 事件缺 storageId 时 _resolveStdObject 用它补齐
         const b = [];
         b.push(...u32(0x00010001), ...u16(0x3801), ...u16(0)); // StorageID=CF / ObjectFormat=JPEG / Protection
@@ -568,6 +580,29 @@ async function main() {
     cam16.keepDeviceOnCalls === 1 && cam16.getStorageIdsCalls === 2,
     'keepDeviceOn=' + cam16.keepDeviceOnCalls + ' storageIds=' + cam16.getStorageIdsCalls);
   tr16.release();
+
+  /* ===== 13. r45 轮询兜底：无任何事件通道也能发现新照片（GetNumObjects 计数变） ===== */
+  console.log('\n[13] 无事件 → 轮询兜底检测新照片');
+  const cam17 = new MockUsbCamera();
+  const dev17 = makeUsbDevice(cam17, {});
+  const t17 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev17]),
+    requestDevice: () => Promise.resolve(dev17)
+  } } });
+  const tr17 = await t17.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera17 = require('../camera-ptp.js');
+  const ptp17 = new PtpCamera17(tr17);
+  await ptp17.openSession();
+  await ptp17.getDeviceInfo();
+  // 不启动中断事件监听：模拟真机「中断端点不产生事件 / 该接口无中断端点」的失败情形
+  const wait17 = ptp17.waitForObject(9000);
+  setTimeout(() => cam17.pushStoredObject(0x456), 800); // 800ms 后卡上多一张
+  const obj17 = await wait17;
+  ok('无事件 → 轮询兜底发现新照片（objectId=0x456, source=轮询）',
+    obj17 && obj17.objectId === 0x456 && /轮询/.test(obj17.source || ''),
+    JSON.stringify(obj17));
+  ptp17.stopEvents();
+  tr17.release();
 
   /* ===== 结果 ===== */
   console.log('\n结果: ' + passed + ' 通过, ' + failed + ' 失败');

@@ -44,6 +44,8 @@
   var PTP_OC_CLOSE_SESSION = 0x1003;          // 曾误标 0x1002（=OpenSession）
   var PTP_OC_GET_DEVICE_INFO = 0x1001;        // 曾误标 0x1004（=GetStorageIDs）
   var PTP_OC_GET_STORAGE_IDS = 0x1004;        // 保活降级兜底（r44：非远程模式 0x911D 可能被拒时改用）
+  var PTP_OC_GET_NUM_OBJECTS = 0x1006;        // r45 轮询兜底：存储内对象计数（GetNumObjects）
+  var PTP_OC_GET_OBJECT_HANDLES = 0x1007;     // r45 轮询兜底：存储内对象句柄枚举（GetObjectHandles）
   var PTP_OC_GET_OBJECT_INFO = 0x1008;
   var PTP_OC_GET_OBJECT = 0x1009;             // 曾误标 0x100A（=GetThumb）
   var PTP_OC_DELETE_OBJECT = 0x100B;
@@ -563,6 +565,7 @@
    */
   PtpCamera.prototype.openSession = function () {
     var self = this;
+    self._pollState = null; // r45：新会话重抓轮询基线（卡被换/清空后计数才可靠）
     var sessionId = 1;
     var tries = 0;
     function tryOpen() {
@@ -739,20 +742,86 @@
   };
 
   /* ---------- 事件/照片 ---------- */
+  /* r45：事件无关的照片检测兜底。r44 假设「5D2 非远程模式拍卡后 ObjectAdded 走中断端点」
+   * 在真机两次验收未兑现（r44 验收= r43 同：照片进卡但收不到事件，且日志出现「中断事件监听
+   * 停止」）。为不再依赖任何事件通道，这里加标准 PTP 轮询：维护每存储对象计数/句柄基线，
+   * 等待期间若计数增长 → GetObjectHandles 枚举差异出新句柄 → 当新照片。全部 best-effort：
+   * 非断开类失败静默跳过，事件通道仍为主（轮询只是兜底）。 */
+  function _pollDisconnectRe(e) {
+    var m = (e && e.message || '').toString();
+    return /disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(m);
+  }
+  /** 初始化轮询基线（每会话一次，跨 waitForObject 保持）：发现存储 + 对象计数 + 句柄集 */
+  PtpCamera.prototype._pollEnsureBaseline = function () {
+    var self = this;
+    if (self._pollState) return Promise.resolve(self._pollState);
+    return self.transact(PTP_OC_GET_STORAGE_IDS, []).then(function (res) {
+      var ids = parseParams(res.data);
+      return (ids && ids.length) ? ids : [0x00010001];
+    }, function () { return [0x00010001]; }).then(function (storages) {
+      var st = { storages: storages, counts: {}, handles: {} };
+      // 顺序遍历（勿并发！单 bulk 管道共享 _waitResponse，并发 transact 会互相抢包，
+      // data 分支等到另一个 DATA 包 → 抛「期望响应包，收到 type=2」）
+      return storages.reduce(function (chain, s) {
+        return chain.then(function () {
+          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0]).then(function (r) {
+            st.counts[s] = parseParams(r.data)[0] || 0;
+            return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0]).then(function (h) {
+              st.handles[s] = parseParams(h.data) || [];
+              return true;
+            }).catch(function () { return true; });
+          }).catch(function () { return true; });
+        });
+      }, Promise.resolve()).then(function () { self._pollState = st; return st; });
+    });
+  };
+  /** 轮询检测新照片（best-effort）：返回 {objectId, storageId, source} 或 null；断开类错误抛出 */
+  PtpCamera.prototype._pollDetectNew = function () {
+    var self = this;
+    return self._pollEnsureBaseline().then(function (st) {
+      // 顺序遍历（勿并发，理由见 _pollEnsureBaseline）
+      return st.storages.reduce(function (chain, s) {
+        return chain.then(function (found) {
+          if (found) return found;
+          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0]).then(function (r) {
+            var n = parseParams(r.data)[0] || 0;
+            if (n <= (st.counts[s] || 0)) return null;
+            return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0]).then(function (h) {
+              var hs = parseParams(h.data) || [];
+              var known = st.handles[s] || [];
+              var fresh = hs.filter(function (x) { return known.indexOf(x) < 0; });
+              if (!fresh.length) { st.counts[s] = n; return null; } // 计数变但无新句柄 → 更新计数继续等
+              var handle = fresh[0];
+              st.counts[s] = n;
+              st.handles[s] = hs;
+              return { objectId: handle, storageId: s, source: '轮询(GetNumObjects)' };
+            });
+          }, function (e) { if (_pollDisconnectRe(e)) throw e; return null; });
+        });
+      }, Promise.resolve(null));
+    }).catch(function (e) { if (_pollDisconnectRe(e)) throw e; return null; });
+  };
   /**
-   * 等待新照片事件（双通道）：
-   *   ① 中断端点标准 PTP ObjectAdded(0x4002)——非远程模式 5D2 拍卡后的主通道
+   * 等待新照片事件/新对象（三通道，r45 起事件无关）：
+   *   ① 中断端点标准 PTP ObjectAdded(0x4002)——非远程模式 5D2 拍卡后的候选主通道
    *      （startEvents 已把中断包解析进 _pendingEvents，这里消费，含 .source 标注来源）；
-   *   ② GetEvent(0x9116) 轮询 EOS ObjectAddedEx(0xC181)——远程模式通道（保留）。
-   * 每轮轮询前按 10s 间隔保活；轮询间隔 250ms（gphoto2 是紧密排空，Android 上
-   * 250ms 避免打满带宽，事件不丢——0x9116 数据是积攒式的）。
+   *   ② GetEvent(0x9116) 轮询 EOS ObjectAddedEx(0xC181)——远程模式通道（保留）；
+   *   ③ r45 轮询兜底 GetNumObjects(0x1006)+GetObjectHandles(0x1007)——计数增长 → 枚举差异
+   *      出新句柄。即使中断端点/GetEvent 都不产生事件，按快门后照片也会在几秒内被发现。
+   * 每轮轮询前按 10s 间隔保活；事件轮询间隔 250ms（gphoto2 是紧密排空，Android 上
+   * 250ms 避免打满带宽，事件不丢——0x9116 数据是积攒式的）；兜底轮询间隔默认 2s。
    * @param {number} timeoutMs 总超时（默认 90s = gphoto2 EOS_CAPTURE_TIMEOUT）
+   * @param {object} [opts] {poll:boolean=false 关闭兜底, pollIntervalMs:number}
    * @returns {Promise<{objectId:number, storageId:number, size:number, source?:string}>}
    *          objectId=照片 Handle；storageId=0 表示 SDRAM（走 0x9107 分块取图）
    */
-  PtpCamera.prototype.waitForObject = function (timeoutMs) {
+  PtpCamera.prototype.waitForObject = function (timeoutMs, opts) {
     var self = this;
     var deadline = Date.now() + (timeoutMs || 90000);
+    var o = opts || {};
+    var pollEnabled = (o.poll !== false);      // r45：默认开启轮询兜底
+    var lastPoll = 0;
+    var pollInterval = o.pollIntervalMs || 2000;
     function poll() {
       if (Date.now() > deadline) throw PtpTimeoutError('等待照片事件超时');
       // 先查队列里已有的事件（GetEvent 轮询插入的 .eos + 中断端点插入的 .intr）
@@ -793,6 +862,15 @@
           }
         }
         if (found) return found;
+        // r45：事件无关兜底——GetEvent 空 → 每 pollInterval 查一次对象计数/句柄差异
+        if (pollEnabled && Date.now() - lastPoll >= pollInterval) {
+          lastPoll = Date.now();
+          return self._pollDetectNew().then(function (hit) {
+            if (hit) return self._resolveStdObject(hit.objectId, hit.storageId)
+              .then(function (obj) { obj.source = hit.source; return obj; });
+            return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(poll);
+          });
+        }
         return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(poll);
       });
     }
