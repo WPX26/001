@@ -628,9 +628,10 @@
 
   /* 手机互联工作台：屏中屏（模拟被控手机系统相机画面） */
   .remote-frame {
-    width: 60%;
-    max-width: 250rem;
-    aspect-ratio: 9 / 19.5;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    aspect-ratio: auto;
     background: #000;
     border: 2rem solid rgba(245, 223, 192, 0.35);
     border-radius: 16rem;
@@ -963,7 +964,7 @@
     align-items: center;
     gap: 10rem;
     width: 100%;
-    max-width: 260rem;
+    max-width: 380rem;
   }
   .pair-host-cam video {
     width: 100%;
@@ -1538,7 +1539,9 @@
   const toast = document.getElementById('toast');
   const showToast = (msg) => {
     // 王总要求：去掉操作反馈弹窗——仅保留错误/警示类提示（⚠️/失败/错误/无效等）
-    if (msg && !/⚠️|失败|错误|无效|不可达|请输入|需为|不能|重复|请稍后|手动/.test(String(msg))) return;
+    // 2026-08-20 修复：补充「请先」白名单——"请先登录后再发起连接""当前已有连接，请先断开"
+    // 属阻断性警示却被误吞，导致点击「开始连接手机」无任何反应（用户无感知）。
+    if (msg && !/⚠️|失败|错误|无效|不可达|请输入|需为|不能|重复|请稍后|手动|请先/.test(String(msg))) return;
     toast.textContent = msg;
     toast.classList.add('show');
     clearTimeout(showToast._t);
@@ -2141,7 +2144,7 @@
         return;
       }
       navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: 'environment', width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 } }, // 1080p 后置相机（画质优先）
         audio: false,
       }).then(function (stream) {
         plStream = stream;
@@ -2175,7 +2178,7 @@
       else plStartCamera();
     });
 
-    // 帧推流：150ms 一帧（宽 320 JPEG q0.45，控制带宽；仅 host 且连接正常时推送）
+    // 帧推流：150ms 一帧（宽 720 JPEG q0.6，画质优先；仅 host 且连接正常时推送）
     function plStartFramePush() {
       plStopFramePush();
       var canvas = document.createElement('canvas');
@@ -2183,12 +2186,12 @@
         if (!plStream || !plWs || plWs.readyState !== 1 || plRole !== 'host') return;
         var vw = plVideo.videoWidth, vh = plVideo.videoHeight;
         if (!vw || !vh) return;
-        var scale = 320 / vw;
-        canvas.width = 320;
+        var scale = 720 / vw;
+        canvas.width = 720;
         canvas.height = Math.max(1, Math.round(vh * scale));
         canvas.getContext('2d').drawImage(plVideo, 0, 0, canvas.width, canvas.height);
         var dataUrl = null;
-        try { dataUrl = canvas.toDataURL('image/jpeg', 0.45); } catch (e) {}
+        try { dataUrl = canvas.toDataURL('image/jpeg', 0.6); } catch (e) {}
         if (dataUrl) plWs.send(JSON.stringify({ type: 'frame', data: dataUrl }));
       }, 150);
     }
