@@ -497,9 +497,13 @@
     return evts;
   };
 
-  /** 排空相机事件队列：连续 GetEvent 直到空（gphoto2 prepare_capture 前必做，防拍照 Busy） */
+  /** 排空相机事件队列：连续 GetEvent 直到空（gphoto2 prepare_capture 前必做，防拍照 Busy）。
+   *  r49：非远程模式直接跳过——r48 实测非远程会话连上后机身快门被锁；GetEvent(0x9116) 是
+   *  远程通道命令，gphoto2 非远程(SetEventMode)会话从不调它（r46 亦证非远程无事件可排）。
+   *  页面非远程连接时置 ptp._remoteMode=false → 此处不执行；远程模式照常排空。 */
   PtpCamera.prototype.drainEosEvents = function (maxRounds) {
     var self = this;
+    if (!self._remoteMode) return Promise.resolve(); // r49：非远程不碰 GetEvent
     var rounds = 0;
     function poll() {
       if (rounds++ > (maxRounds || 8)) return Promise.resolve();
@@ -685,6 +689,7 @@
   /* ---------- Canon EOS 远程模式 ---------- */
   PtpCamera.prototype.setRemoteMode = function () {
     // 0x9114 参数 1 = 进入远程控制模式（5D2 用 1；EOS M 才用特殊值）
+    this._remoteMode = true; // r49：模式状态由命令维护（drainEosEvents 据此跳过/执行）
     return this.transact(PTP_OC_EOS_SET_REMOTE_MODE, [1]);
   };
 

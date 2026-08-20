@@ -675,6 +675,29 @@ async function main() {
   ptp19.stopEvents();
   tr19.release();
 
+  /* ===== 16. r49 回归：非远程模式 drainEosEvents 跳过 GetEvent 排空（0x9116 仅远程需要） ===== */
+  console.log('\n[16] r49：非远程跳过 GetEvent 排空，远程才排空');
+  const cam20 = new MockUsbCamera();
+  const dev20 = makeUsbDevice(cam20);
+  const t20 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev20]),
+    requestDevice: () => Promise.resolve(dev20)
+  } } });
+  const tr20 = await t20.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera20 = require('../camera-ptp.js');
+  const ptp20 = new PtpCamera20(tr20);
+  await ptp20.openSession();
+  await ptp20.getDeviceInfo();
+  await ptp20.setEventMode();               // 非远程：setRemoteMode 未调 → _remoteMode 非 true
+  await ptp20.drainEosEvents(8);
+  ok('非远程 drainEosEvents 跳过 → GetEvent 零调用（r49 锁快门嫌疑隔离）',
+    cam20.getEventCalls === 0, 'getEventCalls=' + cam20.getEventCalls);
+  await ptp20.setRemoteMode();              // 远程：setRemoteMode 置 _remoteMode=true
+  await ptp20.drainEosEvents(8);
+  ok('远程 drainEosEvents 正常排空 → GetEvent 有调用',
+    cam20.getEventCalls > 0, 'getEventCalls=' + cam20.getEventCalls);
+  tr20.release();
+
   /* ===== 结果 ===== */
   console.log('\n结果: ' + passed + ' 通过, ' + failed + ' 失败');
   if (failed) process.exit(1);
