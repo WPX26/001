@@ -1,4 +1,4 @@
-import io.dcloud.uts.UTSAndroid
+import { UTSAndroid } from "io.dcloud.uts"
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
@@ -9,32 +9,27 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
+import { ScreenControlResult, GestureDesc } from '../../index.uts'
 
-interface ScreenControlResult {
-  val code: Int
-  val message: String
+/**
+ * 构造统一返回结果。
+ * 用对象字面量实现根 index.uts 声明的 ScreenControlResult（number 在 Kotlin 端
+ * 编译为 Number），避免显式 class 实现的平台数字类型映射问题。
+ */
+function okResult(code: number, message: string): ScreenControlResult {
+  const r: ScreenControlResult = { code: code, message: message }
+  return r
 }
-
-interface GestureDesc {
-  val action: String
-  val x: Double?
-  val y: Double?
-  val x2: Double?
-  val y2: Double?
-  val duration: Double?
-}
-
-class ScreenControlResultImpl(override val code: Int, override val message: String) : ScreenControlResult
 
 /** 开始录屏：弹出系统授权 → 启动前台服务 → 逐帧回调 onFrame（base64 JPEG dataURL） */
-export function startScreenShare(onFrame: (String) -> Unit): Promise<ScreenControlResult> {
+export function startScreenShare(onFrame: (frame: string) => void): Promise<ScreenControlResult> {
   return new Promise<ScreenControlResult>((resolve, reject) => {
     val activity = UTSAndroid.getUniActivity()
     if (activity == null) {
-      resolve(ScreenControlResultImpl(1, "无法获取 Activity"))
+      resolve(okResult(1, "无法获取 Activity"))
     } else if (ScreenControlService.isRunning) {
       ScreenControlService.frameCallback = onFrame
-      resolve(ScreenControlResultImpl(0, "已在共享"))
+      resolve(okResult(0, "已在共享"))
     } else {
       if (Build.VERSION.SDK_INT >= 33) {
         try {
@@ -54,16 +49,16 @@ export function startScreenShare(onFrame: (String) -> Unit): Promise<ScreenContr
           } catch (e: Exception) {
             try { activity.startService(intent) } catch (e2: Exception) {}
           }
-          resolve(ScreenControlResultImpl(0, "已开始录屏"))
+          resolve(okResult(0, "已开始录屏"))
         } else {
           ScreenControlService.frameCallback = null
-          resolve(ScreenControlResultImpl(2, "用户取消授权"))
+          resolve(okResult(2, "用户取消授权"))
         }
       }
       try {
         activity.startActivity(Intent(activity, ScreenShareRequestActivity::class.java))
       } catch (e: Exception) {
-        resolve(ScreenControlResultImpl(3, "启动授权页失败"))
+        resolve(okResult(3, "启动授权页失败"))
       }
     }
   })
@@ -84,46 +79,51 @@ export function stopScreenShare(): void {
 export function injectGesture(g: GestureDesc): Promise<ScreenControlResult> {
   return new Promise<ScreenControlResult>((resolve, reject) => {
     val svc = ScreenControlAccessibilityService.instance
-    if (svc == null) {
-      resolve(ScreenControlResultImpl(1, "无障碍服务未开启：请到系统设置开启本 App 的无障碍服务"))
-      return
-    }
-    val activity = UTSAndroid.getUniActivity()
-    val dm = activity?.resources?.displayMetrics
-    val w = dm?.widthPixels ?: 1080
-    val h = dm?.heightPixels ?: 1920
-    val action = g.action
-    if (action == "back") {
-      svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-      resolve(ScreenControlResultImpl(0, "ok"))
-    } else if (action == "home") {
-      svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-      resolve(ScreenControlResultImpl(0, "ok"))
-    } else if (action == "recent") {
-      svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
-      resolve(ScreenControlResultImpl(0, "ok"))
-    } else if (action == "tap") {
-      val x = ((g.x ?: 0.5) * w).toFloat()
-      val y = ((g.y ?: 0.5) * h).toFloat()
-      svc.gestureTap(x, y)
-      resolve(ScreenControlResultImpl(0, "ok"))
-    } else if (action == "longpress") {
-      val x = ((g.x ?: 0.5) * w).toFloat()
-      val y = ((g.y ?: 0.5) * h).toFloat()
-      svc.gestureLongPress(x, y)
-      resolve(ScreenControlResultImpl(0, "ok"))
-    } else if (action == "swipe") {
-      val x1 = ((g.x ?: 0.5) * w).toFloat()
-      val y1 = ((g.y ?: 0.5) * h).toFloat()
-      val x2 = ((g.x2 ?: g.x ?: 0.5) * w).toFloat()
-      val y2 = ((g.y2 ?: g.y ?: 0.5) * h).toFloat()
-      val dur = ((g.duration ?: 300.0)).toLong()
-      svc.gestureSwipe(x1, y1, x2, y2, dur)
-      resolve(ScreenControlResultImpl(0, "ok"))
+    if (svc != null) {
+      resolve(injectGestureInner(svc, g))
     } else {
-      resolve(ScreenControlResultImpl(4, "未知手势: " + action))
+      resolve(okResult(1, "无障碍服务未开启：请到系统设置开启本 App 的无障碍服务"))
     }
   })
+}
+
+/** 无障碍服务已开启时执行手势注入（独立函数避免 lambda 内裸 return） */
+function injectGestureInner(svc: ScreenControlAccessibilityService, g: GestureDesc): ScreenControlResult {
+  val activity = UTSAndroid.getUniActivity()
+  val dm = activity?.resources?.displayMetrics
+  val w = dm?.widthPixels ?: 1080
+  val h = dm?.heightPixels ?: 1920
+  val action = g.action
+  if (action == "back") {
+    svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+    return okResult(0, "ok")
+  } else if (action == "home") {
+    svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+    return okResult(0, "ok")
+  } else if (action == "recent") {
+    svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
+    return okResult(0, "ok")
+  } else if (action == "tap") {
+    val x = (g.x ?: 0.5).toFloat() * w.toFloat()
+    val y = (g.y ?: 0.5).toFloat() * h.toFloat()
+    svc.gestureTap(x, y)
+    return okResult(0, "ok")
+  } else if (action == "longpress") {
+    val x = (g.x ?: 0.5).toFloat() * w.toFloat()
+    val y = (g.y ?: 0.5).toFloat() * h.toFloat()
+    svc.gestureLongPress(x, y)
+    return okResult(0, "ok")
+  } else if (action == "swipe") {
+    val x1 = (g.x ?: 0.5).toFloat() * w.toFloat()
+    val y1 = (g.y ?: 0.5).toFloat() * h.toFloat()
+    val x2 = (g.x2 ?: g.x ?: 0.5).toFloat() * w.toFloat()
+    val y2 = (g.y2 ?: g.y ?: 0.5).toFloat() * h.toFloat()
+    val dur = (g.duration ?: 300.0).toLong()
+    svc.gestureSwipe(x1, y1, x2, y2, dur)
+    return okResult(0, "ok")
+  } else {
+    return okResult(4, "未知手势: " + action)
+  }
 }
 
 /** 跳转系统无障碍设置页 */

@@ -80,25 +80,29 @@ class ScreenControlService : Service() {
     val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
     reader.setOnImageAvailableListener({ r ->
       val now = System.currentTimeMillis()
-      if (now - lastTs < 200) {
+      if (now - lastTs >= 200) {
+        // 到帧间隔：取一帧 RGBA → JPEG → base64 回调（无裸 return，纯 if/else 兼容 UTS）
+        lastTs = now
+        val image = r.acquireLatestImage()
+        if (image != null) {
+          try {
+            val buffer = image.planes[0].buffer
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            bitmap.copyPixelsFromBuffer(buffer)
+            val baos = ByteArrayOutputStream()
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 60, baos)
+            bitmap.recycle()
+            val b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+            frameCallback?.invoke("data:image/jpeg;base64," + b64)
+          } catch (e: Exception) {
+            Log.e(TAG, "frame error: " + e.message)
+          } finally {
+            try { image.close() } catch (e: Exception) {}
+          }
+        }
+      } else {
+        // 未到间隔：丢弃这一帧
         try { r.acquireLatestImage()?.close() } catch (e: Exception) {}
-        return@setOnImageAvailableListener
-      }
-      lastTs = now
-      val image = r.acquireLatestImage() ?: return@setOnImageAvailableListener
-      try {
-        val buffer = image.planes[0].buffer
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        bitmap.copyPixelsFromBuffer(buffer)
-        val baos = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 60, baos)
-        bitmap.recycle()
-        val b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
-        frameCallback?.invoke("data:image/jpeg;base64," + b64)
-      } catch (e: Exception) {
-        Log.e(TAG, "frame error: " + e.message)
-      } finally {
-        try { image.close() } catch (e: Exception) {}
       }
     }, handler)
 
