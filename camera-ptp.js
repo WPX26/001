@@ -43,6 +43,7 @@
   var PTP_OC_OPEN_SESSION = 0x1002;           // 曾误标 0x1001（=GetDeviceInfo）
   var PTP_OC_CLOSE_SESSION = 0x1003;          // 曾误标 0x1002（=OpenSession）
   var PTP_OC_GET_DEVICE_INFO = 0x1001;        // 曾误标 0x1004（=GetStorageIDs）
+  var PTP_OC_GET_STORAGE_IDS = 0x1004;        // 保活降级兜底（r44：非远程模式 0x911D 可能被拒时改用）
   var PTP_OC_GET_OBJECT_INFO = 0x1008;
   var PTP_OC_GET_OBJECT = 0x1009;             // 曾误标 0x100A（=GetThumb）
   var PTP_OC_DELETE_OBJECT = 0x100B;
@@ -81,6 +82,9 @@
   var PTP_RC_OPERATION_NOT_SUPPORTED = 0x2005;
 
   /* ---------- 事件码（Canon EOS 段，ptp.h 核实） ---------- */
+  var PTP_EC_OBJECT_ADDED = 0x4002;          // 标准 PTP ObjectAdded——非远程模式 5D2 拍卡后发到【中断端点】
+                                             // （其 "Events Supported" 声明的是标准事件集 0x4002/0x4003/0x4007/0x4009/0xC101，
+                                             //   不是 0xC181；0xC181 只在远程模式经 GetEvent(0x9116) 走）
   var PTP_EC_EOS_OBJECT_ADDED_EX = 0xC181;   // 新照片（等这个），Handle@0x08
   var PTP_EC_EOS_OBJECT_ADDED_EX64 = 0xC1A7; // 新相机 64 位变体（5D2 不用，识别防御）
   var PTP_EC_EOS_REQUEST_GET_EVENT = 0xC101; // 相机请求主机来取事件（曾误标 AF_RESULT）
@@ -278,7 +282,11 @@
         return Promise.resolve(pkt);
       }
       // 缓存不足：读一段（单次 ≤16KB，Android bulkTransfer 上限）
-      return self.transport.bulkIn(16384, Math.min(3000, deadline - Date.now())).then(function (chunk) {
+      // r26 根因修复（2026-08-18 实锤）：单次读预算 = 整个事务剩余时间（gphoto2 语义），
+      // 旧实现把 3s 小预算当传输层超时——5D2 慢响应/瞬时故障时一次超时即毒化管道，必败。
+      var remain = deadline - Date.now();
+      if (remain <= 0) return Promise.reject(PtpTimeoutError('等待 PTP 包超时'));
+      return self.transport.bulkIn(16384, remain).then(function (chunk) {
         if (chunk && chunk.length) self._append(chunk);
         // 空读（ZLP 遗留）不算错误，继续 pump；超时由 pump 顶部检查兜底
         return pump();
@@ -347,6 +355,32 @@
       r.pos += (size - 8);
     }
     return evts;
+  }
+
+  /** 解析标准 PTP 事件容器（type=4，来自【中断端点】）——非远程模式下 5D2 拍卡后把
+   *  ObjectAdded(0x4002) 发到这里（其 "Events Supported" 声明即标准 PTP 事件集）。
+   *  容器 = 12B 头(长度/type=4/code/tid) + 平铺 u32 参数；一次中断传输可能带多个容器。
+   *  @returns {Array<{code:number, tid:number, params:number[]}>}
+   */
+  function parseInterruptEvents(u8) {
+    var out = [];
+    if (!u8 || u8.length < 12) return out;
+    var r = new PacketReader(u8);
+    while (r.pos + 12 <= r.dv.byteLength) {
+      var len = r.u32();
+      var type = r.u16();
+      var code = r.u16();
+      var tid = r.u32();
+      if (type !== PTP_TYPE_EVENT) break;          // 非事件容器 → 整包无效，中止
+      if (len < 12) break;                         // 容器头必须 ≥12
+      var end = r.pos + (len - 12);                // 参数区结束
+      if (end > r.dv.byteLength) break;            // 越界 → 中止（防御脏数据）
+      var params = [];
+      while (r.pos + 4 <= end) params.push(r.u32());
+      out.push({ code: code, tid: tid, params: params });
+      if (end <= r.pos) break;                     // 无进展 → 防死循环
+    }
+    return out;
   }
 
   /**
@@ -455,6 +489,71 @@
     for (var i = 0; i < evts.length; i++) this._pendingEvents.push({ type: PTP_TYPE_EVENT, code: evts[i].code, eos: evts[i] });
   };
 
+  /* ---------- 事件监听（双通道） ---------- */
+  /**
+   * 启动事件监听。两条通道并跑：
+   *   ① 传输层中断端点（标准 PTP 事件 0x4002 ObjectAdded——非远程模式 5D2 的主通道，
+   *      自研栈此前从不读中断端点 → 拍卡事件全丢，这是「按快门没反应」的主导根因）；
+   *   ② GetEvent(0x9116) 轮询（EOS 事件 0xC181——远程模式通道，waitForObject 内照常进行）。
+   * transport 无 startEventReader（Android 原生版）时自动降级为仅 ②。
+   */
+  PtpCamera.prototype.startEvents = function () {
+    var self = this;
+    if (self._evtStarted) return;
+    self._evtStarted = true;
+    var t = self.transport;
+    if (t && typeof t.startEventReader === 'function') {
+      t.startEventReader(function (u8) {
+        try {
+          var evts = parseInterruptEvents(u8);
+          for (var i = 0; i < evts.length; i++) {
+            self._lastInterruptAt = Date.now();
+            self._pendingEvents.push({ type: PTP_TYPE_EVENT, code: evts[i].code, intr: evts[i] });
+          }
+        } catch (e) {}
+      }, function (err) {
+        // 设备断开/传输错误：只记录并停监听，页面负责重连提示
+        self._evtStarted = false;
+        if (self._onEventError) self._onEventError(err);
+      });
+    }
+  };
+
+  PtpCamera.prototype.stopEvents = function () {
+    this._evtStarted = false;
+    var t = this.transport;
+    if (t && typeof t.stopEventReader === 'function') t.stopEventReader();
+  };
+
+  /** 注册中断端点监听器错误回调（设备断开等） */
+  PtpCamera.prototype.onEventError = function (fn) {
+    this._onEventError = fn;
+  };
+
+  /**
+   * 标准 ObjectAdded(0x4002) 事件只有 handle（部分机身带 StorageID 参数）。
+   * 缺 storage 时用 GetObjectInfo(0x1008) 补齐（并顺带拿到文件大小），
+   * 拿不到时按 5D2 卡存储 0x00010001 兜底（卡路径 0x9104 整读）。
+   * @returns {Promise<{objectId:number, storageId:number, size:number}>}
+   */
+  PtpCamera.prototype._resolveStdObject = function (handle, storageId) {
+    var self = this;
+    if (!handle) return Promise.reject(PtpError(0xE008, 'ObjectAdded 缺 objectId'));
+    if (storageId) return Promise.resolve({ objectId: handle, storageId: storageId, size: 0 });
+    return self.transact(PTP_OC_GET_OBJECT_INFO, [handle]).then(function (res) {
+      // ObjectInfo 标准布局：StorageID@0 / ObjectFormat@4(u16) / Protection@6(u16) / CompressedSize@8(u32)
+      var u8 = res.data;
+      if (!u8 || u8.length < 12) return { objectId: handle, storageId: 0x00010001, size: 0 };
+      var r = new PacketReader(u8);
+      var sid = r.u32();
+      r.u16(); r.u16();
+      var size = r.u32();
+      return { objectId: handle, storageId: sid, size: size };
+    }).catch(function () {
+      return { objectId: handle, storageId: 0x00010001, size: 0 };
+    });
+  };
+
   /* ---------- 会话 ---------- */
   /**
    * 打开 PTP 会话（gphoto2 camera_init 语义）：
@@ -486,11 +585,37 @@
     return tryOpen();
   };
 
-  PtpCamera.prototype.closeSession = function () {
+  PtpCamera.prototype.closeSession = function (timeoutMs, noWait) {
     var self = this;
-    return self.transact(PTP_OC_CLOSE_SESSION, [])
+    // r25：支持短超时（连接前清理/断开清理用 5s，避免相机卡死时拖满 20s）
+    // r26：noWait=true 只发不读——清理命令的响应无关紧要，不等响应可避免「读超时毒化管道」，
+    //      后续 openSession 才能在同一传输层上获得完整 20s 事务预算（根因修复）。
+    if (noWait) {
+      var tid1 = self._nextTid();
+      return self.transport.bulkOut(buildCommand(PTP_OC_CLOSE_SESSION, tid1, []), timeoutMs || 3000)
+        .then(function () { self.sessionOpen = false; })
+        .catch(function () { self.sessionOpen = false; });
+    }
+    return self.transact(PTP_OC_CLOSE_SESSION, [], null, timeoutMs || 20000)
       .then(function () { self.sessionOpen = false; })
       .catch(function (e) { self.sessionOpen = false; throw e; });
+  };
+
+  /**
+   * r25：Device Reset（0x0066，标准 PTP 操作码）——首次 openSession 失败后的会话清理兜底。
+   * 注意：5D2 深度卡死时该命令也可能无响应（2026-08-18 真机实验证实），此时只能物理断电重启；
+   * 复位后设备可能需重新枚举/claim，调用方应在重连后的传输层上使用。
+   * 不加入顶部常量表（保持协议常量表不动）。
+   */
+  PtpCamera.prototype.deviceReset = function (timeoutMs, noWait) {
+    var self = this;
+    // r26：noWait=true 只发不读（复位响应无关紧要），避免等响应超时毒化管道后 openSession 秒败
+    if (noWait) {
+      var tid2 = self._nextTid();
+      return self.transport.bulkOut(buildCommand(0x0066, tid2, []), timeoutMs || 3000)
+        .catch(function () {});
+    }
+    return self.transact(0x0066, [], null, timeoutMs || 10000);
   };
 
   /* ---------- 设备信息 ---------- */
@@ -537,9 +662,18 @@
     });
   };
 
-  /** 保活：0x911D 无参事务，每 10s 一次（gphoto2 camera_keep_device_on） */
+  /** 保活：0x911D 无参事务，每 10s 一次（gphoto2 camera_keep_device_on）。
+   *  r44 加固：0x911D 是远程模式专用操作码——5D2 非远程模式下可能被拒（r43 静默吞掉
+   *  =保活从未生效，6 分钟掉线很可能由此而来）。被拒一次后记住改走通用 0x1004
+   *  GetStorageIDs 保持总线活动；断开类错误不吞，抛给上层掉线分支提示拔插。 */
   PtpCamera.prototype.keepAlive = function () {
-    return this.transact(PTP_OC_EOS_KEEP_DEVICE_ON, []);
+    var self = this;
+    if (self._keepAliveUseFallback) return self.transact(PTP_OC_GET_STORAGE_IDS, []);
+    return self.transact(PTP_OC_EOS_KEEP_DEVICE_ON, []).catch(function (e) {
+      if (/disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test((e && e.message || '').toString())) throw e;
+      self._keepAliveUseFallback = true;   // 非断开类失败 → 判定该机身不吃 0x911D，此后直接用 0x1004
+      return self.transact(PTP_OC_GET_STORAGE_IDS, []);
+    });
   };
 
   /**
@@ -606,38 +740,55 @@
 
   /* ---------- 事件/照片 ---------- */
   /**
-   * 等待新照片事件（0xC181 ObjectAddedEx），轮询 GetEvent(0x9116)。
+   * 等待新照片事件（双通道）：
+   *   ① 中断端点标准 PTP ObjectAdded(0x4002)——非远程模式 5D2 拍卡后的主通道
+   *      （startEvents 已把中断包解析进 _pendingEvents，这里消费，含 .source 标注来源）；
+   *   ② GetEvent(0x9116) 轮询 EOS ObjectAddedEx(0xC181)——远程模式通道（保留）。
    * 每轮轮询前按 10s 间隔保活；轮询间隔 250ms（gphoto2 是紧密排空，Android 上
    * 250ms 避免打满带宽，事件不丢——0x9116 数据是积攒式的）。
    * @param {number} timeoutMs 总超时（默认 90s = gphoto2 EOS_CAPTURE_TIMEOUT）
-   * @returns {Promise<{objectId:number, storageId:number, size:number}>}
-   *          objectId=0xC181 Handle；storageId=0 表示 SDRAM（走 0x9107 分块取图）
+   * @returns {Promise<{objectId:number, storageId:number, size:number, source?:string}>}
+   *          objectId=照片 Handle；storageId=0 表示 SDRAM（走 0x9107 分块取图）
    */
   PtpCamera.prototype.waitForObject = function (timeoutMs) {
     var self = this;
     var deadline = Date.now() + (timeoutMs || 90000);
     function poll() {
       if (Date.now() > deadline) throw PtpTimeoutError('等待照片事件超时');
-      // 先查队列里已有的 EOS 事件
+      // 先查队列里已有的事件（GetEvent 轮询插入的 .eos + 中断端点插入的 .intr）
       var evts = self.drainEvents();
       for (var i = 0; i < evts.length; i++) {
         if (evts[i].eos && evts[i].eos.code === PTP_EC_EOS_OBJECT_ADDED_EX) {
           var oa = evts[i].eos;
-          return { objectId: oa.handle, storageId: oa.storageId, size: oa.size };
+          return { objectId: oa.handle, storageId: oa.storageId, size: oa.size, source: 'GetEvent(0xC181)' };
+        }
+        if (evts[i].intr && evts[i].intr.code === PTP_EC_OBJECT_ADDED) {
+          var it = evts[i].intr;
+          // 标准 ObjectAdded：Param1=ObjectHandle；Param2=StorageID（部分机身带）
+          return self._resolveStdObject(it.params[0], it.params.length > 1 ? it.params[1] : 0)
+            .then(function (obj) { obj.source = '中断端点(0x4002)'; return obj; });
         }
       }
       // 保活：每 10s 一次（gphoto2 camera_keep_device_on 同频）
+      // r44：失败不再无声吞掉——非断开类失败记录后继续等（不打断等待），
+      // 设备级断开让轮询抛错 → 页面掉线分支明示「拔插重连」。
+      if (self._lastKeepAliveErr) {
+        var kErr = self._lastKeepAliveErr;
+        self._lastKeepAliveErr = null;
+        var kMsg = (kErr && kErr.message || '').toString();
+        if (/disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(kMsg)) throw kErr;
+      }
       var now = Date.now();
       if (now - self._lastKeepAlive > 10000) {
         self._lastKeepAlive = now;
-        self.keepAlive().catch(function () {});
+        self.keepAlive().catch(function (e) { self._lastKeepAliveErr = e; });
       }
       return self.transact(PTP_OC_EOS_GET_EVENT, []).then(function (res) {
         var found = null;
         var evs = parseEosEvents(res.data);
         for (var j = 0; j < evs.length; j++) {
           if (evs[j].code === PTP_EC_EOS_OBJECT_ADDED_EX) {
-            found = { objectId: evs[j].handle, storageId: evs[j].storageId, size: evs[j].size };
+            found = { objectId: evs[j].handle, storageId: evs[j].storageId, size: evs[j].size, source: 'GetEvent(0xC181)' };
             break;
           }
         }
