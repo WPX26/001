@@ -1255,7 +1255,10 @@
   const chatSend = document.getElementById('chatSend');
 
   let chatConvId = null;   // 当前会话 id（null = 面板不可用）
-  let chatBubbles = [];    // 当前会话气泡（时间正序，{mine, text, time}）
+  let chatBubbles = [];    // 当前会话气泡（时间正序，{mine, text, time, id?}）
+  let chatSocket = null;         // MemoAPI.createChatSocket 实例（页面级唯一，内部自管重连）
+  let chatSocketStatus = 'off';  // off | connecting | open | reconnecting | closed | unavailable
+  let chatNotifTimer = null;     // 新消息触发的通知列表刷新防抖
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1273,14 +1276,14 @@
     return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
-  // 后端消息 → 页面气泡（image/coord 用占位文案，与后端 lastMessage 快照一致）
+  // 后端消息 → 页面气泡（image/coord 用占位文案，与后端 lastMessage 快照一致；id 供 WS 去重）
   function toBubble(m) {
     const me = (MemoAPI.getUser && MemoAPI.getUser()) || null;
     let text;
     if (m.type === 'image') text = '[图片]';
     else if (m.type === 'coord') text = '[位置]';
     else text = m.content || '';
-    return { mine: me && String(m.senderId) === String(me.id), text: text, time: toHHMM(m.createdAt) };
+    return { id: m.id ? String(m.id) : null, mine: me && String(m.senderId) === String(me.id), text: text, time: toHHMM(m.createdAt) };
   }
 
   // 渲染气泡（沿用 memo-home：每 6 条插入一次 chat-time 分隔）
@@ -1292,6 +1295,69 @@
       return timeTag + `<div class="chat-bubble ${m.mine ? 'me' : 'peer'}">${escapeHtml(m.text)}</div>`;
     }).join('');
     chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // ========== 私信 WebSocket 实时（api.md 附录 A：/chat/ws，JWT query token + 30s 心跳） ==========
+  // 已登录时页面级建立一条 WS：对方发来消息实时到达（new_message）；
+  // 断线由 createChatSocket 指数退避自动重连，重连成功/打开会话时用 REST 拉历史兜底，
+  // 离线期间不会丢消息（REST 是最终一致兜底，WS 只做实时加速）。
+
+  function ensureChatSocket() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    if (chatSocket) return; // 已建立，内部自管重连
+    chatSocket = MemoAPI.createChatSocket({
+      onMessage: function (evt) { handleWsEvent(evt); },
+      onStatus: function (st) { handleWsStatus(st); }
+    });
+  }
+
+  function handleWsStatus(st) {
+    chatSocketStatus = st.status;
+    // 重连成功：若正打开着会话，重拉一次历史补掉离线期消息（按 id 去重/替换）
+    if (st.status === 'open' && chatConvId) {
+      reloadChatHistory();
+    }
+  }
+
+  function handleWsEvent(evt) {
+    if (!evt || evt.type !== 'new_message' || !evt.data || !evt.data.message) return;
+    const data = evt.data;
+    const msg = evt.data.message;
+    const me = (MemoAPI.getUser && MemoAPI.getUser()) || null;
+    // 服务端只推对端（自己发的消息不会经 WS 回来），防御性跳过
+    if (me && msg.senderId && String(msg.senderId) === String(me.id)) return;
+    // 当前正打开该会话 → 实时追加气泡（按 id 去重），并标记已读
+    if (chatConvId && String(data.conversationId) === String(chatConvId)) {
+      const exists = chatBubbles.some(function (b) { return b.id && String(b.id) === String(msg.id); });
+      if (!exists) {
+        chatBubbles.push(toBubble(msg));
+        renderChatMessages(chatBubbles);
+        MemoAPI.put('/chat/conversations/' + encodeURIComponent(chatConvId) + '/read')
+          .catch(function (e) { console.warn('[conv read]', e && e.message); });
+      }
+      return;
+    }
+    // 面板未打开/其他会话：刷新通知列表（chat 类型消息会出现在列表），未读数同步
+    refreshChatNotifications();
+  }
+
+  // 重拉当前会话历史（重连成功兜底；服务端已持久化，直接替换，乐观发送的已入库消息也含在内）
+  function reloadChatHistory() {
+    if (!chatConvId) return;
+    MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages?limit=50')
+      .then(function (data) {
+        chatBubbles = ((data && data.list) || []).slice().reverse().map(toBubble);
+        renderChatMessages(chatBubbles);
+      })
+      .catch(function (e) {
+        console.warn('[chat history reload]', e && e.message);
+      });
+  }
+
+  // 防抖刷新通知列表（WS 新消息 → 列表/未读数实时跟进）
+  function refreshChatNotifications() {
+    clearTimeout(chatNotifTimer);
+    chatNotifTimer = setTimeout(function () { loadRealNotifications(); }, 300);
   }
 
   /**
@@ -1317,6 +1383,7 @@
       chatBubbles = [];
       renderChatMessages(chatBubbles);
       chatPanel.classList.add('show');
+      ensureChatSocket();   // 实时推送连接（已建则复用；未登录/不支持时静默，REST 兜底）
       setTimeout(() => chatInput.focus(), 320);
       // 拉取历史（9.2，before 游标暂不用：原型会话量小）
       MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages?limit=50')
@@ -1385,9 +1452,10 @@
     if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
   });
 
-  // 初始化：先渲染本地消息（离线兜底），已登录时异步拉取真实通知覆盖
+  // 初始化：先渲染本地消息（离线兜底），已登录时异步拉取真实通知覆盖 + 建立私信 WS 实时通道
   renderMessages();
   loadRealNotifications();
+  ensureChatSocket();
 </script>
 </body>
 </html>

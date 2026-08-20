@@ -1,32 +1,15 @@
 # 地图相册平台 - 静态前端镜像自动构建
 #
-# 触发：push 到 master 分支且改动涉及前端文件；也可在 GitHub 网页手动触发
-# 产物：
-#   - ghcr.io/wpx26/001/memomap-frontend:<版本>（GHCR，GITHUB_TOKEN 自动认证）
-#   - registry.cn-hangzhou.aliyuncs.com/memomap/memomap-frontend:<版本>
-#     （阿里云 ACR，需配置 secrets：ALIYUN_ACR_USERNAME / ALIYUN_ACR_PASSWORD）
-# 流程：GitHub runner 构建镜像 → 按可用凭据推送 GHCR + ACR
-# 部署：构建完成后在 Sealos 控制台「应用管理」→ 前端应用 → 更新镜像为对应地址
+# ⚠️ DISABLED（2026-08-18 王总批准）：实况部署走阿里云 ACR 代码源自动构建（HANDOVER 第7节），
+# 本 workflow 镜像目标（GHCR / registry.cn-hangzhou memomap 仓库）与实况 wpx001/static 不符，
+# 触发器已置空（on: {}），工作流永不运行。保留本文件仅为留档；彻底删除需 git rm（另待王总指示）。
 name: build-frontend
 
-on:
-  push:
-    branches: [master]
-    paths:
-      - 'memo-home.html'
-      - 'api.js'
-      - 'nginx.conf'
-      - 'Dockerfile.static'
-      - 'fonts/**'
-      - 'lib/**'
-      - 'manifest.json'
-      - '*.html'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: '镜像版本号（默认 1.2）'
-        required: false
-        default: '1.2'
+# ⚠️ DISABLED（2026-08-18 王总批准）：实况部署走阿里云 ACR 代码源自动构建（HANDOVER 第7节），
+# 本 workflow 的镜像目标（GHCR / registry.cn-hangzhou memomap 仓库）与实况 wpx001/static 不符，
+# 故将触发器置空（on: {}），工作流永不运行。彻底删除本文件需 git rm（另待王总指示）。
+
+on: {}
 
 jobs:
   build:

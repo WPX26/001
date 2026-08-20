@@ -1112,6 +1112,26 @@
   }
   .edit-avatar svg { width: 32rem; height: 32rem; color: white; }
   .edit-avatar-tip { font-size: 12rem; color: rgba(245, 223, 192, 0.7); line-height: 1.4; }
+  .edit-avatar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 34rem;
+    padding: 0 16rem;
+    margin-bottom: 6rem;
+    border: none;
+    border-radius: 11rem;
+    background: linear-gradient(135deg, #F0A040, #D4691C);
+    color: white;
+    font-size: 13rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.35);
+    transition: transform 0.2s;
+  }
+  .edit-avatar-btn:hover { transform: scale(0.97); }
+  .edit-avatar-btn:active { transform: scale(0.94); }
+  .edit-avatar-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
   .edit-card { padding: 6rem 16rem; }
   .edit-field { padding: 12rem 0; }
   .edit-label {
@@ -2351,7 +2371,11 @@
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                 </svg>
               </div>
-              <div class="edit-avatar-tip">头像显示为图片链接，留空则保持当前头像</div>
+              <div>
+                <button type="button" class="edit-avatar-btn" id="editAvatarFileBtn">上传头像</button>
+                <div class="edit-avatar-tip">支持上传图片或粘贴链接，留空则保持当前头像</div>
+              </div>
+              <input type="file" id="editAvatarFile" accept="image/*" hidden />
             </div>
             <div class="menu-card edit-card">
               <div class="edit-field">
@@ -3134,6 +3158,43 @@
   editAvatarUrl.addEventListener('input', () => {
     const url = editAvatarUrl.value.trim();
     editAvatarPreview.style.background = url ? 'url("' + url + '") center/cover no-repeat' : '';
+  });
+
+  // 头像文件上传（2026-08-18 前端补齐）：选图 → POST /upload/file scene=avatar → 回填链接 + 即时预览
+  const editAvatarFile = document.getElementById('editAvatarFile');
+  const editAvatarFileBtn = document.getElementById('editAvatarFileBtn');
+  editAvatarFileBtn.addEventListener('click', () => {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
+      showToast('⚠️ 请先登录');
+      return;
+    }
+    editAvatarFile.click();
+  });
+  editAvatarFile.addEventListener('change', () => {
+    const file = editAvatarFile.files && editAvatarFile.files[0];
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    editAvatarPreview.style.background = 'url("' + objectUrl + '") center/cover no-repeat';
+    editAvatarFileBtn.disabled = true;
+    editAvatarFileBtn.textContent = '上传中…';
+    MemoAPI.uploadFile(file, 'avatar').then(function (data) {
+      const url = (data && data.url) || '';
+      editAvatarFileBtn.disabled = false;
+      editAvatarFileBtn.textContent = '上传头像';
+      if (!url) throw new Error('上传响应缺少 url');
+      editAvatarUrl.value = url;
+      editAvatarPreview.style.background = 'url("' + url + '") center/cover no-repeat';
+    }).catch(function (e) {
+      console.warn('[avatar upload]', e && e.message);
+      editAvatarFileBtn.disabled = false;
+      editAvatarFileBtn.textContent = '上传头像';
+      // 失败回退：预览恢复为当前链接（无则回到占位图标）
+      const cur = editAvatarUrl.value.trim();
+      editAvatarPreview.style.background = cur ? 'url("' + cur + '") center/cover no-repeat' : '';
+      showToast('⚠️ 头像上传失败，请重试');
+    }).then(function () {
+      editAvatarFile.value = '';
+    });
   });
 
   document.getElementById('editSaveBtn').addEventListener('click', () => {
@@ -4618,3 +4679,4 @@
 })();
 </script>
 </body>
+</html>

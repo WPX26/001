@@ -40,7 +40,14 @@ server.key
 
 # 调试截图/孤立素材
 _*.png
+_shot_*.jpg
 旅行者背景图.jpg
+
+# 相机联调运行时脚本（本地保留，不入库）
+lib/uni.webview.js
+
+# 王总截图（含账号信息，谨慎处理，不入库）
+docs/王总截图*
 
 # 旧副本页（不入库）
 online_check.html

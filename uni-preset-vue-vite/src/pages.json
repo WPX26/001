@@ -25,14 +25,6 @@
 			}
 		},
 		{
-			"path": "pages/camera/camera",
-			"style": {
-				"navigationBarTitleText": "相机",
-				"disableScroll": true,
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/message/message",
 			"style": {
 				"navigationBarTitleText": "消息",

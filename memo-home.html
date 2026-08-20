@@ -7144,7 +7144,9 @@
 
   // ========== 灵感模式 ==========
   // 他人坐标数据（鲜红色标记点）
-  const inspireData = {
+  // 数据源：已登录时优先拉取后端 /inspire/coords（真实坐标+照片）；接口不可达/未登录/无数据时
+  // 自动降级为下方演示数据（保留现有离线降级机制，交互与视觉不变）
+  const inspireFallbackData = {
     coordinates: [
       {
         id: 'c1', title: '西湖断桥', lng: 120.1498, lat: 30.2587,
@@ -7246,6 +7248,9 @@
     ]
   };
 
+  let inspireData = inspireFallbackData;
+  let inspireDataIsRemote = false;   // true = 真实后端数据接管（空列表→空态提示）；false = 演示数据
+
   let inspireMode = false;
   let currentInspireCoord = null;
   let currentPhotoDetail = null;
@@ -7255,6 +7260,8 @@
     const baseLng = 120.3826;
     const baseLat = 36.0671;
     inspireData.coordinates.forEach(coord => {
+      // 真实后端坐标保持原经纬度，不做演示对齐
+      if (coord._remote) return;
       // 赋予测试经纬度，让它们散布在五四广场周围
       coord.lng = baseLng + (coord.offsetX || (coord.x - 50) * 0.1) * 0.003;
       coord.lat = baseLat + (coord.offsetY || (50 - coord.y) * 0.1) * 0.003;
@@ -7323,7 +7330,12 @@
   function getInspireCoordsForRender(level) {
     const threshold = getDetailClusterThreshold(level);
     const anchors = getAnchorMarkers(level);
-    const clusters = createSingleLinkClusters(inspireData.coordinates, threshold);
+    // 真实后端坐标无演示网格 x/y：按当前视口屏幕像素补算，保持与演示数据一致的旧单链接聚合行为
+    const inspireItems = inspireData.coordinates.map(function (c) {
+      if (typeof c.x === 'number' && typeof c.y === 'number') return c;
+      return Object.assign({}, c, legacyCoordXY(c));
+    });
+    const clusters = createSingleLinkClusters(inspireItems, threshold);
 
     return clusters.map((cluster) => {
       const cx = cluster.reduce((sum, item) => sum + item.x, 0) / cluster.length;
@@ -7379,7 +7391,11 @@
       renderSavedMarkers(currentDetailLevel);
       // 坐标点自动命名（进模式时重试：加载时失败的请求在此补跑，已命名点自动跳过）
       autoNameInspireExploreCoords();
-      showToast('💡 灵感模式：查看他人坐标', 'success', 2000);
+      // 真实后端数据为空 → 空态提示（演示数据降级时保持原提示）
+      showToast(inspireDataIsRemote && (!inspireData.coordinates || inspireData.coordinates.length === 0)
+        ? '💡 附近暂无灵感坐标'
+        : '💡 灵感模式：查看他人坐标',
+        inspireDataIsRemote && (!inspireData.coordinates || inspireData.coordinates.length === 0) ? 'warning' : 'success', 2000);
     } else {
       phoneScreen.classList.remove('inspire-mode');
       inspireBtn.classList.remove('inspire-active');
@@ -7414,7 +7430,8 @@
   // ========== 探索模式（雷达，紫蓝色，按作者分组） ==========
   // 探索模式数据：工作模式摄影师上传的作品（紫蓝色坐标点）
   // 与灵感模式(生活模式上传)区分：弹窗按作者分组而非时间分组
-  const exploreData = {
+  // 数据源：已登录时优先拉取后端 /explore/coords；接口不可达/未登录/无数据时自动降级为下方演示数据
+  const exploreFallbackData = {
     coordinates: [
       {
         id: 'e1', title: '五四广场', lng: 120.3826, lat: 36.0671,
@@ -7494,6 +7511,243 @@
     ]
   };
 
+  let exploreData = exploreFallbackData;
+  let exploreDataIsRemote = false;   // true = 真实后端数据接管（空列表→空态提示）；false = 演示数据
+
+  // ========== 灵感/探索真实数据加载（登录 + 后端可达 → 真实数据；接口失败/未登录 → 自动降级演示数据） ==========
+  // 与 api.js 的请求封装并行存在：本页内直接 fetch（避免其他会话同改 api.js 冲突），
+  // 沿用 MemoAPI 的 baseUrl / token / 登录态约定；失败时保持现有演示降级行为（console 提示、不弹 UI）。
+  function memoApiBaseUrl() {
+    try {
+      if (typeof MemoAPI !== 'undefined' && MemoAPI.baseUrl) return MemoAPI.baseUrl;
+      return localStorage.getItem('memo_api_base') || 'http://localhost:3000/api/v1';
+    } catch (e) { return 'http://localhost:3000/api/v1'; }
+  }
+
+  function memoApiGet(path) {
+    var token = '';
+    try { if (typeof MemoAPI !== 'undefined' && MemoAPI.getToken) token = MemoAPI.getToken(); } catch (e) {}
+    return fetch(memoApiBaseUrl() + path, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + token },
+      mode: 'cors'
+    }).then(function (res) {
+      return res.json();
+    }).then(function (json) {
+      if (json && json.code === 0) return json.data;
+      var err = new Error((json && json.message) || '请求失败');
+      err.business = true;
+      throw err;
+    });
+  }
+
+  // 后端 'YYYY-MM-DD' → 前端 'YYYY年M月D日'（与演示数据展示格式一致）
+  function ymdToChineseDate(ymd) {
+    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(String(ymd || ''));
+    if (!m) return ymd || '';
+    return Number(m[1]) + '年' + Number(m[2]) + '月' + Number(m[3]) + '日';
+  }
+
+  // 照片时间（后端 takenAt ISO）→ 秒级时间戳（前端弹窗按小时分组依赖 uploadTime）
+  function photoUploadTimeSec(takenAt) {
+    if (takenAt) {
+      var d = new Date(takenAt);
+      if (!isNaN(d.getTime())) return Math.floor(d.getTime() / 1000);
+    }
+    return Math.floor(Date.now() / 1000);
+  }
+
+  // 后端照片无颜色字段 → 按 id 取稳定色块（无真实图片时保持渐变块展示）
+  function seedColor(seed, palette) {
+    var h = 0;
+    var s = String(seed || '');
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
+  }
+
+  var INSPIRE_COLORS = ['#E53935', '#C62828', '#D32F2F', '#B71C1C', '#FF5252', '#AD1457', '#C2185B', '#F4511E'];
+  var EXPLORE_COLORS = ['#5E35B1', '#7E57C2', '#4527A0', '#9575CD', '#673AB7', '#3F51B5', '#6A1B9A', '#8E24AA'];
+
+  // 后端照片 → 前端渲染结构（{ id, backendId, url, thumbnailUrl, color, likes, tips, liked, tipped, collected, uploadTime, author, authorAvatar, comments }）
+  function adaptBackendPhoto(p, authorName, palette) {
+    if (!p) return null;
+    var id = p.id || ('photo_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+    return {
+      id: id,
+      backendId: p.id || null,          // 真实后端照片 id：点赞/收藏/评论/打赏同步用
+      url: p.imageUrl || '',
+      thumbnailUrl: p.thumbnailUrl || p.imageUrl || '',
+      color: seedColor(id, palette),
+      likes: p.likes || 0,
+      tips: 0,                           // /inspire /explore 返回无打赏数，置 0（打赏交互保留）
+      liked: !!p.isLiked,
+      tipped: false,
+      collected: false,
+      uploadTime: photoUploadTimeSec(p.takenAt),
+      author: authorName || '',
+      authorAvatar: hashColor(authorName || '匿名'),   // 头像保持本地色块（真实头像由他人主页真实化接口提供）
+      comments: []
+    };
+  }
+
+  // 后端灵感坐标 → 前端坐标结构（保持演示数据同款字段，供弹窗/聚类/收藏/详情复用）
+  function adaptInspireCoord(item) {
+    var ci = (item && item.coordInfo) || {};
+    var photos = [];
+    ((item && item.photoGroups) || []).forEach(function (g) {
+      (g.photos || []).forEach(function (p) {
+        var ap = adaptBackendPhoto(p, ci.authorName, INSPIRE_COLORS);
+        if (ap) photos.push(ap);
+      });
+    });
+    return {
+      id: ci.id || ('inspire_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)),
+      title: ci.title || '未命名坐标',
+      lng: Number(ci.lng),
+      lat: Number(ci.lat),
+      date: ymdToChineseDate(ci.date),
+      time: '',                          // 后端无时刻字段，弹窗时间分组以照片 uploadTime 为准
+      anchorTitle: ci.title || '',
+      color: '#E53935',
+      _remote: true,                     // 真实数据标记：演示对齐/命名等逻辑跳过
+      authorId: ci.authorId || '',
+      authorName: ci.authorName || '',
+      authorAvatar: hashColor(ci.authorName || ci.authorId || '匿名'),
+      isFollowedAuthor: !!ci.isFollowedAuthor,
+      photoCount: ci.photoCount || photos.length,
+      likeCount: ci.likeCount || 0,
+      collectedCount: ci.collectedCount || 0,
+      isCollected: !!ci.isCollected,
+      photos: photos
+    };
+  }
+
+  // 后端探索坐标（作者分组内） → 前端坐标结构；组内作者照片挂到该作者每个坐标下（弹窗按作者分组展示）
+  function adaptExploreCoord(group, coord) {
+    var g = group || {};
+    var c = coord || {};
+    var photos = (g.photos || []).map(function (p) {
+      return adaptBackendPhoto(p, g.authorName, EXPLORE_COLORS);
+    }).filter(Boolean);
+    var dateStr = '';
+    if (photos.length && photos[0].uploadTime) {
+      var d = new Date(photos[0].uploadTime * 1000);
+      if (!isNaN(d.getTime())) dateStr = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    }
+    return {
+      id: c.id || ((g.authorId || 'explore') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)),
+      title: c.title || '未命名坐标',
+      lng: Number(c.lng),
+      lat: Number(c.lat),
+      date: dateStr,
+      time: '',
+      anchorTitle: c.title || '',
+      color: '#5E35B1',
+      _remote: true,
+      authorId: g.authorId || '',
+      authorName: g.authorName || '',
+      authorAvatar: hashColor(g.authorName || g.authorId || '匿名'),
+      photoCount: c.photoCount || photos.length,
+      likeCount: c.likeCount || 0,
+      thumbnails: c.thumbnails || [],
+      photos: photos
+    };
+  }
+
+  // 真实后端坐标无演示网格 x/y：按当前视口屏幕像素补算，供旧单链接聚类复用（聚合行为与演示一致）
+  function legacyCoordXY(c) {
+    if (map) {
+      var p = map.latLngToContainerPoint([c.lat, c.lng]);
+      return { x: p.x, y: p.y };
+    }
+    return { x: 50 + (Number(c.lng) - 120.3826) * 500, y: 50 - (Number(c.lat) - 36.0671) * 500 };
+  }
+
+  // 照片卡片背景：真实照片用缩略图 cover 展示，无图（演示数据）保持原渐变块
+  function photoCardBg(p) {
+    var url = p && (p.thumbnailUrl || p.url);
+    var color = (p && p.color) || '#9B7B5A';
+    if (url) {
+      return "url('" + url + "') center/cover no-repeat, linear-gradient(135deg, " + color + ", " + adjustColor(color, -20) + ")";
+    }
+    return "linear-gradient(135deg, " + color + ", " + adjustColor(color, -20) + ")";
+  }
+
+  // 请求中心点：地图就绪取视口中心 + 覆盖半径（最小 5km，兜底青岛五四广场）
+  function inspireRequestParams() {
+    var lng = 120.3826, lat = 36.0671, radius = 20000;
+    if (map) {
+      try {
+        var c = map.getCenter();
+        if (c && typeof c.lng === 'number' && typeof c.lat === 'number') { lng = c.lng; lat = c.lat; }
+        var b = map.getBounds();
+        if (b) {
+          var corner = b.getNorthEast();
+          if (corner) radius = Math.max(5000, Math.ceil(haversineKm(lng, lat, corner.lng, corner.lat) * 1.3));
+        }
+      } catch (e) {}
+    }
+    return 'lng=' + lng + '&lat=' + lat + '&radius=' + radius + '&page=1&pageSize=50';
+  }
+
+  // 登记作者名 → 后端用户 id（他人主页真实化 + 关注同步用；与 api.js 既有映射机制一致）
+  function registerBackendAuthors(coords) {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.setUserBackendId) return;
+    coords.forEach(function (c) {
+      if (c && c.authorId && c.authorName) {
+        try { MemoAPI.setUserBackendId(c.authorName, c.authorId); } catch (e) {}
+      }
+    });
+  }
+
+  function loadInspireDataFromBackend() {
+    memoApiGet('/inspire/coords?' + inspireRequestParams()).then(function (data) {
+      var list = (data && data.list) || [];
+      if (!Array.isArray(list)) return;
+      var coords = list.map(adaptInspireCoord).filter(function (c) {
+        return c && isFinite(c.lng) && isFinite(c.lat);
+      });
+      registerBackendAuthors(coords);
+      inspireData = { coordinates: coords };
+      inspireDataIsRemote = true;
+      console.log('[inspire] 已加载真实数据 ' + coords.length + ' 个坐标');
+      // 数据到达后重渲染当前模式标记（若用户已进入灵感模式）
+      if (inspireMode && typeof renderInspireMarkers === 'function') renderInspireMarkers(currentDetailLevel);
+    }).catch(function (e) {
+      console.warn('[inspire] 接口不可用，保持演示数据：', e && e.message);
+    });
+  }
+
+  function loadExploreDataFromBackend() {
+    memoApiGet('/explore/coords?' + inspireRequestParams()).then(function (data) {
+      var groups = (data && data.authorGroups) || [];
+      if (!Array.isArray(groups)) return;
+      var coords = [];
+      groups.forEach(function (g) {
+        if (!g || !Array.isArray(g.coords)) return;
+        g.coords.forEach(function (c) {
+          var cc = adaptExploreCoord(g, c);
+          if (cc && isFinite(cc.lng) && isFinite(cc.lat)) coords.push(cc);
+        });
+        if (g.authorId && g.authorName && typeof MemoAPI !== 'undefined' && MemoAPI.setUserBackendId) {
+          try { MemoAPI.setUserBackendId(g.authorName, g.authorId); } catch (e) {}
+        }
+      });
+      exploreData = { coordinates: coords };
+      exploreDataIsRemote = true;
+      console.log('[explore] 已加载真实数据 ' + coords.length + ' 个坐标');
+      if (exploreMode && typeof renderExploreMarkers === 'function') renderExploreMarkers(currentDetailLevel);
+    }).catch(function (e) {
+      console.warn('[explore] 接口不可用，保持演示数据：', e && e.message);
+    });
+  }
+
+  function loadInspireExploreFromBackend() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    loadInspireDataFromBackend();
+    loadExploreDataFromBackend();
+  }
+
   let exploreMode = false;
   let currentExploreCoord = null;
 
@@ -7522,6 +7776,8 @@
     const baseLng = 120.3826;
     const baseLat = 36.0671;
     exploreData.coordinates.forEach(coord => {
+      // 真实后端坐标保持原经纬度，不做演示对齐
+      if (coord._remote) return;
       coord.lng = baseLng + (coord.offsetX || (coord.x - 50) * 0.1) * 0.003;
       coord.lat = baseLat + (coord.offsetY || (50 - coord.y) * 0.1) * 0.003;
     });
@@ -7587,7 +7843,12 @@
   function getExploreCoordsForRender(level) {
     const threshold = getDetailClusterThreshold(level);
     const anchors = getAnchorMarkers(level);
-    const clusters = createSingleLinkClusters(exploreData.coordinates, threshold);
+    // 真实后端坐标无演示网格 x/y：按当前视口屏幕像素补算，保持与演示数据一致的旧单链接聚合行为
+    const exploreItems = exploreData.coordinates.map(function (c) {
+      if (typeof c.x === 'number' && typeof c.y === 'number') return c;
+      return Object.assign({}, c, legacyCoordXY(c));
+    });
+    const clusters = createSingleLinkClusters(exploreItems, threshold);
 
     return clusters.map((cluster) => {
       const cx = cluster.reduce((sum, item) => sum + item.x, 0) / cluster.length;
@@ -7653,7 +7914,11 @@
       // simMap 后备模式下隐藏所有标记 DOM
       var simMapEl = document.getElementById('simMap');
       if (simMapEl) { simMapEl.querySelectorAll('.map-marker').forEach(function(el) { el.style.display = 'none'; }); }
-      showToast('📡 探索模式：按作者发现作品', 'success', 2000);
+      // 真实后端数据为空 → 空态提示（演示数据降级时保持原提示）
+      showToast(exploreDataIsRemote && (!exploreData.coordinates || exploreData.coordinates.length === 0)
+        ? '📡 附近暂无探索作品'
+        : '📡 探索模式：按作者发现作品',
+        exploreDataIsRemote && (!exploreData.coordinates || exploreData.coordinates.length === 0) ? 'warning' : 'success', 2000);
     } else {
       phoneScreen.classList.remove('explore-mode');
       exploreBtn.classList.remove('explore-active');
@@ -7736,7 +8001,7 @@
       const initial = group.author.replace('@', '').charAt(0);
 
       const photosHtml = photos.map(p => `
-        <div class="tg-photo" data-photo-id="${p.id}" style="background: linear-gradient(135deg, ${p.color}, ${adjustColor(p.color, -20)});">
+        <div class="tg-photo" data-photo-id="${p.id}" style="background: ${photoCardBg(p)};">
           <div class="tg-photo-overlay">
             <div class="tg-photo-actions">
               <div class="tg-photo-action ${p.liked ? 'liked' : ''}" data-like="${p.id}" title="点赞">
@@ -7964,7 +8229,7 @@
           </div>
           <div class="time-group-photos">
             ${photos.map(p => `
-              <div class="tg-photo" data-photo-id="${p.id}" style="background: linear-gradient(135deg, ${p.color}, ${adjustColor(p.color, -20)});">
+              <div class="tg-photo" data-photo-id="${p.id}" style="background: ${photoCardBg(p)};">
                 <div class="tg-photo-overlay">
                   <div class="tg-photo-actions">
                     <div class="tg-photo-action ${p.liked ? 'liked' : ''}" data-like="${p.id}" title="点赞">
@@ -8099,8 +8364,11 @@
     document.getElementById('photoDetailComments').style.display = '';
     photoDetail.classList.remove('fullscreen');
 
-    // 渲染图片
-    photoDetailImage.style.background = `linear-gradient(135deg, ${photo.color}, ${adjustColor(photo.color, -20)})`;
+    // 渲染图片：真实照片显示大图/缩略图，无图（演示数据）保持原渐变块
+    const photoDetailImgUrl = photo.url || photo.thumbnailUrl || '';
+    photoDetailImage.style.background = photoDetailImgUrl
+      ? `url('${photoDetailImgUrl}') center/cover no-repeat, linear-gradient(135deg, ${photo.color}, ${adjustColor(photo.color, -20)})`
+      : `linear-gradient(135deg, ${photo.color}, ${adjustColor(photo.color, -20)})`;
 
     // 照片层级路径：中国 / 山东 / 青岛 / 五四广场（行政数据可用时逐级细化；不可用降级为仅坐标点名）
     const pathEl = document.getElementById('photoDetailPath');
@@ -8528,7 +8796,7 @@
           </div>
           <div class="time-group-photos">
             ${photos.map(p => `
-              <div class="tg-photo" data-photo-id="${p.id}" data-photo-source="${p._sourceIndex || 0}" style="background: linear-gradient(135deg, ${p.color}, ${adjustColor(p.color, -20)});">
+              <div class="tg-photo" data-photo-id="${p.id}" data-photo-source="${p._sourceIndex || 0}" style="background: ${photoCardBg(p)};">
                 <div class="tg-photo-overlay">
                   <div class="tg-photo-actions">
                     <div class="tg-photo-action ${p.liked ? 'liked' : ''}" data-like="${p.id}" title="点赞">
@@ -9492,6 +9760,9 @@
 
   // 绑定自由标记点击事件（不依赖 AMap 加载，确保始终可用）
   bindMapClickEvent();
+
+  // 灵感/探索真实数据加载（已登录 + 后端可达 → 真实数据；否则自动降级演示数据，空数据显示空态）
+  loadInspireExploreFromBackend();
 
   /**
    * 将用户拍摄的照片同步到他人灵感/探索模式数据

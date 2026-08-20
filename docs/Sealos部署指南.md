@@ -35,7 +35,7 @@
 | 项目 | 说明 |
 | --- | --- |
 | Docker 环境 | 本地安装 Docker Desktop（Windows）或 Docker Engine |
-| 镜像仓库账号 | **推荐阿里云 ACR**（国内拉取快）：登录阿里云容器镜像服务控制台 → 个人版 → 创建命名空间 `memomap`。备选 Docker Hub（国外拉取慢，Sealos 拉取时可多试几次） |
+| 镜像仓库账号 | **阿里云 ACR（实况：华北1·青岛 cn-qingdao 个人版）**：实例域名 `crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com`（**带 `.personal.cr.`**）；仓库 `wpx001/static`（前端）+ `wpx001/backend`（后端），**tag 均 latest**；登录用户名 nick4355155471（密码在 ACR 控制台「访问凭证」页，值不入库）。备选 Docker Hub（国外拉取慢，不推荐） |
 | Sealos 控制台 | https://cloud.sealos.io ，已有账号（数据库 test-db 已就绪） |
 | 本仓库 | 含 `server/Dockerfile`、`Dockerfile.static`、`nginx.conf` |
 
@@ -43,30 +43,31 @@
 
 ## 2. 镜像构建与推送
 
-以下命令在**项目根目录**执行（Windows 用 PowerShell 或 Git Bash；`<仓库> = registry.cn-hangzhou.aliyuncs.com/memomap` 阿里云 ACR 示例）。
+以下命令在**项目根目录**执行（Windows 用 PowerShell 或 Git Bash）。**实况镜像地址**：`<ACR> = crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com`，仓库 `wpx001/static`（前端）+ `wpx001/backend`（后端），tag 均 `latest`。
 
 ### 2.1 登录镜像仓库
 
 ```bash
-# 阿里云 ACR
-docker login registry.cn-hangzhou.aliyuncs.com
-# 或 Docker Hub
-docker login
+# 阿里云 ACR（实况，青岛 cn-qingdao 个人版；用户名 nick4355155471，密码见 ACR 控制台「访问凭证」页）
+docker login crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com
 ```
 
 ### 2.2 构建并推送后端镜像
 
 ```bash
-# 镜像名建议：<仓库>/memomap-backend:<版本>，版本用语义化版本号，如 1.0、1.1
-docker build -t registry.cn-hangzhou.aliyuncs.com/memomap/memomap-backend:1.0 ./server
-docker push registry.cn-hangzhou.aliyuncs.com/memomap/memomap-backend:1.0
+# 实况：crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com/wpx001/backend，tag latest
+docker build -t crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com/wpx001/backend:latest ./server
+docker push crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com/wpx001/backend:latest
 ```
+
+> 注：实际部署镜像由 **ACR 代码源自动构建**（`git push github master` 触发，见 HANDOVER 第 7 节），本地构建仅用于调试；tag 统一 latest。
 
 ### 2.3 构建并推送前端镜像
 
 ```bash
-docker build -f Dockerfile.static -t registry.cn-hangzhou.aliyuncs.com/memomap/memomap-frontend:1.0 .
-docker push registry.cn-hangzhou.aliyuncs.com/memomap/memomap-frontend:1.0
+# 实况：crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com/wpx001/static，tag latest
+docker build -f Dockerfile.static -t crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com/wpx001/static:latest .
+docker push crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com/wpx001/static:latest
 ```
 
 > 注意：前端镜像构建前，先确认 `nginx.conf` 中的 `proxy_pass` 后端地址（见第 4 章），
@@ -83,7 +84,7 @@ Sealos 控制台 → **应用管理** → **创建应用**。
 | 配置项 | 值 |
 | --- | --- |
 | 应用名称 | `memomap-backend` |
-| 镜像地址 | `registry.cn-hangzhou.aliyuncs.com/memomap/memomap-backend:1.0` |
+| 镜像地址 | `crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com/wpx001/backend:latest`（实况） |
 | 容器端口 | `3000` |
 | 副本数 | `1`（免费额度内；照片存储为本地磁盘模式，暂不建议多副本） |
 
@@ -139,7 +140,7 @@ Sealos 控制台 → **应用管理** → **创建应用**。
 | 配置项 | 值 |
 | --- | --- |
 | 应用名称 | `memomap-frontend` |
-| 镜像地址 | `registry.cn-hangzhou.aliyuncs.com/memomap/memomap-frontend:1.0` |
+| 镜像地址 | `crpi-02avdj56c5eztlqi.cn-qingdao.personal.cr.aliyuncs.com/wpx001/static:latest`（实况） |
 | 容器端口 | `80` |
 | 环境变量 | 无需配置（nginx 纯静态） |
 | 持久卷 | 不需要（页面无状态） |
@@ -269,9 +270,9 @@ curl -s $WEB/api.js | grep baseUrl          # 期望输出 '/api/v1'（已被 ng
 
 ### 6.4 更新发布流程
 1. 代码修改 → 本地验证
-2. 重新构建镜像（版本号递增，如 `1.1`）并 push
-3. Sealos 控制台 → 应用 → 更新镜像版本 → 确认（持久卷保留，数据不丢）
-4. 重新验证第 5 章清单
+2. `git push github master` → **ACR 代码源自动构建**（实况仓库 wpx001/static、wpx001/backend，tag 均 latest；等 ACR 构建记录显示成功再继续，勿抢跑）
+3. Sealos 控制台 → 应用 → 更新镜像为最新 latest → 确认（持久卷保留，数据不丢）
+4. 重新验证第 5 章清单（部署纪律：先 curl 线上验证，再喊王总测）
 
 ### 6.5 安全红线（上线前必须处理）
 - [ ] `JWT_SECRET` 已更换为随机值（第 3.2 节）
