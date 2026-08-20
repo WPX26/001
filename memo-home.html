@@ -9888,7 +9888,8 @@
   //   dateStr     YYYY年M月D日；EXIF 优先，缺失时回退拍摄日期
   //   hour        小时（0-23，时间分组键值来源）
   //   uploadTime  写入时刻的秒级时间戳（Date.now()/1000 取整）
-  //   photoDataUrl 真实缩略图 dataURL（JPEG base64，canvas.toDataURL('image/jpeg', 0.6)），可能为空
+  //   photoDataUrl 全分辨率原图 dataURL（JPEG base64；2026-08-20 修复：此前仅存 200px 缩略图致相册照片模糊），可能为空
+  //   thumbDataUrl （可选）200px 缩略图 dataURL：控制端实时预览/角标用；归类仅用 photoDataUrl
   //   gpsSource   （可选）定位来源：'phone'（真实 GPS）/'approx'（失败回退模拟偏移）；归类忽略，仅溯源
   //   takenAt / takenDate  （可选，EXIF 解析写入）EXIF DateTimeOriginal 为拍摄地本地时间，
   //              resolvePhotoTime 直接本地构造 Date，不做任何时区转换
