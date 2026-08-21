@@ -1171,6 +1171,12 @@
     z-index: 2;
     width: min(260rem, 70%);
   }
+  /* 系统相机兜底按钮：App 内 getUserMedia 挂起时的主要路径，橙色描边醒目 */
+  .cam-placeholder .pl-fallback-cam {
+    background: rgba(240, 160, 64, 0.12);
+    border: 1rem solid rgba(240, 160, 64, 0.55);
+    color: #F0A040;
+  }
 
 
   /* 屏控（2026-08-20 定稿：scrcpy 式「B 看 A 屏 + B 控 A」）
@@ -1641,7 +1647,7 @@
                   </svg>
                   <div class="cam-placeholder-text">点击下方按钮开启相机<br>控制端即可看到实时画面</div>
                   <button class="pair-btn primary" id="plHostCamBtn">📷 开启相机</button>
-                  <button class="pair-btn ghost" id="plFallbackCamBtn" style="display:none;margin-top:12rem">📱 使用系统相机拍照</button>
+                  <button class="pair-btn ghost pl-fallback-cam" id="plFallbackCamBtn" style="display:none;margin-top:1.6rem">📱 使用系统相机拍照</button>
                 </div>
                 <!-- 顶部控制 -->
                 <div class="cam-top-bar" id="plCamTopBar" style="display:none">
@@ -2518,13 +2524,31 @@
       plHostCamStatus.textContent = plConstraintIdx === 0 ? '正在启动相机…' : '正在尝试备用分辨率…';
       plHostCamStatus.className = 'cam-status-overlay';
 
+      // 8 秒超时兜底：App WebView 内 getUserMedia 可能永久挂起（权限请求未被转发），不再卡死
+      if (window.plGetUserMediaTimer) clearTimeout(window.plGetUserMediaTimer);
+      var settled = false;
+      window.plGetUserMediaTimer = setTimeout(function () {
+        if (settled) return;
+        settled = true;
+        window.plGetUserMediaTimer = null;
+        plShowCamError(plIsApp()
+          ? '相机启动超时：请使用「使用系统相机拍照」'
+          : '相机启动超时，请检查浏览器相机权限');
+      }, 8000);
+
       navigator.mediaDevices.getUserMedia(c).then(function (stream) {
+        if (settled) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+        settled = true;
+        if (window.plGetUserMediaTimer) { clearTimeout(window.plGetUserMediaTimer); window.plGetUserMediaTimer = null; }
         plStream = stream;
         plVideo.srcObject = stream;
         plVideo.play().catch(function () {});
         plShowCamActive();
         plStartFramePush();
       }).catch(function (err) {
+        if (settled) return;
+        settled = true;
+        if (window.plGetUserMediaTimer) { clearTimeout(window.plGetUserMediaTimer); window.plGetUserMediaTimer = null; }
         if (err && err.name === 'NotAllowedError') {
           // App 内：通过原生层请求相机权限，授权后 __plCameraReady 回调重试
           if (plIsApp()) {
