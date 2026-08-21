@@ -1012,9 +1012,19 @@
   /** 开实时取景（完整序列，各步失败不致命——老机型可能缺某属性） */
   PtpCamera.prototype.startViewfinder = function () {
     var self = this;
-    return self.setEosDevicePropU16(PTP_DPC_EOS_EVF_MODE, 1).catch(function () {})
-      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 2).catch(function () {}); })
-      .then(function () { return self.transact(PTP_OC_EOS_INITIATE_VIEWFINDER, [], null, 10000).catch(function () {}); });
+    self._lvDiag = { steps: {} };
+    function rec(name) {
+      return function (e) {
+        if (!e) { self._lvDiag.steps[name] = 'OK'; return undefined; }
+        var msg = ((e && e.message) || String(e)).toString().slice(0, 60);
+        var code = (e && e.code) != null ? '0x' + ((e.code >>> 0)).toString(16) : '';
+        self._lvDiag.steps[name] = (code ? code + ' ' : '') + msg;
+        return undefined; // 失败不致命（老机型可能缺某属性/某命令）
+      };
+    }
+    return self.setEosDevicePropU16(PTP_DPC_EOS_EVF_MODE, 1).then(rec('evfMode'), rec('evfMode'))
+      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 2); }).then(rec('evfOut'), rec('evfOut'))
+      .then(function () { return self.transact(PTP_OC_EOS_INITIATE_VIEWFINDER, [], null, 10000); }).then(rec('initiate'), rec('initiate'));
   };
   /** 关实时取景：0x9152 停止输出 + EVFOutputDevice 恢复 1（TFT，相机屏恢复显示） */
   PtpCamera.prototype.stopViewfinder = function () {
@@ -1035,9 +1045,14 @@
    */
   PtpCamera.prototype.getViewfinderData = function () {
     var self = this;
+    self._lvDiag = self._lvDiag || {};
     return self.transact(PTP_OC_EOS_GET_VIEWFINDER_DATA, [], null, 1500).then(function (res) {
       var d = res.data;
-      if (!d || !d.length) return null;
+      if (!d || !d.length) {
+        self._lvDiag.frame = { len: 0, empty: true };
+        return null;
+      }
+      self._lvDiag.frame = { len: d.length, head: Array.prototype.slice.call(d, 0, 12).map(function (b) { return ('0' + b.toString(16)).slice(-2); }).join(' ') };
       // 裸 JPEG
       if (d[0] === 0xFF && d[1] === 0xD8) return d;
       // gphoto2 blob 链：[len:u32][type:u32][payload]，type=1=JPEG
@@ -1047,7 +1062,7 @@
         while (off + 8 <= d.length) {
           var len = dv.getUint32(off, true);
           var type = dv.getUint32(off + 4, true);
-          if (len < 8 || off + len > d.length) break; // 结构不合理 → 走兼容路径
+          if (len < 8 || off + len > d.length) break;
           if (type === 1) {
             var jpeg = d.subarray(off + 8, off + len);
             if (jpeg.length > 2 && jpeg[0] === 0xFF && jpeg[1] === 0xD8) return jpeg;
@@ -1057,7 +1072,13 @@
       }
       // 兼容旧路径：3 字节头
       if (d.length > 512 && d[3] === 0xFF && d[4] === 0xD8) return d.subarray(3);
-      return null; // 无法识别的帧 → 视为无帧（黑屏提示）
+      self._lvDiag.frame.unparsed = true;
+      return null;
+    }, function (e) {
+      var msg = ((e && e.message) || String(e)).toString().slice(0, 80);
+      var code = (e && e.code) != null ? '0x' + ((e.code >>> 0)).toString(16) : '';
+      self._lvDiag.frame = { err: (code ? code + ' ' : '') + msg, name: (e && e.name) || '' };
+      return null;
     });
   };
   /** 轻量事件检查：GetEvent 单次轮询，命中 0xC181 返回对象，否则 null（保留备用） */
