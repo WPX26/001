@@ -1038,6 +1038,25 @@
   PtpCamera.prototype.getViewfinderData = function () {
     var self = this;
     self._lvDiag = self._lvDiag || {};
+    // r67：解析 JPEG SOF 记录实际帧分辨率（5D2 EVF 预览画质上限确认；不显示，仅诊断）
+    function recordSize(j) {
+      try {
+        if (!j || j.length < 8) return;
+        var w = 0, h = 0;
+        for (var i = 2; i < j.length - 9;) {
+          if (j[i] !== 0xFF) { i++; continue; }
+          var m = j[i + 1];
+          if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+            h = (j[i + 3] << 8) | j[i + 4];
+            w = (j[i + 5] << 8) | j[i + 6];
+            break;
+          }
+          var segLen = (j[i + 2] << 8) | j[i + 3];
+          i += 2 + segLen;
+        }
+        if (w && h) self._lvDiag.frame.size = w + "x" + h;
+      } catch (e) {}
+    }
     // r61：0x9153 带三参数 (0x00200000, 0, 0)——EOS Utility 抓包实证（julianschroden PTP/IP 逆向）；无参数 5D2 可能不回帧
     return self.transact(PTP_OC_EOS_GET_VIEWFINDER_DATA, [0x00200000, 0, 0], null, 1000).then(function (res) {
       var d = res.data;
@@ -1047,7 +1066,7 @@
       }
       self._lvDiag.frame = { len: d.length, head: Array.prototype.slice.call(d, 0, 12).map(function (b) { return ('0' + b.toString(16)).slice(-2); }).join(' ') };
       // 裸 JPEG
-      if (d[0] === 0xFF && d[1] === 0xD8) return d;
+      if (d[0] === 0xFF && d[1] === 0xD8) { recordSize(d); return d; }
       // gphoto2 blob 链：[len:u32][type:u32][payload]，type=1=JPEG
       if (d.length >= 8) {
         var dv = new DataView(d.buffer, d.byteOffset, d.byteLength);
@@ -1058,7 +1077,7 @@
           if (len < 8 || off + len > d.length) break;
           if (type === 1) {
             var jpeg = d.subarray(off + 8, off + len);
-            if (jpeg.length > 2 && jpeg[0] === 0xFF && jpeg[1] === 0xD8) return jpeg;
+            if (jpeg.length > 2 && jpeg[0] === 0xFF && jpeg[1] === 0xD8) { recordSize(jpeg); return jpeg; }
           }
           off += len;
         }
