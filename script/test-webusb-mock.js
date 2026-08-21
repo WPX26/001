@@ -60,8 +60,11 @@ class MockUsbCamera {
     this.intrEvents = [];            // 中断端点事件队列（标准 PTP 事件，r44）
     this._intrWait = null;           // 常驻中断读的等待器
     this.store = [0x100, 0x200, 0x300]; // 已存对象句柄（r45 轮询兜底）
-    this.getEventCalls = 0;          // r46：统计 GetEvent(0x9116) 被调用次数（非远程应为 0）
+    this.getEventCalls = 0;          // r50：统计 GetEvent(0x9116) 被调用次数（非远程也必须 >0——排空防 Busy 锁机身快门）
     this.hangGetEvent = false;       // r46：模拟真机 GetEvent 挂起（无应答，读端等到超时）
+    this.hangStorage = false;        // r47：模拟真机标准 PTP 存储命令挂起（0x1004/0x1006/0x1007 无应答）
+    this.getNumObjectsCalls = 0;     // r48：守卫——轮询绝不允许再调 0x1006（真机回 0x201d）
+    this.getObjectHandlesCalls = 0; // r51：守卫——默认等待循环绝不允许枚举卡 0x1007（每2s=锁机身快门真根因）
   }
   /** 模拟相机把标准 PTP 事件（type=4 容器）发到中断IN端点——非远程模式 5D2 的 ObjectAdded 通道 */
   pushIntrEvent(buf) {
@@ -73,7 +76,7 @@ class MockUsbCamera {
       w({ status: 'ok', data: copyBuf(ev) });
     }
   }
-  /** r45：模拟拍卡——卡上新增一个对象（GetNumObjects 计数 +1，GetObjectHandles 含新句柄） */
+  /** r45：模拟拍卡——卡上新增一个对象（GetObjectHandles 句柄集 +1；r48 起计数通道已废弃） */
   pushStoredObject(handle) {
     this.store.push(handle);
   }
@@ -124,10 +127,14 @@ class MockUsbCamera {
         return [pkt(3, RC.OK, tid)];
       case OC.GET_STORAGE_IDS: // 保活降级兜底：0x1004 应答一张 CF 卡
         this.getStorageIdsCalls = (this.getStorageIdsCalls || 0) + 1;
+        if (this.hangStorage) return []; // r47：挂起——无应答 → 读端空读转圈到短超时
         return [pkt(2, OC.GET_STORAGE_IDS, tid, u32(1).concat(u32(0x00010001))), pkt(3, RC.OK, tid)];
-      case OC.GET_NUM_OBJECTS: // r45 轮询兜底：对象计数
-        return [pkt(2, OC.GET_NUM_OBJECTS, tid, u32(this.store.length)), pkt(3, RC.OK, tid)];
+      case OC.GET_NUM_OBJECTS: // r48：真机 5D2 对 0x1006 回 0x201d（EOS 不支持该命令）——守卫轮询不再用它
+        this.getNumObjectsCalls = (this.getNumObjectsCalls || 0) + 1;
+        return [pkt(3, 0x201d, tid)];
       case OC.GET_OBJECT_HANDLES: { // r45 轮询兜底：句柄枚举
+        this.getObjectHandlesCalls = (this.getObjectHandlesCalls || 0) + 1; // r51 守卫计数
+        if (this.hangStorage) return []; // r47：挂起
         const hb = [];
         for (const h of this.store) hb.push(...u32(h));
         return [pkt(2, OC.GET_OBJECT_HANDLES, tid, hb), pkt(3, RC.OK, tid)];
@@ -585,8 +592,8 @@ async function main() {
     'keepDeviceOn=' + cam16.keepDeviceOnCalls + ' storageIds=' + cam16.getStorageIdsCalls);
   tr16.release();
 
-  /* ===== 13. r45 轮询兜底：无任何事件通道也能发现新照片（GetNumObjects 计数变） ===== */
-  console.log('\n[13] 无事件 → 轮询兜底检测新照片');
+  /* ===== 13. r45 轮询兜底：无任何事件通道也能发现新照片（r48 起纯 GetObjectHandles 句柄差集） ===== */
+  console.log('\n[13] r51：显式 {poll:true} 时轮询兜底检测新照片（纯 GetObjectHandles，0x1006 永不调用）');
   const cam17 = new MockUsbCamera();
   const dev17 = makeUsbDevice(cam17, {});
   const t17 = loadModule({ navigator: { usb: {
@@ -599,19 +606,23 @@ async function main() {
   await ptp17.openSession();
   await ptp17.getDeviceInfo();
   // 不启动中断事件监听：模拟真机「中断端点不产生事件 / 该接口无中断端点」的失败情形
-  const wait17 = ptp17.waitForObject(9000);
+  const wait17 = ptp17.waitForObject(9000, { poll: true }); // r51：轮询已 opt-in（默认关=防锁快门）
   setTimeout(() => cam17.pushStoredObject(0x456), 800); // 800ms 后卡上多一张
   const obj17 = await wait17;
-  ok('无事件 → 轮询兜底发现新照片（objectId=0x456, source=轮询）',
-    obj17 && obj17.objectId === 0x456 && /轮询/.test(obj17.source || ''),
+  ok('无事件 → 轮询兜底发现新照片（objectId=0x456, source=轮询(GetObjectHandles)）',
+    obj17 && obj17.objectId === 0x456 && /轮询\(GetObjectHandles\)/.test(obj17.source || ''),
     JSON.stringify(obj17));
+  ok('r48：轮询全程未调用 GetNumObjects(0x1006)（getNumObjectsCalls=0）',
+    cam17.getNumObjectsCalls === 0, 'getNumObjectsCalls=' + cam17.getNumObjectsCalls);
+  ok('r51：显式开轮询后确实枚举了卡（getObjectHandlesCalls>0）',
+    cam17.getObjectHandlesCalls > 0, 'getObjectHandlesCalls=' + cam17.getObjectHandlesCalls);
   ptp17.stopEvents();
   tr17.release();
 
-  /* ===== 14. r46 回归：非远程模式跳过 GetEvent——GetEvent 挂起也不拖死轮询兜底 ===== */
-  console.log('\n[14] r46：GetEvent 挂起时轮询兜底仍检测（非远程跳过 GetEvent）');
+  /* ===== 14. r50 回归：非远程模式也轮询 GetEvent 排空（锁机身快门根因）；挂起也不拖死轮询兜底 ===== */
+  console.log('\n[14] r51：显式 {poll:true} 时 GetEvent 排空 + 挂起不拖死轮询（GetEvent 排空保留）');
   const cam18 = new MockUsbCamera();
-  cam18.hangGetEvent = true; // 0x9116 无应答 = 挂起（旧 r45 循环会卡死在 GetEvent，轮询轮不到）
+  cam18.hangGetEvent = true; // 0x9116 无应答 = 挂起（2s 短超时后继续，不得拖死轮询兜底）
   const dev18 = makeUsbDevice(cam18);
   const t18 = loadModule({ navigator: { usb: {
     getDevices: () => Promise.resolve([dev18]),
@@ -624,23 +635,102 @@ async function main() {
   await ptp18.getDeviceInfo();
   const diags = [];
   ptp18.onDiag((m) => diags.push(m));
-  const wait18 = ptp18.waitForObject(9000); // 默认非远程
+  const wait18 = ptp18.waitForObject(9000, { poll: true }); // r51：显式开轮询
   setTimeout(() => cam18.pushStoredObject(0x789), 800); // 800ms 后卡上多一张
   const obj18 = await wait18;
   ok('GetEvent 挂起 + 非远程 → 轮询仍检测到新照片（objectId=0x789）',
     obj18 && obj18.objectId === 0x789 && /轮询/.test(obj18.source || ''),
     JSON.stringify(obj18));
-  ok('非远程模式 waitForObject 全程未调用 GetEvent(0x9116)（getEventCalls=0）',
-    cam18.getEventCalls === 0, 'getEventCalls=' + cam18.getEventCalls);
-  ok('诊断日志含「跳过 GetEvent」与「轮询基线」',
-    diags.some((m) => /跳过 GetEvent/.test(m)) && diags.some((m) => /轮询基线/.test(m)),
+  ok('r51 waitForObject 每轮仍 GetEvent(0x9116) 排空（getEventCalls>0，防事件堆积 Busy）',
+    cam18.getEventCalls > 0, 'getEventCalls=' + cam18.getEventCalls);
+  ok('诊断含「轮询基线」（GetEvent 挂起被 2s 短超时兜住，未拖死）',
+    diags.some((m) => /轮询基线/.test(m)),
     JSON.stringify(diags));
   ptp18.stopEvents();
   tr18.release();
 
+  /* ===== 15. r47 回归：存储枚举挂起 → 3s 探测失败即关闭轮询兜底，中断事件通道仍检测 ===== */
+  console.log('\n[15] r51：显式 {poll:true} 时存储挂起 → 探测关轮询，中断事件仍检测');
+  const cam19 = new MockUsbCamera();
+  cam19.hangStorage = true; // 0x1004/0x1006/0x1007 无应答（r46 真机：0x1004 挂 20s 毒化管道）
+  const dev19 = makeUsbDevice(cam19);
+  const t19 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev19]),
+    requestDevice: () => Promise.resolve(dev19)
+  } } });
+  const tr19 = await t19.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera19 = require('../camera-ptp.js');
+  const ptp19 = new PtpCamera19(tr19);
+  await ptp19.openSession();
+  await ptp19.getDeviceInfo();
+  const diags19 = [];
+  ptp19.onDiag((m) => diags19.push(m));
+  ptp19.startEvents(); // 存储挂起时唯一的检测通道 = 中断端点
+  const wait19 = ptp19.waitForObject(12000, { poll: true }); // r51：显式开轮询
+  setTimeout(() => cam19.pushIntrEvent(intrPkt(0x4002, [0x9AB, 0x00010001])), 4500); // 探测 3s 失败后再来事件
+  const obj19 = await wait19;
+  ok('存储挂起 → 探测失败关轮询后，中断事件(0x4002)仍检测到（objectId=0x9AB, source=中断端点）',
+    obj19 && obj19.objectId === 0x9AB && obj19.source === '中断端点(0x4002)',
+    JSON.stringify(obj19));
+  ok('存储挂起 → 轮询兜底被关闭（_storageOk=false）',
+    ptp19._storageOk === false, '_storageOk=' + ptp19._storageOk);
+  ok('诊断含「关闭轮询兜底」',
+    diags19.some((m) => /关闭轮询/.test(m)), JSON.stringify(diags19));
+  ptp19.stopEvents();
+  tr19.release();
+
+  /* ===== 16. r50 回归：非远程模式 drainEosEvents 也排空 GetEvent（锁机身快门根因） ===== */
+  console.log('\n[16] r50：非远程也 GetEvent 排空，远程照常排空');
+  const cam20 = new MockUsbCamera();
+  const dev20 = makeUsbDevice(cam20);
+  const t20 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev20]),
+    requestDevice: () => Promise.resolve(dev20)
+  } } });
+  const tr20 = await t20.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera20 = require('../camera-ptp.js');
+  const ptp20 = new PtpCamera20(tr20);
+  await ptp20.openSession();
+  await ptp20.getDeviceInfo();
+  await ptp20.setEventMode();               // 非远程：setRemoteMode 未调 → _remoteMode 非 true
+  await ptp20.drainEosEvents(8);
+  ok('r50 非远程 drainEosEvents 排空 → GetEvent 有调用（r49 曾跳过=0 → 锁机身快门）',
+    cam20.getEventCalls > 0, 'getEventCalls=' + cam20.getEventCalls);
+  await ptp20.setRemoteMode();              // 远程：setRemoteMode 置 _remoteMode=true
+  await ptp20.drainEosEvents(8);
+  ok('远程 drainEosEvents 正常排空 → GetEvent 有调用',
+    cam20.getEventCalls > 1, 'getEventCalls=' + cam20.getEventCalls);
+  tr20.release();
+
+  /* ===== 17. r51 回归：默认等待循环零卡枚举（GetObjectHandles 0x1007 移除=锁机身快门真根因修复） ===== */
+  console.log('\n[17] r51：默认 waitForObject 不再枚举卡（0x1007=0），GetEvent 仍排空');
+  const cam21 = new MockUsbCamera();
+  const dev21 = makeUsbDevice(cam21);
+  const t21 = loadModule({ navigator: { usb: {
+    getDevices: () => Promise.resolve([dev21]),
+    requestDevice: () => Promise.resolve(dev21)
+  } } });
+  const tr21 = await t21.get().requestConnect('webusb:4a9:3199:mock-5d2');
+  const PtpCamera21 = require('../camera-ptp.js');
+  const ptp21 = new PtpCamera21(tr21);
+  await ptp21.openSession();
+  await ptp21.getDeviceInfo();
+  // 不启动中断监听、不按快门：仅验证等待循环自身不发任何卡枚举命令（r51 防锁快门核心）
+  await ptp21.waitForObject(1200).then(function () {
+    ok('r51 默认（轮询关）不应有返回——预期短等超时', false, '意外返回');
+  }, function (e) {
+    ok('r51 默认 waitForObject 短等超时（轮询关闭，符合预期）',
+      /超时/i.test((e && e.message || '').toString()), String(e && e.message));
+  });
+  ok('r51 等待循环零 GetObjectHandles(0x1007) 调用（锁机身快门真根因已移除）',
+    cam21.getObjectHandlesCalls === 0, 'getObjectHandlesCalls=' + cam21.getObjectHandlesCalls);
+  ok('r51 等待循环仍 GetEvent(0x9116) 排空（getEventCalls>0）',
+    cam21.getEventCalls > 0, 'getEventCalls=' + cam21.getEventCalls);
+  tr21.release();
+
   /* ===== 结果 ===== */
   console.log('\n结果: ' + passed + ' 通过, ' + failed + ' 失败');
-  if (failed) process.exit(1);
+  process.exit(failed ? 1 : 0); // 强制退出：hang 挂起测试的常驻读循环会阻止事件循环自然退出
 }
 
 main().catch(function (e) {

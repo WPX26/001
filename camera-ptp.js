@@ -44,7 +44,7 @@
   var PTP_OC_CLOSE_SESSION = 0x1003;          // 曾误标 0x1002（=OpenSession）
   var PTP_OC_GET_DEVICE_INFO = 0x1001;        // 曾误标 0x1004（=GetStorageIDs）
   var PTP_OC_GET_STORAGE_IDS = 0x1004;        // 保活降级兜底（r44：非远程模式 0x911D 可能被拒时改用）
-  var PTP_OC_GET_NUM_OBJECTS = 0x1006;        // r45 轮询兜底：存储内对象计数（GetNumObjects）
+  var PTP_OC_GET_NUM_OBJECTS = 0x1006;        // r48 废弃：5D2 真机对 0x1006 一律回 0x201d（EOS 不支持，gphoto2 canon 驱动从不调用）
   var PTP_OC_GET_OBJECT_HANDLES = 0x1007;     // r45 轮询兜底：存储内对象句柄枚举（GetObjectHandles）
   var PTP_OC_GET_OBJECT_INFO = 0x1008;
   var PTP_OC_GET_OBJECT = 0x1009;             // 曾误标 0x100A（=GetThumb）
@@ -66,6 +66,9 @@
   var PTP_OC_EOS_GET_EVENT = 0x9116;
   var PTP_OC_EOS_KEEP_DEVICE_ON = 0x911D;
   // EVF 实时取景（阶段 2 原生插件使用，协议栈先备好）
+  var PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX = 0x9110; // EOS SetDevicePropValueEx（gphoto2 ptp_canon_eos_setdevicepropvalue，data=[len:u32][propcode:u32][value]）
+  var PTP_DPC_EOS_EVF_MODE = 0xD1B3;           // 实时取景开关（UINT16：0=off 1=on）
+  var PTP_DPC_EOS_EVF_OUTPUT_DEVICE = 0xD1B0;  // 取景输出目标位掩码（UINT32：bit0=1=TFT相机屏 bit1=2=PC）
   var PTP_OC_EOS_INITIATE_VIEWFINDER = 0x9151;
   var PTP_OC_EOS_TERMINATE_VIEWFINDER = 0x9152;
   var PTP_OC_EOS_GET_VIEWFINDER_DATA = 0x9153;
@@ -396,7 +399,33 @@
    * @param {Uint8Array} [outData] 命令携带的 data 阶段负载
    * @returns {Promise<{data:Uint8Array, params:number[]}>}
    */
+  /** r47：全栈事务串行化——单 bulk 管道绝不允许两个 transact 并发。
+   *  PTP 规范：收到上一条响应前不得发下一条；并发 = 后到的命令被相机丢弃/错位 →
+   *  真机 r46 实测 0x1004 GetStorageIDs 在 keepAlive(0x911D) 尚在飞行时被丢 → 20s 读超时 →
+   *  管道毒化（后续写也 4s 超时）→ 会话 24s 内死。此前 keepAlive 是 fire-and-forget 不 await，
+   *  与轮询/GetEvent 同管道并发——本文件 _pollEnsureBaseline 注释早已警告同类抢包。
+   *  mutex 让 fire-and-forget 也只是排队，永不并发（与 gphoto2 严格串行一致）。 */
+  PtpCamera.prototype._txRun = function (fn) {
+    var self = this;
+    var run = (self._txChain || Promise.resolve()).then(function () { return fn(); });
+    self._txChain = run.then(function () {}, function () {}); // 吞错保链，错误仍由调用方处理
+    return run;
+  };
   PtpCamera.prototype.transact = function (code, params, outData, timeoutMs) {
+    var self = this;
+    var t0 = Date.now();
+    return self._txRun(function () { return self._transactImpl(code, params, outData, timeoutMs); })
+      .then(function (res) {
+        var ms = Date.now() - t0;
+        if (ms > 800) self._diag('⏱ 命令 0x' + (code || 0).toString(16) + ' 耗时 ' + ms + 'ms'); // r47 慢命令追踪
+        return res;
+      }, function (e) {
+        var ms = Date.now() - t0;
+        if (ms > 800) self._diag('⏱ 命令 0x' + (code || 0).toString(16) + ' 耗时 ' + ms + 'ms 后失败: ' + ((e && e.message) || e).toString().slice(0, 40));
+        throw e;
+      });
+  };
+  PtpCamera.prototype._transactImpl = function (code, params, outData, timeoutMs) {
     var self = this;
     var t = timeoutMs || 20000;
     var busytries = 0;
@@ -471,16 +500,29 @@
     return evts;
   };
 
-  /** 排空相机事件队列：连续 GetEvent 直到空（gphoto2 prepare_capture 前必做，防拍照 Busy） */
+  /** 排空相机事件队列：连续 GetEvent 直到空（gphoto2 prepare_capture 前必做，防拍照 Busy）。
+   *  r50【锁机身快门根因修复】：非远程会话【必须】排空。真机证据链——r38/r43/r44
+   *  （连接时 drainEosEvents + 等待循环 GetEvent 轮询）→ 机身快门可用；r47/r48/r49
+   *  （r46 起非远程删光 GetEvent、r49 再跳过连接排空）→ 机身快门锁死。机制：SetEventMode(0x9115)
+   *  开启事件模式后相机端排队事件，宿主从不 GetEvent 排空 → 相机报 Busy → 锁机身快门
+   *  （gphoto2 canon 驱动 prepare_capture 前必先排空防 Busy，同此机制）。r46 删 GetEvent 的
+   *  理由「高频 GetEvent 挂起拖死循环」是误诊——真凶是 keepAlive(0x911D) 与轮询并发抢包
+   *  （r47 全局 mutex 已根治），GetEvent 本身不挂。r50：无论远程与否都排空；每轮 1.5s 短超时、
+   *  非断开类错误视为空继续（最坏退化为 r49 行为，绝不会更差）。 */
   PtpCamera.prototype.drainEosEvents = function (maxRounds) {
     var self = this;
     var rounds = 0;
     function poll() {
       if (rounds++ > (maxRounds || 8)) return Promise.resolve();
-      return self.transact(PTP_OC_EOS_GET_EVENT, []).then(function (res) {
+      return self.transact(PTP_OC_EOS_GET_EVENT, [], null, 1500).then(function (res) {
         var evts = parseEosEvents(res.data);
         if (evts.length) { self._queueEosEvents(evts); return poll(); }
         return undefined; // 空 → 排空完成
+      }, function (e) {
+        // 非断开类错误：视为无事件可排，停止（不打断连接流程）
+        var msg = (e && e.message || '').toString();
+        if (/disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(msg)) throw e;
+        return undefined;
       });
     }
     return poll();
@@ -659,6 +701,7 @@
   /* ---------- Canon EOS 远程模式 ---------- */
   PtpCamera.prototype.setRemoteMode = function () {
     // 0x9114 参数 1 = 进入远程控制模式（5D2 用 1；EOS M 才用特殊值）
+    this._remoteMode = true; // r49：模式状态由命令维护（drainEosEvents 据此跳过/执行）
     return this.transact(PTP_OC_EOS_SET_REMOTE_MODE, [1]);
   };
 
@@ -759,33 +802,34 @@
     var m = (e && e.message || '').toString();
     return /disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(m);
   }
-  /** 初始化轮询基线（每会话一次，跨 waitForObject 保持）：发现存储 + 对象计数 + 句柄集 */
+  /** 初始化轮询基线（每会话一次，跨 waitForObject 保持）：发现存储 + 句柄集（GetObjectHandles）。
+   *  r47：存储枚举探测（短超时 3s）——真机 r46 实锤 0x1004 在等待循环里 20s 读超时并毒化管道，
+   *  每次轮询都卡 20s 会饿死事件循环（r45「6 分钟零检测+掉线」主因）。探测失败 → 立即关闭
+   *  轮询兜底（仅靠事件通道），绝不反复试探；成功才启用。所有命令经全局 mutex 串行。
+   *  r48：真机实锤——5D2 对 GetNumObjects(0x1006) 一律回 PTP 错误 0x201d（Invalid Parameter，
+   *  EOS 不实现该命令；gphoto2 的 canon 驱动也从不调 0x1006，只用 GetObjectHandles(0x1007)）。
+   *  轮询改为纯句柄枚举：基线 = 每存储的句柄集，检测 = 句柄集差集（与 gphoto2 同款语义）。 */
   PtpCamera.prototype._pollEnsureBaseline = function () {
     var self = this;
     if (self._pollState) return Promise.resolve(self._pollState);
-    return self.transact(PTP_OC_GET_STORAGE_IDS, []).then(function (res) {
+    if (self._storageOk === false) return Promise.resolve(null);
+    return self.transact(PTP_OC_GET_STORAGE_IDS, [], null, 3000).then(function (res) {
       var ids = parseParams(res.data);
-      return (ids && ids.length) ? ids : [0x00010001];
-    }, function (e) {
-      self._diag('轮询 GetStorageIDs(0x1004) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（兜底 0x00010001）');
-      return [0x00010001];
-    }).then(function (storages) {
+      var storages = (ids && ids.length) ? ids : [0x00010001];
+      self._storageOk = true;
       var st = { storages: storages, counts: {}, handles: {} };
-      // 顺序遍历（勿并发！单 bulk 管道共享 _waitResponse，并发 transact 会互相抢包，
-      // data 分支等到另一个 DATA 包 → 抛「期望响应包，收到 type=2」）
+      // 顺序遍历（mutex 已全局串行，双保险——单 bulk 管道绝不允许并发 transact 抢包）
       return storages.reduce(function (chain, s) {
         return chain.then(function () {
-          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0]).then(function (r) {
-            st.counts[s] = parseParams(r.data)[0] || 0;
-            return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0]).then(function (h) {
-              st.handles[s] = parseParams(h.data) || [];
-              return true;
-            }).catch(function (e) {
-              self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（句柄集为空，计数照记）');
-              return true;
-            });
+          return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0], null, 2500).then(function (h) {
+            st.handles[s] = parseParams(h.data) || [];
+            st.counts[s] = st.handles[s].length;
+            return true;
           }).catch(function (e) {
-            self._diag('轮询 GetNumObjects(0x1006) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（计数记 0）');
+            if (_pollDisconnectRe(e)) throw e;
+            st.handles[s] = [];
+            st.counts[s] = 0;
+            self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50) + '（句柄集记 0，继续等）');
             return true;
           });
         });
@@ -794,12 +838,21 @@
         self._diag('轮询基线: ' + storages.map(function (s) { return '0x' + s.toString(16) + '=' + (st.counts[s] || 0); }).join(' ') + ' 张');
         return st;
       });
+    }, function (e) {
+      if (_pollDisconnectRe(e)) throw e;
+      self._storageOk = false;
+      self._pollDisabledReason = ((e && e.message) || e).toString().slice(0, 60);
+      self._diag('存储枚举 GetStorageIDs(0x1004) 失败: ' + self._pollDisabledReason + ' → 关闭轮询兜底，仅靠事件通道（中断端点/GetEvent）');
+      return null;
     });
   };
-  /** 轮询检测新照片（best-effort）：返回 {objectId, storageId, source} 或 null；断开类错误抛出 */
+  /** 轮询检测新照片（best-effort）：返回 {objectId, storageId, source} 或 null；断开类错误抛出。
+   *  r48：真机 0x1006=0x201d → 纯 GetObjectHandles(0x1007) 句柄差集（gphoto2 canon 驱动同款语义） */
   PtpCamera.prototype._pollDetectNew = function () {
     var self = this;
+    if (self._storageOk === false) return Promise.resolve(null); // r47：探测失败 → 轮询彻底关闭（防反复 20s 卡死）
     return self._pollEnsureBaseline().then(function (st) {
+      if (!st) return null;
       // r46 诊断：心跳（每 15 轮≈30s 一行）证明轮询活着 + 实时张数
       self._pollDiagN = (self._pollDiagN || 0) + 1;
       if (self._pollDiagN % 15 === 1) {
@@ -809,32 +862,24 @@
       return st.storages.reduce(function (chain, s) {
         return chain.then(function (found) {
           if (found) return found;
-          return self.transact(PTP_OC_GET_NUM_OBJECTS, [s, 0]).then(function (r) {
-            var n = parseParams(r.data)[0] || 0;
+          return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0], null, 2500).then(function (h) {
+            var hs = parseParams(h.data) || [];
+            var known = st.handles[s] || [];
+            var fresh = hs.filter(function (x) { return known.indexOf(x) < 0; });
+            var n = hs.length;
             var oldN = st.counts[s] || 0;
-            if (n <= oldN) return null;
-            return self.transact(PTP_OC_GET_OBJECT_HANDLES, [s, 0, 0]).then(function (h) {
-              var hs = parseParams(h.data) || [];
-              var known = st.handles[s] || [];
-              var fresh = hs.filter(function (x) { return known.indexOf(x) < 0; });
-              if (!fresh.length) {
-                st.counts[s] = n; // 计数变但无新句柄 → 更新计数继续等
-                self._diag('轮询: 计数 0x' + s.toString(16) + ' ' + oldN + '→' + n + ' 但无新句柄（更新基线继续等）');
-                return null;
-              }
-              var handle = fresh[0];
-              st.counts[s] = n;
-              st.handles[s] = hs;
-              self._diag('轮询命中: 0x' + s.toString(16) + ' 计数 ' + oldN + '→' + n + ' 新句柄 0x' + handle.toString(16));
-              return { objectId: handle, storageId: s, source: '轮询(GetNumObjects)' };
-            }, function (e) {
-              if (_pollDisconnectRe(e)) throw e;
-              self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50));
+            st.counts[s] = n;
+            if (!fresh.length) {
+              if (n !== oldN) { st.handles[s] = hs; self._diag('轮询: 0x' + s.toString(16) + ' 张数 ' + oldN + '→' + n + ' 但无新句柄（更新基线继续等）'); }
               return null;
-            });
+            }
+            var handle = fresh[0];
+            st.handles[s] = hs;
+            self._diag('轮询命中: 0x' + s.toString(16) + ' 张数 ' + oldN + '→' + n + ' 新句柄 0x' + handle.toString(16));
+            return { objectId: handle, storageId: s, source: '轮询(GetObjectHandles)' };
           }, function (e) {
             if (_pollDisconnectRe(e)) throw e;
-            self._diag('轮询 GetNumObjects(0x1006) 失败: ' + ((e && e.message) || e).toString().slice(0, 50));
+            self._diag('轮询 GetObjectHandles(0x1007) 失败: ' + ((e && e.message) || e).toString().slice(0, 50));
             return null;
           });
         });
@@ -842,17 +887,18 @@
     }).catch(function (e) { if (_pollDisconnectRe(e)) throw e; return null; });
   };
   /**
-   * 等待新照片事件/新对象（三通道，r45 起事件无关）：
-   *   ① 中断端点标准 PTP ObjectAdded(0x4002)——非远程模式 5D2 拍卡后的候选主通道
+   * 等待新照片事件（r51：事件通道优先，卡枚举轮询默认关闭——防锁机身快门）：
+   *   ① GetEvent(0x9116) 排空 + 0xC181 ObjectAddedEx（远程模式事件源；非远程也排空防事件堆积 Busy）；
+   *   ② 中断端点标准 PTP ObjectAdded(0x4002)——非远程模式 5D2 拍卡后的候选主通道
    *      （startEvents 已把中断包解析进 _pendingEvents，这里消费，含 .source 标注来源）；
-   *   ② GetEvent(0x9116) 轮询 EOS ObjectAddedEx(0xC181)——仅远程模式（r46 起非远程跳过：
-   *      真机高频 GetEvent 挂起/异常嫌疑 → 拖死循环 → 轮询兜底轮不到）；
-   *   ③ r45 轮询兜底 GetNumObjects(0x1006)+GetObjectHandles(0x1007)——计数增长 → 枚举差异
-   *      出新句柄。即使中断端点/GetEvent 都不产生事件，按快门后照片也会在几秒内被发现。
-   * 每轮轮询前按 10s 间隔保活；事件轮询间隔 250ms（gphoto2 是紧密排空，Android 上
+   *   ③ 轮询兜底 GetObjectHandles(0x1007) 句柄差集【opt-in，默认关】：r51 真机证据链定案——
+   *      每 2s 枚举存储卡让 5D2 一直「读卡忙」→ 机身快门锁死（r43/r44 零卡枚举快门可用、
+   *      r45 加轮询后 r46-r50 全锁、r50 恢复 GetEvent 仍锁证明 GetEvent 不是变量）。
+   *      仅在显式 {poll:true}（远程取图/页面一次性「已按快门」扫描）时启用。
+   * 每轮按 10s 间隔保活；事件轮询间隔 250ms（gphoto2 是紧密排空，Android 上
    * 250ms 避免打满带宽，事件不丢——0x9116 数据是积攒式的）；兜底轮询间隔默认 2s。
    * @param {number} timeoutMs 总超时（默认 90s = gphoto2 EOS_CAPTURE_TIMEOUT）
-   * @param {object} [opts] {poll:boolean=false 关闭兜底, pollIntervalMs:number}
+   * @param {object} [opts] {poll:boolean=false 关闭兜底(默认), pollIntervalMs:number}
    * @returns {Promise<{objectId:number, storageId:number, size:number, source?:string}>}
    *          objectId=照片 Handle；storageId=0 表示 SDRAM（走 0x9107 分块取图）
    */
@@ -860,14 +906,18 @@
     var self = this;
     var deadline = Date.now() + (timeoutMs || 90000);
     var o = opts || {};
-    var pollEnabled = (o.poll !== false);      // r45：默认开启轮询兜底
+    var pollEnabled = (o.poll === true);       // r51：默认关闭卡枚举轮询——0x1007 每 2s 枚举=锁机身快门真根因
     var lastPoll = 0;
     var pollInterval = o.pollIntervalMs || 2000;
-    // r46：远程模式才轮询 GetEvent(0x9116)。r45 真机「6 分钟零事件 + 到点掉线」——
-    // 连接阶段 drainEosEvents(4) 的 GetEvent 能快速空返回，但等待循环里高频 GetEvent 是否
-    // 也正常无法排除；非远程模式本就没有 0xC181 事件源，GetEvent 只是白耗，跳过它 →
-    // 中断端点 + 轮询兜底成为唯一依赖，GetEvent 无论挂起/超时/被拒都不再拖死循环。
-    var remoteMode = !!o.remoteMode || !!self._remoteMode;
+    // r51【锁机身快门·真正的根因（r50 复测后定案）】：GetObjectHandles(0x1007) 每 2s 枚举存储卡
+    // → 5D2 一直处于「读卡忙」→ 机身快门锁死。真机证据链：
+    //   r43/r44（等待循环 = GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；
+    //   r45 加 0x1007 轮询后 r46-r50 全部锁死；r50 恢复 GetEvent 仍锁 → GetEvent 不是变量
+    //   （r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举。
+    //   gphoto2 等待事件时从不连续枚举卡；r38 wasm 补丁会话（非远程、不枚举）→ 快门可用。同机制。
+    // GetEvent 保持每轮排空（r44 同款，防事件堆积报 Busy，绝不拖死：2s 短超时+非断开错误视为空）。
+    // 检测新照片：中断端点 0x4002（自动）+ 页面「我已按过快门」一次性 _pollDetectNew()（瞬时枚举）。
+    var remoteMode = !!o.remoteMode || !!self._remoteMode; // r51：仅用于注释/诊断；GetEvent 两种模式都轮询
     function schedule() { return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(poll); }
     function poll() {
       if (Date.now() > deadline) throw PtpTimeoutError('等待照片事件超时');
@@ -895,7 +945,7 @@
         if (/disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(kMsg)) throw kErr;
       }
       var now = Date.now();
-      if (now - self._lastKeepAlive > 10000) {
+      if (self._storageOk !== false && now - self._lastKeepAlive > 10000) {
         self._lastKeepAlive = now;
         var kaMode = self._keepAliveUseFallback ? '0x1004降级' : '0x911D';
         if (self._keepAliveDiagMode !== kaMode) { self._keepAliveDiagMode = kaMode; self._diag('保活走 ' + kaMode); }
@@ -909,7 +959,7 @@
       }
       // 轮询兜底（r46：独立于 GetEvent 执行——GetEvent 不再能拖死它）
       function runPoll() {
-        if (pollEnabled && Date.now() - lastPoll >= pollInterval) {
+        if (pollEnabled && self._storageOk !== false && Date.now() - lastPoll >= pollInterval) {
           lastPoll = Date.now();
           return self._pollDetectNew().then(function (hit) {
             if (hit) return self._resolveStdObject(hit.objectId, hit.storageId)
@@ -919,11 +969,7 @@
         }
         return schedule();
       }
-      if (!remoteMode) {
-        if (!self._skipGeDiag) { self._skipGeDiag = true; self._diag('非远程模式：跳过 GetEvent(0x9116)，中断端点 + 轮询兜底'); }
-        return runPoll();
-      }
-      return self.transact(PTP_OC_EOS_GET_EVENT, []).then(function (res) {
+      return self.transact(PTP_OC_EOS_GET_EVENT, [], null, 2000).then(function (res) {
         var found = null;
         var evs = parseEosEvents(res.data);
         for (var j = 0; j < evs.length; j++) {
@@ -942,6 +988,134 @@
     }
     return poll();
   };
+
+  /* ---------- r58：实时取景（Live View，gphoto2 library.c canon_eos_capture_preview 同序列） ---------- */
+  /**
+   * EOS 实时取景启动序列（gphoto2 源码逐行核实 2026-08-21）：
+   *   ① EVFMode(0xD1B3, UINT16)=1 —— 开实时取景模式（0=off 1=on）
+   *   ② EVFOutputDevice(0xD1B0, UINT32 位掩码)=2 —— 取景输出到 PC（bit0=1=TFT相机屏 bit1=2=PC）
+   *   ③ InitiateViewfinder(0x9151) —— 启动取景输出
+   *   ④ GetViewfinderData(0x9153) 循环抓帧；DeviceBusy/0xA102 = 「还没就绪」重试
+   * 不设 ①② 相机不往 USB 送帧（只出相机屏）——r55-r57 实时画面黑屏的协议层根因。
+   * EOS SetDevicePropValueEx(0x9110) 数据格式（gphoto2 ptp.c）：[总长:u32][propcode:u32][值]
+   */
+  PtpCamera.prototype.setEosDevicePropU16 = function (propcode, v) {
+    var b = new PacketBuilder();
+    b.u32(12); b.u32(propcode); b.u32(v & 0xFFFF); // r62：gphoto2 ptp.c 实证 size=12（UINT16 也 12 字节，值占低 16 位）；旧版 len=10 格式错，5D2 可能未真正生效
+    return this.transact(PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX, [], b.build(), 5000);
+  };
+  PtpCamera.prototype.setEosDevicePropU32 = function (propcode, v) {
+    var b = new PacketBuilder();
+    b.u32(12); b.u32(propcode); b.u32(v);
+    return this.transact(PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX, [], b.build(), 5000);
+  };
+  /** 开实时取景（完整序列，各步失败不致命——老机型可能缺某属性） */
+  PtpCamera.prototype.startViewfinder = function () {
+    var self = this;
+    self._lvDiag = { steps: {} };
+    // r62：决定性诊断——直接读 5D2 DeviceInfo 支持的操作码（连上即有）
+    (function () {
+      var ops = (self.deviceInfo && self.deviceInfo.operations) || [];
+      function has(c) { return ops.indexOf(c) !== -1; }
+      self._lvDiag.steps.opcodes = '9110=' + (has(PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX) ? 'Y' : 'N')
+        + ' 9153=' + (has(PTP_OC_EOS_GET_VIEWFINDER_DATA) ? 'Y' : 'N')
+        + ' 9151=' + (has(PTP_OC_EOS_INITIATE_VIEWFINDER) ? 'Y' : 'N')
+        + ' 9152=' + (has(PTP_OC_EOS_TERMINATE_VIEWFINDER) ? 'Y' : 'N');
+    })();
+    // r60：5D2 真机诊断 initiate=0x2005 —— 0x9151 不被支持。
+    // gphoto2 library.c canon_eos_capture_preview 同路径：只设 EVFMode=1 + EVFOutputDevice=2，然后直接 0x9153 抓帧，不发 0x9151。
+    function fmtErr(e) {
+      if (!e) return 'OK';
+      var msg = ((e && e.message) || String(e)).toString().slice(0, 60);
+      var code = (e && e.code) != null ? '0x' + ((e.code >>> 0)).toString(16) : '';
+      return (code ? code + ' ' : '') + msg;
+    }
+    return self.setEosDevicePropU16(PTP_DPC_EOS_EVF_MODE, 1).then(
+        function () { self._lvDiag.steps.evfMode = 'OK'; },
+        function (e) { self._lvDiag.steps.evfMode = fmtErr(e); })
+      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 2); }).then(
+        function () { self._lvDiag.steps.evfOut = 'OK'; },
+        function (e) { self._lvDiag.steps.evfOut = fmtErr(e); });
+  };
+  PtpCamera.prototype.stopViewfinder = function () {
+    var self = this;
+    // r60：不发 0x9152（5D2 同 0x2005 拒绝）；EVFMode=0 退出取景 + EVFOutputDevice 恢复 1(TFT 相机屏)
+    return self.setEosDevicePropU16(PTP_DPC_EOS_EVF_MODE, 0).catch(function () {})
+      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 1).catch(function () {}); });
+  };
+  /** 关实时取景：0x9152 停止输出 + EVFOutputDevice 恢复 1（TFT，相机屏恢复显示） */
+  PtpCamera.prototype.stopViewfinder = function () {
+    var self = this;
+    return self.transact(PTP_OC_EOS_TERMINATE_VIEWFINDER, [], null, 10000).catch(function () {})
+      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 1).catch(function () {}); });
+  };
+  PtpCamera.prototype.initiateViewfinder = function () {
+    return this.transact(PTP_OC_EOS_INITIATE_VIEWFINDER, [], null, 10000);
+  };
+  PtpCamera.prototype.terminateViewfinder = function () {
+    return this.transact(PTP_OC_EOS_TERMINATE_VIEWFINDER, [], null, 10000);
+  };
+  /**
+   * 抓一帧实时取景。返回格式（gphoto2 ptp_canon_eos_get_viewfinder_image 核实）：
+   * blob 链 [len:u32][type:u32][payload]，type=1 = JPEG 预览；len 含 8 字节头。
+   * 兼容：裸 JPEG（0xFFD8 开头）/ 3 字节头（旧猜测路径）。无帧返回 null。
+   */
+  PtpCamera.prototype.getViewfinderData = function () {
+    var self = this;
+    self._lvDiag = self._lvDiag || {};
+    // r61：0x9153 带三参数 (0x00200000, 0, 0)——EOS Utility 抓包实证（julianschroden PTP/IP 逆向）；无参数 5D2 可能不回帧
+    return self.transact(PTP_OC_EOS_GET_VIEWFINDER_DATA, [0x00200000, 0, 0], null, 1000).then(function (res) {
+      var d = res.data;
+      if (!d || !d.length) {
+        self._lvDiag.frame = { len: 0, empty: true };
+        return null;
+      }
+      self._lvDiag.frame = { len: d.length, head: Array.prototype.slice.call(d, 0, 12).map(function (b) { return ('0' + b.toString(16)).slice(-2); }).join(' ') };
+      // 裸 JPEG
+      if (d[0] === 0xFF && d[1] === 0xD8) return d;
+      // gphoto2 blob 链：[len:u32][type:u32][payload]，type=1=JPEG
+      if (d.length >= 8) {
+        var dv = new DataView(d.buffer, d.byteOffset, d.byteLength);
+        var off = 0;
+        while (off + 8 <= d.length) {
+          var len = dv.getUint32(off, true);
+          var type = dv.getUint32(off + 4, true);
+          if (len < 8 || off + len > d.length) break;
+          if (type === 1) {
+            var jpeg = d.subarray(off + 8, off + len);
+            if (jpeg.length > 2 && jpeg[0] === 0xFF && jpeg[1] === 0xD8) return jpeg;
+          }
+          off += len;
+        }
+      }
+      // 兼容旧路径：3 字节头
+      if (d.length > 512 && d[3] === 0xFF && d[4] === 0xD8) return d.subarray(3);
+      self._lvDiag.frame.unparsed = true;
+      return null;
+    }, function (e) {
+      var msg = ((e && e.message) || String(e)).toString().slice(0, 80);
+      var code = (e && e.code) != null ? '0x' + ((e.code >>> 0)).toString(16) : '';
+      self._lvDiag.frame = { err: (code ? code + ' ' : '') + msg, name: (e && e.name) || '' };
+      return null;
+    });
+  };
+  /** 轻量事件检查：GetEvent 单次轮询，命中 0xC181 返回对象，否则 null（保留备用） */
+  PtpCamera.prototype.pollEventOnce = function (timeoutMs) {
+    var self = this;
+    return self.transact(PTP_OC_EOS_GET_EVENT, [], null, timeoutMs || 800).then(function (res) {
+      var evs = parseEosEvents(res.data);
+      for (var j = 0; j < evs.length; j++) {
+        if (evs[j].code === PTP_EC_EOS_OBJECT_ADDED_EX) {
+          return { objectId: evs[j].handle, storageId: evs[j].storageId, size: evs[j].size, source: 'GetEvent(0xC181)' };
+        }
+      }
+      return null;
+    }, function (e) {
+      if (_pollDisconnectRe(e)) throw e;
+      return null;
+    });
+  };
+
 
   /**
    * 下载照片（双路径，2026-08-16 按 gphoto2 5D2 流程实现）：

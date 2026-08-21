@@ -212,8 +212,18 @@
         loop();
       }, function (err) {
         if (self.released) return;
-        self._evtReaderActive = false;
         self._evtReaderErr = err;
+        // r51：瞬时错误（端点 STALL / 一次性 WebUSB 抖动）不永久停监听——短暂后重挂，
+        // 否则中断端点 0x4002 ObjectAdded 事件通道一崩就废，照片永远检测不到
+        // （r44/r45 两次「中断事件监听停止」后零事件的直接嫌疑）。仅断开类错误才停。
+        var msg = (err && err.message || '').toString();
+        var fatal = /disconnected|NotFoundError|Access denied|拒绝访问|设备已断开|device was disconnected/i.test(msg);
+        if (!fatal && (self._evtReaderRetries || 0) < 8) {
+          self._evtReaderRetries = (self._evtReaderRetries || 0) + 1;
+          setTimeout(loop, 1000); // 短暂退避后重挂常驻 transferIn
+          return;
+        }
+        self._evtReaderActive = false;
         if (onError) onError(err);
       });
     }

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>快门解锁验证 · r52b</title>
+<style>
+  body{background:#1a1710;color:#f5f0e6;font-family:"Microsoft YaHei",sans-serif;max-width:600px;margin:40px auto;padding:18px;font-size:17px;text-align:center}
+  .card{background:#241f14;border:1px solid #4a3f28;border-radius:12px;padding:24px;margin:14px 0}
+  .big{font-size:22px;font-weight:700;color:#ffe9b0;margin:8px 0}
+  .hint{color:#c9b98a;font-size:15px;line-height:1.8}
+  button{font-size:24px;padding:18px 36px;border-radius:12px;border:0;cursor:pointer;margin:10px;font-weight:700}
+  .green{background:#3f7a34;color:#fff}.red{background:#a03a2e;color:#fff}.blue{background:#2f5f8a;color:#fff}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  #log{background:#12100a;border:1px solid #333;border-radius:8px;padding:12px;height:160px;overflow:auto;font:12px/1.6 Consolas,monospace;text-align:left;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="big">📷 5D2 快门解锁验证</div>
+
+<div class="card" id="step0">
+  <div class="big">第一步：无会话</div>
+  <div class="hint">USB 线已插，相机开机，镜头 MF。<br>软件现在不连接相机。<br>请按一次快门——</div>
+  <button class="red" id="btn0bad">❌ 摁不下去</button>
+  <button class="green" id="btn0ok" style="display:none">✅ 按得动，拍了</button>
+</div>
+
+<div class="card" id="step1" style="display:none">
+  <div class="big">第二步：建立会话</div>
+  <div class="hint" id="step1hint">正在连接相机…</div>
+  <button class="green" id="btn1ok" disabled>✅ 按得动，拍了</button>
+  <button class="red" id="btn1bad" disabled>❌ 摁不下去</button>
+</div>
+
+<div class="card" id="result" style="display:none">
+  <div class="big" id="resultText"></div>
+</div>
+
+<div id="log"></div>
+
+<script src="camera-ptp.js"></script><script src="usb-transport.js"></script><script src="browser-usb-transport.js"></script>
+<script>
+(function () {
+  var logEl = document.getElementById('log');
+  function ts() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2); }
+  function log(msg) { logEl.textContent += ts() + ' ' + msg + '\n'; logEl.scrollTop = 1e9; }
+
+  var ptp = null, transport = null;
+
+  document.getElementById('btn0bad').addEventListener('click', function () {
+    log('V0: 无会话 → 摁不下去 ✓');
+    document.getElementById('step0').style.display = 'none';
+    var s1 = document.getElementById('step1');
+    s1.style.display = 'block';
+    document.getElementById('step1hint').textContent = '正在连接相机…';
+    log('连接中…');
+    var tether = window.UsbTether.get();
+    tether.scan().then(function (devices) {
+      var canon = (devices || []).filter(function (d) { return d.isCanon; })[0];
+      if (!canon) throw new Error('未找到佳能相机');
+      log('找到相机 ' + canon.name + '，建立会话…');
+      return tether.requestConnect(canon.id, { iface: 0 });
+    }).then(function (t) {
+      transport = t; ptp = new PtpCamera(transport);
+      return transport.clearPipe().then(function () { return ptp.openSession(); });
+    }).then(function () { return ptp.getDeviceInfo(); })
+      .then(function (info) {
+        log('✅ 会话已建立：' + (info && info.model || '5D2') + '。此后不发任何命令。');
+        document.getElementById('step1hint').textContent = '会话已建立，USB 完全静默。请按快门——';
+        document.getElementById('btn1ok').disabled = false;
+        document.getElementById('btn1bad').disabled = false;
+      }, function (e) {
+        log('连接失败: ' + ((e && e.message) || e));
+        document.getElementById('step1hint').textContent = '连接失败，请拔插 USB 重试。';
+      });
+  });
+
+  function finish(verdict) {
+    document.getElementById('step1').style.display = 'none';
+    var r = document.getElementById('result');
+    r.style.display = 'block';
+    if (verdict === 'ok') {
+      document.getElementById('resultText').textContent = '🎉 结论：建立会话后快门解锁。
+锁只在「无会话」的默认态出现。
+方案：连接后始终维持会话，机身快门即可用。';
+      log('V1: 会话建立后 → 按得动 ✅');
+    } else {
+      document.getElementById('resultText').textContent = '🔒 结论：建立会话后仍锁。
+锁在更低层（5D2 固件 / Windows 驱动）。
+需要管理员停 StiSvc + WUDFWpdFs 后重测。';
+      log('V1: 会话建立后 → 仍锁 ❌');
+    }
+    // 断开
+    try { if (ptp) ptp.closeSession(3000, true).catch(function () {}); } catch (e) {}
+    try { if (transport) transport.release(); } catch (e) {}
+    log('会话已断开。');
+  }
+
+  document.getElementById('btn1ok').addEventListener('click', function () { finish('ok'); });
+  document.getElementById('btn1bad').addEventListener('click', function () { finish('bad'); });
+})();
+</script>
+</body>
+</html>

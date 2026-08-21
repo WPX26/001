@@ -3257,6 +3257,9 @@
   }
   body.full-embed .phone-frame::before { display: none; }
   body.full-embed .phone-screen { border-radius: 0; }
+  /* 顶部为真实系统状态栏（时间/信号/电量）让位：仅把顶栏图标组下移，地图背景直接延伸到屏幕最顶、不做黑色填充（王总 2026-08-21） */
+  body.full-embed .top-actions { top: calc(16rem + max(env(safe-area-inset-top, 0px), 44px)); }
+  body.full-embed .mark-menu { top: calc(110rem + max(env(safe-area-inset-top, 0px), 44px)); }
   body.full-embed .status-bar { display: none; }
   /* status-bar 隐藏后，顶部渐变空条一并隐藏（避免顶部残留米色带） */
   body.full-embed .map-overlay-top { display: none; }
