@@ -1032,6 +1032,20 @@
     padding: 20rem 16rem 0;
     z-index: 4;
   }
+  /* 关闭相机按钮靠左（其余图标靠右） */
+  #plCamCloseBtn { margin-right: auto; }
+
+  /* ===== 相机全屏模式（2026-08-22 王总：A 端取景器太小 -> 相机开启时占满整屏） ===== */
+  .workspace.cam-live .ws-header,
+  .workspace.cam-live .phone-ws-bottom,
+  .workspace.cam-live .pair-host-card,
+  .workspace.cam-live .pair-host-status,
+  .workspace.cam-live .pair-host-expire { display: none; }
+  .workspace.cam-live .pair-host-view { padding: 0; gap: 0; overflow: hidden; }
+  .workspace.cam-live .pair-host-cam { flex: 1; }
+
+  /* B 端已连接：隐藏顶栏，取景器最大化（断开用底部按钮） */
+  .workspace.client-live .ws-header { display: none; }
   .cam-icon-btn {
     width: 38rem; height: 38rem;
     border-radius: 50%;
@@ -1684,6 +1698,9 @@
                 </div>
                 <!-- 顶部控制 -->
                 <div class="cam-top-bar" id="plCamTopBar" style="display:none">
+                  <button class="cam-icon-btn" id="plCamCloseBtn" title="关闭相机">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
                   <button class="cam-icon-btn" id="plFlashBtn" title="闪光灯">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                   </button>
@@ -2139,6 +2156,9 @@
       var isHost = role === 'host';
       phoneHostView.style.display = isHost ? '' : 'none';
       phoneViewfinder.style.display = isHost ? 'none' : '';
+      // B 端连接视图：隐藏顶栏，取景器最大化
+      var plWsRole = document.getElementById('phoneWorkspace');
+      if (plWsRole) plWsRole.classList.toggle('client-live', !isHost);
       phoneWsHint.style.display = isHost ? 'none' : '';
       phoneGallery.style.display = ''; // 被控端也显示相册入口（可点击查看已拍照片）
       phoneShutter.style.display = isHost ? 'none' : '';
@@ -2533,6 +2553,7 @@
     var plFlashOverlay = $('plFlashOverlay');
     var plGrid = $('plGrid');
     var plFlashBtn = $('plFlashBtn');
+    var plCamCloseBtn = $('plCamCloseBtn');
     var plGridBtn = $('plGridBtn');
     var plFlipCamBtn = $('plFlipCamBtn');
     var plFacingMode = 'environment'; // 'environment' | 'user'
@@ -2616,6 +2637,9 @@
         plVideo.srcObject = stream;
         plVideo.play().catch(function () {});
         plShowCamActive();
+        // 相机开启 -> 取景器全屏（隐藏顶栏/底栏/连接码卡片）
+        var plWsLive = document.getElementById('phoneWorkspace');
+        if (plWsLive) plWsLive.classList.add('cam-live');
         plStartFramePush();
       }).catch(function (err) {
         if (settled) return;
@@ -2679,6 +2703,8 @@
     }
 
     function plStopCamera() {
+      var plWsLive = document.getElementById('phoneWorkspace');
+      if (plWsLive) plWsLive.classList.remove('cam-live');
       if (plStream) {
         plStream.getTracks().forEach(function (t) { t.stop(); });
         plStream = null;
@@ -2753,6 +2779,9 @@
     });
 
     // 闪光灯（torch）
+    plCamCloseBtn.addEventListener('click', function () {
+      if (plStream) plStopCamera();
+    });
     plFlashBtn.addEventListener('click', function () {
       if (!plStream) return;
       var track = plStream.getVideoTracks()[0];
@@ -2803,7 +2832,7 @@
       plFocusRing.classList.add('animate');
     });
 
-    // 帧推流：150ms 一帧（宽 720 JPEG q0.6，画质优先；仅 host 且连接正常时推送）
+    // 帧推流：150ms 一帧（宽 1080 JPEG q0.75，画质优先；仅 host 且连接正常时推送）
     function plStartFramePush() {
       plStopFramePush();
       var canvas = document.createElement('canvas');
@@ -2812,12 +2841,12 @@
         if (plScreenActive) return; // 屏控激活：帧源切换为屏幕（evalJS 注入），停用相机帧
         var vw = plVideo.videoWidth, vh = plVideo.videoHeight;
         if (!vw || !vh) return;
-        var scale = 720 / vw;
-        canvas.width = 720;
+        var scale = 1080 / vw;
+        canvas.width = 1080;
         canvas.height = Math.max(1, Math.round(vh * scale));
         canvas.getContext('2d').drawImage(plVideo, 0, 0, canvas.width, canvas.height);
         var dataUrl = null;
-        try { dataUrl = canvas.toDataURL('image/jpeg', 0.6); } catch (e) {}
+        try { dataUrl = canvas.toDataURL('image/jpeg', 0.75); } catch (e) {}
         if (dataUrl) plWs.send(JSON.stringify({ type: 'frame', data: dataUrl }));
       }, 150);
     }
