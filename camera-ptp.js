@@ -986,6 +986,48 @@
     return poll();
   };
 
+  /* ---------- r55：实时取景（Live View） ---------- */
+  /**
+   * EOS 实时取景三件套（gphoto2 canon.c 同协议）：
+   *   0x9151 InitiateViewfinder — 启动取景输出（相机进入实时取景）
+   *   0x9152 TerminateViewfinder — 停止取景输出
+   *   0x9153 GetViewfinderData — 抓一帧（JPEG）
+   * GetViewfinderData 返回 >512 字节时前 3 字节为帧头（gphoto2 canon_get_viewfinder_data 同判断），
+   * 剥离后即 JPEG；≤512 字节视为纯 JPEG 缩略帧。无帧（相机未就绪/LV 未开）返回 null。
+   */
+  PtpCamera.prototype.initiateViewfinder = function () {
+    return this.transact(PTP_OC_EOS_INITIATE_VIEWFINDER, [], null, 10000);
+  };
+  PtpCamera.prototype.terminateViewfinder = function () {
+    return this.transact(PTP_OC_EOS_TERMINATE_VIEWFINDER, [], null, 10000);
+  };
+  PtpCamera.prototype.getViewfinderData = function () {
+    var self = this;
+    return self.transact(PTP_OC_EOS_GET_VIEWFINDER_DATA, [], null, 1500).then(function (res) {
+      var d = res.data;
+      if (!d || !d.length) return null;
+      if (d.length > 512 && d[3] === 0xFF && d[4] === 0xD8) return d.subarray(3); // 剥 3 字节帧头
+      return d;
+    });
+  };
+  /** 轻量事件检查：GetEvent 单次轮询，命中 0xC181 返回对象，否则 null（供实时取景帧间调用，不阻塞长等） */
+  PtpCamera.prototype.pollEventOnce = function (timeoutMs) {
+    var self = this;
+    return self.transact(PTP_OC_EOS_GET_EVENT, [], null, timeoutMs || 800).then(function (res) {
+      var evs = parseEosEvents(res.data);
+      for (var j = 0; j < evs.length; j++) {
+        if (evs[j].code === PTP_EC_EOS_OBJECT_ADDED_EX) {
+          return { objectId: evs[j].handle, storageId: evs[j].storageId, size: evs[j].size, source: 'GetEvent(0xC181)' };
+        }
+      }
+      return null;
+    }, function (e) {
+      if (_pollDisconnectRe(e)) throw e;
+      return null; // 非断开类错误视为无事件（r46 同语义）
+    });
+  };
+
+
   /**
    * 下载照片（双路径，2026-08-16 按 gphoto2 5D2 流程实现）：
    *   卡上（storageId != 0）→ EOS GetObject(0x9104)，一次读回；
