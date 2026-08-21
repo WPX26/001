@@ -1054,7 +1054,8 @@
   PtpCamera.prototype.getViewfinderData = function () {
     var self = this;
     self._lvDiag = self._lvDiag || {};
-    return self.transact(PTP_OC_EOS_GET_VIEWFINDER_DATA, [], null, 1500).then(function (res) {
+    // r61：0x9153 带三参数 (0x00200000, 0, 0)——EOS Utility 抓包实证（julianschroden PTP/IP 逆向）；无参数 5D2 可能不回帧
+    return self.transact(PTP_OC_EOS_GET_VIEWFINDER_DATA, [0x00200000, 0, 0], null, 1000).then(function (res) {
       var d = res.data;
       if (!d || !d.length) {
         self._lvDiag.frame = { len: 0, empty: true };
