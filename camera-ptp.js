@@ -1013,18 +1013,26 @@
   PtpCamera.prototype.startViewfinder = function () {
     var self = this;
     self._lvDiag = { steps: {} };
-    function rec(name) {
-      return function (e) {
-        if (!e) { self._lvDiag.steps[name] = 'OK'; return undefined; }
-        var msg = ((e && e.message) || String(e)).toString().slice(0, 60);
-        var code = (e && e.code) != null ? '0x' + ((e.code >>> 0)).toString(16) : '';
-        self._lvDiag.steps[name] = (code ? code + ' ' : '') + msg;
-        return undefined; // 失败不致命（老机型可能缺某属性/某命令）
-      };
+    // r60：5D2 真机诊断 initiate=0x2005 —— 0x9151 不被支持。
+    // gphoto2 library.c canon_eos_capture_preview 同路径：只设 EVFMode=1 + EVFOutputDevice=2，然后直接 0x9153 抓帧，不发 0x9151。
+    function fmtErr(e) {
+      if (!e) return 'OK';
+      var msg = ((e && e.message) || String(e)).toString().slice(0, 60);
+      var code = (e && e.code) != null ? '0x' + ((e.code >>> 0)).toString(16) : '';
+      return (code ? code + ' ' : '') + msg;
     }
-    return self.setEosDevicePropU16(PTP_DPC_EOS_EVF_MODE, 1).then(rec('evfMode'), rec('evfMode'))
-      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 2); }).then(rec('evfOut'), rec('evfOut'))
-      .then(function () { return self.transact(PTP_OC_EOS_INITIATE_VIEWFINDER, [], null, 10000); }).then(rec('initiate'), rec('initiate'));
+    return self.setEosDevicePropU16(PTP_DPC_EOS_EVF_MODE, 1).then(
+        function () { self._lvDiag.steps.evfMode = 'OK'; },
+        function (e) { self._lvDiag.steps.evfMode = fmtErr(e); })
+      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 2); }).then(
+        function () { self._lvDiag.steps.evfOut = 'OK'; },
+        function (e) { self._lvDiag.steps.evfOut = fmtErr(e); });
+  };
+  PtpCamera.prototype.stopViewfinder = function () {
+    var self = this;
+    // r60：不发 0x9152（5D2 同 0x2005 拒绝）；EVFMode=0 退出取景 + EVFOutputDevice 恢复 1(TFT 相机屏)
+    return self.setEosDevicePropU16(PTP_DPC_EOS_EVF_MODE, 0).catch(function () {})
+      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 1).catch(function () {}); });
   };
   /** 关实时取景：0x9152 停止输出 + EVFOutputDevice 恢复 1（TFT，相机屏恢复显示） */
   PtpCamera.prototype.stopViewfinder = function () {
