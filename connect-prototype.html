@@ -1695,6 +1695,7 @@
                   </svg>
                   <div class="cam-placeholder-text">点击下方按钮开启相机<br>控制端即可看到实时画面</div>
                   <button class="pair-btn primary" id="plHostCamBtn">📷 开启相机</button>
+                  <button class="pair-btn ghost" id="plFallbackCamBtn" style="display:none;margin-top:12rem">📱 使用系统相机拍照</button>
                 </div>
                 <!-- 顶部控制 -->
                 <div class="cam-top-bar" id="plCamTopBar" style="display:none">
@@ -2584,6 +2585,7 @@
     var plCamGallery = $('plCamGallery');
     var plCamGalleryImg = $('plCamGalleryImg');
     var plCamGalleryBadge = $('plCamGalleryBadge');
+    var plFallbackCamBtn = $('plFallbackCamBtn');
     var plFocusRing = $('plFocusRing');
     var plFlashOverlay = $('plFlashOverlay');
     var plGrid = $('plGrid');
@@ -2623,7 +2625,13 @@
         plStartFramePush();
       }).catch(function (err) {
         if (err && err.name === 'NotAllowedError') {
-          plShowCamError('请在浏览器设置中允许相机权限后重试');
+          // App 内：通过原生层请求相机权限，授权后 __plCameraReady 回调重试
+          if (plIsApp()) {
+            plShowCamError('正在请求相机权限…');
+            plPostToApp('pl_camera_permission');
+          } else {
+            plShowCamError('请在浏览器设置中允许相机权限后重试');
+          }
           return;
         }
         if (err && err.name === 'NotFoundError') {
@@ -2650,6 +2658,7 @@
       plCamPlaceholder.style.display = 'none';
       plCamTopBar.style.display = '';
       plCamBottomBar.style.display = '';
+      plFallbackCamBtn.style.display = 'none';
       plHostCamStatus.textContent = '📡 画面正在实时推送';
       plHostCamStatus.className = 'cam-status-overlay';
       // 3 秒后淡化状态文字
@@ -2664,6 +2673,10 @@
       plHostCamStatus.textContent = msg;
       plHostCamStatus.className = 'cam-status-overlay err';
       plHostCamStatus.style.opacity = '1';
+      // App 内：getUserMedia 失败时显示系统相机兜底按钮
+      if (plIsApp()) {
+        plFallbackCamBtn.style.display = '';
+      }
     }
 
     function plStopCamera() {
@@ -2676,6 +2689,7 @@
       plCamPlaceholder.style.display = '';
       plCamTopBar.style.display = 'none';
       plCamBottomBar.style.display = 'none';
+      plFallbackCamBtn.style.display = 'none';
       plTorchOn = false;
       plFlashBtn.classList.remove('on');
       plHostCamStatus.textContent = '等待控制端加入…';
@@ -2687,6 +2701,47 @@
       if (plStream) plStopCamera();
       else plStartCamera();
     });
+
+    // 系统相机兜底：App 内 getUserMedia 失败时，通过原生层打开系统相机拍照
+    plFallbackCamBtn.addEventListener('click', function () {
+      plFallbackPhoto();
+    });
+
+    // 原生层回调：相机权限请求结果
+    window.__plCameraReady = function (granted) {
+      if (granted && !plStream) {
+        // 权限已授权，重试 getUserMedia
+        plConstraintIdx = 0;
+        plTryCamera();
+      }
+    };
+
+    // 原生层回调：系统相机拍照结果（base64 data URL 或 null）
+    window.__plCameraPhoto = function (dataUrl) {
+      if (dataUrl) {
+        // 把系统相机拍的照片当作一次"截帧"处理——走 plCapturePhoto 同款管线
+        plPhotoCount++;
+        plNotifyClient(dataUrl);
+        // 闪屏动画
+        plFlashOverlay.classList.remove('fire');
+        void plFlashOverlay.offsetWidth;
+        plFlashOverlay.classList.add('fire');
+        if (navigator.vibrate) navigator.vibrate(30);
+        plHostCamStatus.textContent = '📱 系统相机拍照成功';
+        plHostCamStatus.className = 'cam-status-overlay';
+        plHostCamStatus.style.opacity = '1';
+        setTimeout(function () { plHostCamStatus.style.opacity = '0'; }, 3000);
+      } else {
+        plShowCamError('系统相机拍照失败，请重试');
+      }
+    };
+
+    function plFallbackPhoto() {
+      plHostCamStatus.textContent = '正在打开系统相机…';
+      plHostCamStatus.className = 'cam-status-overlay';
+      plHostCamStatus.style.opacity = '1';
+      plPostToApp('pl_camera_photo');
+    }
 
     // 翻转摄像头
     plFlipCamBtn.addEventListener('click', function () {

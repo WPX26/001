@@ -22,10 +22,13 @@ export default {
   },
   onLoad() {
     this.buildWebSrc()
+    // 进入联机页即请求相机权限（Android 6.0+ runtime permission），让 WebView 的 getUserMedia 能工作
+    this.ensureCameraPermission()
   },
   onShow() {
     this.buildWebSrc()
     uni.$emit('tab-change', 1)
+    this.ensureCameraPermission()
   },
   onUnload() {
     this.stopScreen()
@@ -36,6 +39,57 @@ export default {
       const sep = CONNECT_URL.indexOf('?') >= 0 ? '&' : '?'
       const token = memoApi.getToken()
       this.webSrc = CONNECT_URL + (token ? sep + 'token=' + encodeURIComponent(token) + '&full=1' : '?full=1')
+    },
+
+    // ---------- 相机权限：Android 6.0+ 必须运行时请求，否则 WebView 内 getUserMedia 必失败 ----------
+    ensureCameraPermission() {
+      // #ifdef APP-PLUS
+      if (plus && plus.android) {
+        plus.android.requestPermissions(
+          ['android.permission.CAMERA'],
+          (result) => {
+            // granted: 已授权 → 通知 web 层可以调用 getUserMedia
+            const granted = result && result.granted && result.granted.length > 0
+            if (granted) {
+              this.evalWeb("window.__plCameraReady && window.__plCameraReady(true)")
+            }
+          },
+          (err) => {
+            console.log('[connect] CAMERA permission denied:', err)
+          }
+        )
+      }
+      // #endif
+    },
+
+    // ---------- 系统相机拍照（兜底：getUserMedia 不可用时，用系统相机 App 拍照 → base64 回传 web 层） ----------
+    takeCameraPhoto() {
+      uni.chooseImage({
+        count: 1,
+        sourceType: ['camera'],
+        success: (res) => {
+          const filePath = res.tempFilePaths[0]
+          if (!filePath) {
+            this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto(null)")
+            return
+          }
+          // 读为 base64 回传 web 层（connect-prototype.html 的 __plCameraPhoto 回调）
+          uni.getFileSystemManager().readFile({
+            filePath: filePath,
+            encoding: 'base64',
+            success: (readRes) => {
+              const base64 = 'data:image/jpeg;base64,' + readRes.data
+              this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto('" + base64 + "')")
+            },
+            fail: () => {
+              this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto(null)")
+            }
+          })
+        },
+        fail: () => {
+          this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto(null)")
+        }
+      })
     },
 
     // ---------- App → web-view：evalJS ----------
@@ -135,6 +189,8 @@ export default {
         // web 页加载完成，开始补推暂存帧
         this.webReady = true
         this.flushPendingFrames()
+        // 通知 web 层相机权限已就绪（如果已授权）
+        this.ensureCameraPermission()
       } else if (msg.type === 'pl_screen_start') {
         this.startScreen()
       } else if (msg.type === 'pl_screen_stop') {
@@ -143,6 +199,12 @@ export default {
         this.sendTouch(msg.data)
       } else if (msg.type === 'pl_open_accessibility') {
         ScreenControl.openAccessibilitySettings()
+      } else if (msg.type === 'pl_camera_permission') {
+        // web 层请求相机权限（getUserMedia 失败时触发）
+        this.ensureCameraPermission()
+      } else if (msg.type === 'pl_camera_photo') {
+        // web 层请求系统相机拍照（getUserMedia 不可用时的兜底）
+        this.takeCameraPhoto()
       }
     },
   },
