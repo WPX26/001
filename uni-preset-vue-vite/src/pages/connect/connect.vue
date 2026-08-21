@@ -24,11 +24,14 @@ export default {
     this.buildWebSrc()
     // 进入联机页即请求相机权限（Android 6.0+ runtime permission），让 WebView 的 getUserMedia 能工作
     this.ensureCameraPermission()
+    // 显式告知页面「当前在 App 内」：App→页面 evalJS 方向可靠，不依赖 uni 桥注入时序
+    this.forceAppMode()
   },
   onShow() {
     this.buildWebSrc()
     uni.$emit('tab-change', 1)
     this.ensureCameraPermission()
+    this.forceAppMode()
   },
   onUnload() {
     this.stopScreen()
@@ -39,6 +42,15 @@ export default {
       const sep = CONNECT_URL.indexOf('?') >= 0 ? '&' : '?'
       const token = memoApi.getToken()
       this.webSrc = CONNECT_URL + (token ? sep + 'token=' + encodeURIComponent(token) + '&full=1' : '?full=1')
+    },
+
+    // ---------- 显式声明 App 模式：重复探测直至页面加载完成（页面侧 __plSetAppMode 会启用 App UI 与系统相机兜底） ----------
+    forceAppMode() {
+      for (let i = 1; i <= 8; i++) {
+        setTimeout(() => {
+          this.evalWeb("window.__plSetAppMode && window.__plSetAppMode(true)")
+        }, i * 500)
+      }
     },
 
     // ---------- 相机权限：Android 6.0+ 必须运行时请求，否则 WebView 内 getUserMedia 必失败 ----------
@@ -99,8 +111,13 @@ export default {
         const pages = getCurrentPages()
         const page = pages[pages.length - 1]
         if (!page || !page.$getAppWebview) return null
-        const wv = page.$getAppWebview().children()[0]
-        return wv || null
+        const children = page.$getAppWebview().children()
+        if (!children || !children.length) return null
+        // 优先选带 evalJS 能力的 web-view 子视图（可能有其他原生子视图）
+        for (const c of children) {
+          if (c && typeof c.evalJS === 'function') return c
+        }
+        return children[0] || null
         // #endif
         // #ifndef APP-PLUS
         return null
