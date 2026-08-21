@@ -884,18 +884,18 @@
     }).catch(function (e) { if (_pollDisconnectRe(e)) throw e; return null; });
   };
   /**
-   * 等待新照片事件/新对象（三通道，r45 起事件无关）：
-   *   ① 中断端点标准 PTP ObjectAdded(0x4002)——非远程模式 5D2 拍卡后的候选主通道
+   * 等待新照片事件（r51：事件通道优先，卡枚举轮询默认关闭——防锁机身快门）：
+   *   ① GetEvent(0x9116) 排空 + 0xC181 ObjectAddedEx（远程模式事件源；非远程也排空防事件堆积 Busy）；
+   *   ② 中断端点标准 PTP ObjectAdded(0x4002)——非远程模式 5D2 拍卡后的候选主通道
    *      （startEvents 已把中断包解析进 _pendingEvents，这里消费，含 .source 标注来源）；
-   *   ② GetEvent(0x9116) 轮询 EOS ObjectAddedEx(0xC181)——仅远程模式（r46 起非远程跳过：
-   *      真机高频 GetEvent 挂起/异常嫌疑 → 拖死循环 → 轮询兜底轮不到）；
-   *   ③ r48 轮询兜底 GetObjectHandles(0x1007) 句柄差集（r45 曾用 GetNumObjects 计数，真机实锤
-   *      5D2 对 0x1006 回 0x201d 不支持，已废弃；gphoto2 canon 驱动同款语义）。即使中断端点/
-   *      GetEvent 都不产生事件，按快门后照片也会在几秒内被发现。
-   * 每轮轮询前按 10s 间隔保活；事件轮询间隔 250ms（gphoto2 是紧密排空，Android 上
+   *   ③ 轮询兜底 GetObjectHandles(0x1007) 句柄差集【opt-in，默认关】：r51 真机证据链定案——
+   *      每 2s 枚举存储卡让 5D2 一直「读卡忙」→ 机身快门锁死（r43/r44 零卡枚举快门可用、
+   *      r45 加轮询后 r46-r50 全锁、r50 恢复 GetEvent 仍锁证明 GetEvent 不是变量）。
+   *      仅在显式 {poll:true}（远程取图/页面一次性「已按快门」扫描）时启用。
+   * 每轮按 10s 间隔保活；事件轮询间隔 250ms（gphoto2 是紧密排空，Android 上
    * 250ms 避免打满带宽，事件不丢——0x9116 数据是积攒式的）；兜底轮询间隔默认 2s。
    * @param {number} timeoutMs 总超时（默认 90s = gphoto2 EOS_CAPTURE_TIMEOUT）
-   * @param {object} [opts] {poll:boolean=false 关闭兜底, pollIntervalMs:number}
+   * @param {object} [opts] {poll:boolean=false 关闭兜底(默认), pollIntervalMs:number}
    * @returns {Promise<{objectId:number, storageId:number, size:number, source?:string}>}
    *          objectId=照片 Handle；storageId=0 表示 SDRAM（走 0x9107 分块取图）
    */
@@ -903,17 +903,18 @@
     var self = this;
     var deadline = Date.now() + (timeoutMs || 90000);
     var o = opts || {};
-    var pollEnabled = (o.poll !== false);      // r45：默认开启轮询兜底
+    var pollEnabled = (o.poll === true);       // r51：默认关闭卡枚举轮询——0x1007 每 2s 枚举=锁机身快门真根因
     var lastPoll = 0;
     var pollInterval = o.pollIntervalMs || 2000;
-    // r50【锁机身快门根因修复】：无论远程与否都轮询 GetEvent(0x9116)——SetEventMode(0x9115)
-    // 开启事件模式后相机端排队事件，宿主必须持续 GetEvent 排空，否则相机报 Busy → 锁机身快门。
-    // 真机证据：r38/r43/r44（连接排空 + 等待循环 GetEvent 轮询）→ 机身快门可用；r47/r48/r49
-    // （r46 起非远程跳过 GetEvent、r49 再跳连接排空）→ 机身锁死。r46 删 GetEvent 的理由
-    // 「高频 GetEvent 挂起拖死循环」是误诊（真凶是 keepAlive 与轮询并发抢包，r47 mutex 已根治）。
-    // 现在 GetEvent 每轮都跑：2s 短超时 + 非断开类错误视为空 → 最坏退化为 r48/r49 行为，绝不拖死。
-    // 轮询兜底（GetObjectHandles 0x1007）保留作检测备份通道。
-    var remoteMode = !!o.remoteMode || !!self._remoteMode; // r50：仅用于注释/诊断；GetEvent 两种模式都轮询
+    // r51【锁机身快门·真正的根因（r50 复测后定案）】：GetObjectHandles(0x1007) 每 2s 枚举存储卡
+    // → 5D2 一直处于「读卡忙」→ 机身快门锁死。真机证据链：
+    //   r43/r44（等待循环 = GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；
+    //   r45 加 0x1007 轮询后 r46-r50 全部锁死；r50 恢复 GetEvent 仍锁 → GetEvent 不是变量
+    //   （r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举。
+    //   gphoto2 等待事件时从不连续枚举卡；r38 wasm 补丁会话（非远程、不枚举）→ 快门可用。同机制。
+    // GetEvent 保持每轮排空（r44 同款，防事件堆积报 Busy，绝不拖死：2s 短超时+非断开错误视为空）。
+    // 检测新照片：中断端点 0x4002（自动）+ 页面「我已按过快门」一次性 _pollDetectNew()（瞬时枚举）。
+    var remoteMode = !!o.remoteMode || !!self._remoteMode; // r51：仅用于注释/诊断；GetEvent 两种模式都轮询
     function schedule() { return new Promise(function (resolve) { setTimeout(resolve, 250); }).then(poll); }
     function poll() {
       if (Date.now() > deadline) throw PtpTimeoutError('等待照片事件超时');
