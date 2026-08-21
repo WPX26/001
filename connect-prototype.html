@@ -3206,7 +3206,8 @@
     // 用于同一会话内验证「实时取景需要远程模式吗 / 机身快门需要非远程吗」的因果关系（Cascable 切换假设）。
     function toggleRemoteMode() {
       var btn = document.getElementById('wsRemoteToggle');
-      if (!usbCam.connected || !usbCam.gpCamera) { showToast('⚠️ 请先连接相机后再切换'); return; }
+      if (!usbCam.connected) { showToast('⚠️ 请先连接相机后再切换'); return; }
+      if (!usbCam.gpCamera) { showToast('远程模式已由 PTP 连接时设定，无需手动切换'); return; }
       var next = usbCam._remoteMode ? 0 : 1;
       stopLiveView(); // 切换期间暂停取景轮询，避免与 setConfigValue 排队互相干扰
       showToast('正在切换远程模式 → ' + (next ? '开(1)' : '关(0)') + ' …');
@@ -3603,10 +3604,14 @@
       var model = (usbCam.deviceInfo && usbCam.deviceInfo.model) || '佳能 EOS';
       var wsCamInfo = $('workspace').querySelector('.ws-cam-info span');
       if (wsCamInfo) wsCamInfo.textContent = model;
-      // r53：远程模式已由连接路径 setRemoteMode(1) 设置，不覆盖为 false
+      // r54：PTP自研栈已在连接时 setRemoteMode(1)，远程模式始终开启。
+      // 切换按钮仅 gpCamera(wasm) 路径有效，PTP 栈下隐藏。
       usbCam._remoteMode = true;
       var rmtBtn = document.getElementById('wsRemoteToggle');
-      if (rmtBtn) rmtBtn.textContent = '远程模式: 开';
+      if (rmtBtn) {
+        if (usbCam.gpCamera) { rmtBtn.textContent = '远程模式: 开'; rmtBtn.style.display = ''; }
+        else { rmtBtn.style.display = 'none'; }
+      }
       // 取景器：真实 EVF 为二期；清掉模拟风景图，显示连接态占位（去模拟化）
       var vf = $('wsViewfinderImg');
       vf.style.display = 'none';
