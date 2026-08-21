@@ -8,13 +8,13 @@ import { ScreenControl } from 'io.dcloud.uni_modules.uts_screencontrol'
  */
 
 /** 调用结果。code=0 成功，非 0 失败 */
-export interface ScreenControlResult {
+export type ScreenControlResult = {
   code: number
   message: string
 }
 
 /** 手势描述（坐标已归一化 0~1，相对整屏） */
-export interface GestureDesc {
+export type GestureDesc = {
   /** tap | swipe | longpress | back | home | recent */
   action: string
   /** 归一化坐标 0~1（相对屏幕） */
