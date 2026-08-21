@@ -66,6 +66,9 @@
   var PTP_OC_EOS_GET_EVENT = 0x9116;
   var PTP_OC_EOS_KEEP_DEVICE_ON = 0x911D;
   // EVF 实时取景（阶段 2 原生插件使用，协议栈先备好）
+  var PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX = 0x9110; // EOS SetDevicePropValueEx（gphoto2 ptp_canon_eos_setdevicepropvalue，data=[len:u32][propcode:u32][value]）
+  var PTP_DPC_EOS_EVF_MODE = 0xD1B3;           // 实时取景开关（UINT16：0=off 1=on）
+  var PTP_DPC_EOS_EVF_OUTPUT_DEVICE = 0xD1B0;  // 取景输出目标位掩码（UINT32：bit0=1=TFT相机屏 bit1=2=PC）
   var PTP_OC_EOS_INITIATE_VIEWFINDER = 0x9151;
   var PTP_OC_EOS_TERMINATE_VIEWFINDER = 0x9152;
   var PTP_OC_EOS_GET_VIEWFINDER_DATA = 0x9153;
@@ -986,31 +989,78 @@
     return poll();
   };
 
-  /* ---------- r55：实时取景（Live View） ---------- */
+  /* ---------- r58：实时取景（Live View，gphoto2 library.c canon_eos_capture_preview 同序列） ---------- */
   /**
-   * EOS 实时取景三件套（gphoto2 canon.c 同协议）：
-   *   0x9151 InitiateViewfinder — 启动取景输出（相机进入实时取景）
-   *   0x9152 TerminateViewfinder — 停止取景输出
-   *   0x9153 GetViewfinderData — 抓一帧（JPEG）
-   * GetViewfinderData 返回 >512 字节时前 3 字节为帧头（gphoto2 canon_get_viewfinder_data 同判断），
-   * 剥离后即 JPEG；≤512 字节视为纯 JPEG 缩略帧。无帧（相机未就绪/LV 未开）返回 null。
+   * EOS 实时取景启动序列（gphoto2 源码逐行核实 2026-08-21）：
+   *   ① EVFMode(0xD1B3, UINT16)=1 —— 开实时取景模式（0=off 1=on）
+   *   ② EVFOutputDevice(0xD1B0, UINT32 位掩码)=2 —— 取景输出到 PC（bit0=1=TFT相机屏 bit1=2=PC）
+   *   ③ InitiateViewfinder(0x9151) —— 启动取景输出
+   *   ④ GetViewfinderData(0x9153) 循环抓帧；DeviceBusy/0xA102 = 「还没就绪」重试
+   * 不设 ①② 相机不往 USB 送帧（只出相机屏）——r55-r57 实时画面黑屏的协议层根因。
+   * EOS SetDevicePropValueEx(0x9110) 数据格式（gphoto2 ptp.c）：[总长:u32][propcode:u32][值]
    */
+  PtpCamera.prototype.setEosDevicePropU16 = function (propcode, v) {
+    var b = new PacketBuilder();
+    b.u32(10); b.u32(propcode); b.u16(v);
+    return this.transact(PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX, [], b.build(), 5000);
+  };
+  PtpCamera.prototype.setEosDevicePropU32 = function (propcode, v) {
+    var b = new PacketBuilder();
+    b.u32(12); b.u32(propcode); b.u32(v);
+    return this.transact(PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX, [], b.build(), 5000);
+  };
+  /** 开实时取景（完整序列，各步失败不致命——老机型可能缺某属性） */
+  PtpCamera.prototype.startViewfinder = function () {
+    var self = this;
+    return self.setEosDevicePropU16(PTP_DPC_EOS_EVF_MODE, 1).catch(function () {})
+      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 2).catch(function () {}); })
+      .then(function () { return self.transact(PTP_OC_EOS_INITIATE_VIEWFINDER, [], null, 10000).catch(function () {}); });
+  };
+  /** 关实时取景：0x9152 停止输出 + EVFOutputDevice 恢复 1（TFT，相机屏恢复显示） */
+  PtpCamera.prototype.stopViewfinder = function () {
+    var self = this;
+    return self.transact(PTP_OC_EOS_TERMINATE_VIEWFINDER, [], null, 10000).catch(function () {})
+      .then(function () { return self.setEosDevicePropU32(PTP_DPC_EOS_EVF_OUTPUT_DEVICE, 1).catch(function () {}); });
+  };
   PtpCamera.prototype.initiateViewfinder = function () {
     return this.transact(PTP_OC_EOS_INITIATE_VIEWFINDER, [], null, 10000);
   };
   PtpCamera.prototype.terminateViewfinder = function () {
     return this.transact(PTP_OC_EOS_TERMINATE_VIEWFINDER, [], null, 10000);
   };
+  /**
+   * 抓一帧实时取景。返回格式（gphoto2 ptp_canon_eos_get_viewfinder_image 核实）：
+   * blob 链 [len:u32][type:u32][payload]，type=1 = JPEG 预览；len 含 8 字节头。
+   * 兼容：裸 JPEG（0xFFD8 开头）/ 3 字节头（旧猜测路径）。无帧返回 null。
+   */
   PtpCamera.prototype.getViewfinderData = function () {
     var self = this;
     return self.transact(PTP_OC_EOS_GET_VIEWFINDER_DATA, [], null, 1500).then(function (res) {
       var d = res.data;
       if (!d || !d.length) return null;
-      if (d.length > 512 && d[3] === 0xFF && d[4] === 0xD8) return d.subarray(3); // 剥 3 字节帧头
-      return d;
+      // 裸 JPEG
+      if (d[0] === 0xFF && d[1] === 0xD8) return d;
+      // gphoto2 blob 链：[len:u32][type:u32][payload]，type=1=JPEG
+      if (d.length >= 8) {
+        var dv = new DataView(d.buffer, d.byteOffset, d.byteLength);
+        var off = 0;
+        while (off + 8 <= d.length) {
+          var len = dv.getUint32(off, true);
+          var type = dv.getUint32(off + 4, true);
+          if (len < 8 || off + len > d.length) break; // 结构不合理 → 走兼容路径
+          if (type === 1) {
+            var jpeg = d.subarray(off + 8, off + len);
+            if (jpeg.length > 2 && jpeg[0] === 0xFF && jpeg[1] === 0xD8) return jpeg;
+          }
+          off += len;
+        }
+      }
+      // 兼容旧路径：3 字节头
+      if (d.length > 512 && d[3] === 0xFF && d[4] === 0xD8) return d.subarray(3);
+      return null; // 无法识别的帧 → 视为无帧（黑屏提示）
     });
   };
-  /** 轻量事件检查：GetEvent 单次轮询，命中 0xC181 返回对象，否则 null（供实时取景帧间调用，不阻塞长等） */
+  /** 轻量事件检查：GetEvent 单次轮询，命中 0xC181 返回对象，否则 null（保留备用） */
   PtpCamera.prototype.pollEventOnce = function (timeoutMs) {
     var self = this;
     return self.transact(PTP_OC_EOS_GET_EVENT, [], null, timeoutMs || 800).then(function (res) {
@@ -1023,7 +1073,7 @@
       return null;
     }, function (e) {
       if (_pollDisconnectRe(e)) throw e;
-      return null; // 非断开类错误视为无事件（r46 同语义）
+      return null;
     });
   };
 
