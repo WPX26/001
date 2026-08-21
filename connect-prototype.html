@@ -1378,6 +1378,28 @@
 </head>
 <body>
 
+<!-- 诊断条（调试定位用，验证后可移除）：显示 JS 错误与相机启动阶段 -->
+<div id="plDiagBar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#8e44ad;color:#fff;font-size:12px;padding:4px 8px;font-family:monospace;white-space:pre-wrap;"></div>
+<script>
+// 全局诊断：任何未捕获 JS 错误 / Promise 拒绝都显示在诊断条上（App WebView 看不到控制台，改用页面显示）
+(function () {
+  function show(msg) {
+    var el = document.getElementById('plDiagBar');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = String(msg).slice(0, 300);
+  }
+  window.__plDiag = show;
+  window.addEventListener('error', function (e) {
+    show('⚠ JS错误: ' + (e.message || 'unknown') + (e.lineno ? ' @行' + e.lineno : '') + (e.filename ? ' [' + (e.filename.split('/').pop() || '') + ']' : ''));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    show('⚠ Promise错误: ' + (r && r.message ? r.message : r));
+  });
+})();
+</script>
+
 <div class="container">
 
   <!-- 左侧：手机预览 -->
@@ -1961,6 +1983,9 @@
   //        v1 收到 capture 时被控端模拟拍照反馈（闪屏+角标）
   // =====================================================================
   (function () {
+    // 【诊断】阶段标记：App WebView 无控制台，页面顶部紫色条实时显示脚本执行到哪一步
+    function plDiag(m) { try { if (window.__plDiag) window.__plDiag(m); } catch (e) {} }
+    plDiag('IIFE 启动');
     var plApiBase = null;
     try {
       plApiBase = new URLSearchParams(window.location.search).get('apiBase') || location.origin + '/api/v1';
@@ -2503,6 +2528,24 @@
     var plTorchOn = false;
     var plGridOn = false;
 
+    // 【诊断】相机元素就绪检查
+    plDiag('相机元素: ' + (plHostCamBtn ? 'OK' : 'NULL-btn') + (plFallbackCamBtn ? '' : ' NULL-fb') + (plHostCamStatus ? '' : ' NULL-st'));
+
+    // 【兜底安全网】即便上面按钮的直接监听因脚本中途报错未绑定，也在 document 捕获阶段接管点击
+    var plCamBtnBound = false;
+    document.addEventListener('click', function (e) {
+      if (plCamBtnBound) return;
+      var t = e.target;
+      while (t && t !== document) {
+        if (t === plHostCamBtn) {
+          plDiag('兜底捕获点击');
+          if (plStream) plStopCamera(); else plStartCamera();
+          return;
+        }
+        t = t.parentNode;
+      }
+    }, true);
+
     // 多级回退约束（兼容不同设备）
     function plGetConstraints() {
       // 优先 1080p 后置 → 720p → 不指定分辨率（让浏览器自选）
@@ -2515,6 +2558,7 @@
     var plConstraintIdx = 0;
 
     function plTryCamera() {
+      plDiag('plTryCamera #' + plConstraintIdx);
       var constraints = plGetConstraints();
       if (plConstraintIdx >= constraints.length) {
         plShowCamError('相机不可用：已尝试所有分辨率均失败，请检查设备或权限');
@@ -2531,6 +2575,7 @@
         if (settled) return;
         settled = true;
         window.plGetUserMediaTimer = null;
+        plDiag('8s超时触发');
         plShowCamError(plIsApp()
           ? '相机启动超时：请使用「使用系统相机拍照」'
           : '相机启动超时，请检查浏览器相机权限');
@@ -2539,6 +2584,7 @@
       navigator.mediaDevices.getUserMedia(c).then(function (stream) {
         if (settled) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
         settled = true;
+        plDiag('getUserMedia 成功');
         if (window.plGetUserMediaTimer) { clearTimeout(window.plGetUserMediaTimer); window.plGetUserMediaTimer = null; }
         plStream = stream;
         plVideo.srcObject = stream;
@@ -2548,6 +2594,7 @@
       }).catch(function (err) {
         if (settled) return;
         settled = true;
+        plDiag('getUserMedia 失败: ' + (err && err.name));
         if (window.plGetUserMediaTimer) { clearTimeout(window.plGetUserMediaTimer); window.plGetUserMediaTimer = null; }
         if (err && err.name === 'NotAllowedError') {
           // App 内：通过原生层请求相机权限，授权后 __plCameraReady 回调重试
@@ -2570,6 +2617,7 @@
     }
 
     function plStartCamera() {
+      plDiag('点击 → plStartCamera');
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         plShowCamError('当前浏览器不支持相机（需使用 HTTPS 或 localhost）');
         return;
@@ -2626,6 +2674,7 @@
       if (plStream) plStopCamera();
       else plStartCamera();
     });
+    plCamBtnBound = true; // 绑定成功后置位：兜底捕获监听不再接管（脚本未死到此行则保持 false 由兜底接管）
 
     // 系统相机兜底：App 内 getUserMedia 失败时，通过原生层打开系统相机拍照
     plFallbackCamBtn.addEventListener('click', function () {
@@ -2688,6 +2737,7 @@
         plFlashBtn.classList.remove('on');
       });
     });
+    plDiag('相机监听器已绑定 ✓');
 
     // 网格
     plGridBtn.addEventListener('click', function () {
