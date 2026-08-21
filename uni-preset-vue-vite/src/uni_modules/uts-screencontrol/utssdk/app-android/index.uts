@@ -31,13 +31,16 @@ export function startScreenShare(onFrame: (frame: string) => void): Promise<Scre
   return new Promise<ScreenControlResult>((resolve, reject) => {
     const activity = UTSAndroid.getUniActivity()
     if (activity == null) {
-      resolve({ code: 1, message: "无法获取 Activity" })
+      const r: ScreenControlResult = { code: 1, message: "无法获取 Activity" }
+      resolve(r)
     } else {
       const code = ScreenControl.tryStart(activity, onFrame)
       if (code == 0) {
-        resolve({ code: 0, message: "已开始录屏" })
+        const r: ScreenControlResult = { code: 0, message: "已开始录屏" }
+        resolve(r)
       } else {
-        resolve({ code: 3, message: "启动授权页失败" })
+        const r: ScreenControlResult = { code: 3, message: "启动授权页失败" }
+        resolve(r)
       }
     }
   })
@@ -54,11 +57,14 @@ export function injectGesture(g: GestureDesc): Promise<ScreenControlResult> {
   return new Promise<ScreenControlResult>((resolve, reject) => {
     const code = ScreenControl.injectGesture(g.action, g.x, g.y, g.x2, g.y2, g.duration)
     if (code == 0) {
-      resolve({ code: 0, message: "ok" })
+      const r: ScreenControlResult = { code: 0, message: "ok" }
+      resolve(r)
     } else if (code == 1) {
-      resolve({ code: 1, message: "无障碍服务未开启：请到系统设置开启本 App 的无障碍服务" })
+      const r: ScreenControlResult = { code: 1, message: "无障碍服务未开启：请到系统设置开启本 App 的无障碍服务" }
+      resolve(r)
     } else {
-      resolve({ code: 4, message: "未知手势: " + g.action })
+      const r: ScreenControlResult = { code: 4, message: "未知手势: " + g.action }
+      resolve(r)
     }
   })
 }

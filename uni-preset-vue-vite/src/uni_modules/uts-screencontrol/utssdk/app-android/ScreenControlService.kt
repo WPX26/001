@@ -1,5 +1,6 @@
 package io.dcloud.uni_modules.uts_screencontrol
 
+import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -56,7 +57,7 @@ class ScreenControlService : Service() {
     startForegroundCompat()
     val code = intent?.getIntExtra("resultCode", 0) ?: 0
     val data = intent?.getParcelableExtra("resultData") as Intent?
-    if (code == RESULT_OK && data != null) {
+    if (code == Activity.RESULT_OK && data != null) {
       val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
       mediaProjection = mpm.getMediaProjection(code, data)
       startCapture()
