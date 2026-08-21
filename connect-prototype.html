@@ -3745,10 +3745,8 @@
       // 不用光学取景器也能实时监测画面；拍照自动导入照常
       usbCam._lvEnable = true;
       startLiveView();
-      showToast('✅ 已连接 ' + model + '（按机身快门拍照，照片自动导入）');
+      showToast('✅ 已连接 ' + model + '（实时画面 + 按快门自动导入）');
       $('workspace').classList.add('active');
-      // r35：web-gphoto2 连上即启动实时取景（capturePreviewAsBlob 轮询，同 demo 链路）
-      if (usbCam.gpCamera) startLiveView();
     }
 
     // ---------- 拍照（真实链路：快门 → 事件 → 下载 JPEG → 落管线） ----------
