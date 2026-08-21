@@ -33,14 +33,15 @@ object ScreenControl {
       } catch (_: Exception) {}
     }
     ScreenShareRequestActivity.onResult = { code, data ->
+      val act = UTSAndroid.getUniActivity() ?: activity
       if (code == Activity.RESULT_OK && data != null) {
-        val intent = Intent(activity, ScreenControlService::class.java)
+        val intent = Intent(act, ScreenControlService::class.java)
         intent.putExtra("resultCode", code)
         intent.putExtra("resultData", data)
         try {
-          activity.startForegroundService(intent)
+          act.startForegroundService(intent)
         } catch (_: Exception) {
-          try { activity.startService(intent) } catch (_: Exception) {}
+          try { act.startService(intent) } catch (_: Exception) {}
         }
       } else {
         ScreenControlService.frameCallback = null
@@ -64,14 +65,32 @@ object ScreenControl {
     ScreenControlService.frameCallback = null
   }
 
+  /** 真实整屏尺寸（含状态栏/导航栏）。截屏与手势坐标统一用它，保证 B 端点选位置准确 */
+  fun realScreenSize(): IntArray {
+    val activity = try { UTSAndroid.getUniActivity() } catch (_: Exception) { null }
+    if (activity != null) {
+      try {
+        if (Build.VERSION.SDK_INT >= 30) {
+          val b = activity.windowManager.currentWindowMetrics.bounds
+          if (b.width() > 0 && b.height() > 0) return intArrayOf(b.width(), b.height())
+        } else {
+          val dm = android.util.DisplayMetrics()
+          @Suppress("DEPRECATION")
+          activity.windowManager.defaultDisplay.getRealMetrics(dm)
+          if (dm.widthPixels > 0 && dm.heightPixels > 0) return intArrayOf(dm.widthPixels, dm.heightPixels)
+        }
+      } catch (_: Exception) {}
+    }
+    return intArrayOf(1080, 1920)
+  }
+
   /** 注入手势。返回 0=成功，1=无障碍未开启，4=未知手势 */
   fun injectGesture(action: String, x: Number?, y: Number?, x2: Number?, y2: Number?, duration: Number?): Int {
     val svc = ScreenControlAccessibilityService.instance
     if (svc == null) return 1
-    val activity = UTSAndroid.getUniActivity()
-    val dm = activity?.resources?.displayMetrics
-    val w = dm?.widthPixels ?: 1080
-    val h = dm?.heightPixels ?: 1920
+    val size = realScreenSize()
+    val w = size[0]
+    val h = size[1]
     when (action) {
       "back" -> svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
       "home" -> svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)

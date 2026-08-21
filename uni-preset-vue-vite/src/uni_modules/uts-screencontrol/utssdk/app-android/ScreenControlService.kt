@@ -56,7 +56,12 @@ class ScreenControlService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     startForegroundCompat()
     val code = intent?.getIntExtra("resultCode", 0) ?: 0
-    val data = intent?.getParcelableExtra("resultData") as Intent?
+    val data = if (Build.VERSION.SDK_INT >= 33) {
+      intent?.getParcelableExtra("resultData", Intent::class.java)
+    } else {
+      @Suppress("DEPRECATION")
+      intent?.getParcelableExtra("resultData")
+    }
     if (code == Activity.RESULT_OK && data != null) {
       val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
       mediaProjection = mpm.getMediaProjection(code, data)
@@ -75,10 +80,10 @@ class ScreenControlService : Service() {
   }
 
   private fun startCapture() {
-    val metrics = resources.displayMetrics
-    val width = metrics.widthPixels
-    val height = metrics.heightPixels
-    val density = metrics.densityDpi
+    val size = ScreenControl.realScreenSize()
+    val width = size[0]
+    val height = size[1]
+    val density = resources.displayMetrics.densityDpi
 
     val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
     reader.setOnImageAvailableListener({ r ->

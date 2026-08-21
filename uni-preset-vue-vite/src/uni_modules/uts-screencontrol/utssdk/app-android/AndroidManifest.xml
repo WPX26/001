@@ -12,7 +12,6 @@
     <activity
         android:name="io.dcloud.uni_modules.uts_screencontrol.ScreenShareRequestActivity"
         android:theme="@android:style/Theme.Translucent.NoTitleBar"
-        android:launchMode="singleInstance"
         android:excludeFromRecents="true"
         android:exported="false" />
 
