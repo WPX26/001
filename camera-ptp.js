@@ -1001,7 +1001,7 @@
    */
   PtpCamera.prototype.setEosDevicePropU16 = function (propcode, v) {
     var b = new PacketBuilder();
-    b.u32(10); b.u32(propcode); b.u16(v);
+    b.u32(12); b.u32(propcode); b.u32(v & 0xFFFF); // r62：gphoto2 ptp.c 实证 size=12（UINT16 也 12 字节，值占低 16 位）；旧版 len=10 格式错，5D2 可能未真正生效
     return this.transact(PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX, [], b.build(), 5000);
   };
   PtpCamera.prototype.setEosDevicePropU32 = function (propcode, v) {
@@ -1013,6 +1013,15 @@
   PtpCamera.prototype.startViewfinder = function () {
     var self = this;
     self._lvDiag = { steps: {} };
+    // r62：决定性诊断——直接读 5D2 DeviceInfo 支持的操作码（连上即有）
+    (function () {
+      var ops = (self.deviceInfo && self.deviceInfo.operations) || [];
+      function has(c) { return ops.indexOf(c) !== -1; }
+      self._lvDiag.steps.opcodes = '9110=' + (has(PTP_OC_EOS_SET_DEVICE_PROP_VALUE_EX) ? 'Y' : 'N')
+        + ' 9153=' + (has(PTP_OC_EOS_GET_VIEWFINDER_DATA) ? 'Y' : 'N')
+        + ' 9151=' + (has(PTP_OC_EOS_INITIATE_VIEWFINDER) ? 'Y' : 'N')
+        + ' 9152=' + (has(PTP_OC_EOS_TERMINATE_VIEWFINDER) ? 'Y' : 'N');
+    })();
     // r60：5D2 真机诊断 initiate=0x2005 —— 0x9151 不被支持。
     // gphoto2 library.c canon_eos_capture_preview 同路径：只设 EVFMode=1 + EVFOutputDevice=2，然后直接 0x9153 抓帧，不发 0x9151。
     function fmtErr(e) {
