@@ -1907,6 +1907,10 @@
   }
   body.full-embed .phone-frame::before { display: none; }
   body.full-embed .phone-screen { border-radius: 0; }
+  /* 顶部为真实系统状态栏（时间/信号/电量）让位：全屏时整体下移，顶栏图标不再挤到屏幕最顶（王总 2026-08-21） */
+  body.full-embed .phone-screen {
+    padding-top: max(env(safe-area-inset-top, 0px), 44px);
+  }
   body.full-embed .status-bar { display: none; }
   body.full-embed .bottom-nav,
   body.full-embed .home-indicator { display: none; }

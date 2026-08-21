@@ -669,6 +669,8 @@
   }
   body.full-embed .phone-frame::before { display: none; }
   body.full-embed .phone-screen { border-radius: 0; }
+  /* 顶部为真实系统状态栏（时间/信号/电量）让位：顶部图标组下移（王总 2026-08-21） */
+  body.full-embed .top-icons { top: calc(30rem + max(env(safe-area-inset-top, 0px), 44px)); }
   body.full-embed .status-bar { display: none; }
   body.full-embed .bottom-nav,
   body.full-embed .home-indicator { display: none; }
