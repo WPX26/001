@@ -1943,7 +1943,7 @@
       phoneHostView.style.display = isHost ? '' : 'none';
       phoneViewfinder.style.display = isHost ? 'none' : '';
       phoneWsHint.style.display = isHost ? 'none' : '';
-      phoneGallery.style.display = isHost ? 'none' : '';
+      phoneGallery.style.display = ''; // 被控端也显示相册入口（可点击查看已拍照片）
       phoneShutter.style.display = isHost ? 'none' : '';
       phoneDisconnect.style.margin = isHost ? '0 auto' : '';
     }
@@ -2525,6 +2525,11 @@
       void flash.offsetWidth;
       flash.classList.add('active');
       if (navigator.vibrate) navigator.vibrate(50);
+    });
+
+    // ---------- 相册：点击跳转首页查看照片 ----------
+    phoneGallery.addEventListener('click', function () {
+      window.location.href = 'memo-home.html';
     });
 
     // ---------- 断开 ----------
@@ -3710,6 +3715,14 @@
       if (st) st.textContent = '未连接';
       $('workspace').classList.remove('active');
       showToast('已断开 USB 连接');
+    }
+
+    // ---------- 相册：点击跳转首页查看照片 ----------
+    var wsGalleryEl = $('wsGallery');
+    if (wsGalleryEl) {
+      wsGalleryEl.addEventListener('click', function () {
+        window.location.href = 'memo-home.html';
+      });
     }
 
     // ---------- 绑定 ----------
