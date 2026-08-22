@@ -57,65 +57,95 @@
    */
   AndroidTransport.prototype._ensureBuf = function () {
     if (this._jbuf) return this._jbuf;
-    if (this._jbufFailed) return null; // 已判定失败：读方向无解，快速失败
-    var NA = 'java.lang.String';
+    if (this._jbufFailed) return null;
+    var NA = 'java.lang.String', BAOS = 'java.io.ByteArrayOutputStream';
+    var self = this, rec = [];
     function msg(e) { return e && e.message || String(e); }
-    // ---------- 主路：String 种子 -> getBytes 建 byte[]，4参 String 构造读回 ----------
-    try {
-      var probeStr = plus.android.newObject(NA, 'AB');
-      if (!probeStr) throw new Error('newObject(String)空');
-      var probeBuf = plus.android.invoke(probeStr, 'getBytes', 'ISO-8859-1');
-      if (!probeBuf) throw new Error('getBytes空');
-      var back = plus.android.newObject(NA, probeBuf, 0, 2, 'ISO-8859-1');
-      if (back === 'AB') this._readback = 'ctor4';
-      else {
-        // 回读 4参构造挂 -> BAOS 读回兜底（write(byte[],int,int)+toString(charset)，纯实例调用）
-        var bao = plus.android.newObject('java.io.ByteArrayOutputStream');
-        if (!bao) throw new Error('newObject(BAOS)空');
-        plus.android.invoke(bao, 'write', probeBuf, 0, 2);
-        var s2 = plus.android.invoke(bao, 'toString', 'ISO-8859-1');
-        if (s2 !== 'AB') throw new Error('回读自测不符 ctor4=' + JSON.stringify(String(back)).slice(0, 24) + ' baos=' + JSON.stringify(String(s2)).slice(0, 24));
-        this._readback = 'baos';
-      }
-      var seed = new Array(16385).join('A'); // 'A'=0x41 填充，规避 \x00 可能被桥截断
-      var jbuf = plus.android.invoke(plus.android.newObject(NA, seed), 'getBytes', 'ISO-8859-1');
-      if (!jbuf) throw new Error('16384缓冲getBytes空');
-      this._jbuf = jbuf;
-      this.bufMode = 'str-getBytes/' + this._readback;
-      return jbuf;
-    } catch (e1) {
-      // ---------- 兜底：BAOS 全链（1字节起步指数扩容到16384，仅实例调用） ----------
+    function jstr(x) { try { return JSON.stringify(String(x)).slice(0, 20); } catch (e) { return '?'; } }
+    // 读回探测：ctor4 优先，坏则 BAOS；返回可用方式或 null（顺带更新 self._readback）
+    function pickReadback(jb, len) {
       try {
-        var baos = plus.android.newObject('java.io.ByteArrayOutputStream');
-        if (!baos) throw new Error('newObject(BAOS)空');
-        plus.android.invoke(baos, 'write', 0x41);
-        var jb = plus.android.invoke(baos, 'toByteArray');
-        if (!jb) throw new Error('toByteArray空');
-        var len = 1;
-        while (len < 16384) { // 翻倍：write(旧快照) -> 新快照，15次扩满
-          plus.android.invoke(baos, 'write', jb, 0, len);
-          jb = plus.android.invoke(baos, 'toByteArray');
-          len *= 2;
-        }
-        // 决定读回方式（ctor4 若可用更快）
-        var rb = plus.android.newObject(NA, jb, 0, 1, 'ISO-8859-1');
-        if (rb === 'A') this._readback = 'ctor4';
-        else {
-          var tb = plus.android.newObject('java.io.ByteArrayOutputStream');
-          plus.android.invoke(tb, 'write', jb, 0, 1);
-          this._readback = (plus.android.invoke(tb, 'toString', 'ISO-8859-1') === 'A') ? 'baos' : null;
-        }
-        if (!this._readback) throw new Error('BAOS读回自测不符');
-        this._jbuf = jb;
-        this.bufMode = 'baos-doubling/' + this._readback;
-        return jb;
-      } catch (e2) {
-        this._jbufFailed = true;
-        this._jbufErr = '主[' + msg(e1).slice(0, 50) + ']备[' + msg(e2).slice(0, 50) + ']';
-        this.bufMode = 'FAILED';
-        return null;
-      }
+        var b1 = plus.android.newObject(NA, jb, 0, Math.min(1, len), 'ISO-8859-1');
+        if (b1 === 'A') return (self._readback = 'ctor4');
+      } catch (e) {}
+      try {
+        var tb = plus.android.newObject(BAOS);
+        plus.android.invoke(tb, 'write', jb, 0, Math.min(1, len));
+        if (plus.android.invoke(tb, 'toString', 'ISO-8859-1') === 'A') return (self._readback = 'baos');
+      } catch (e) {}
+      return null;
     }
+    // ---------- 阶段0：小样自测（r76 真机已实证小样全过，仍保留以防机型差异） ----------
+    try {
+      var ps = plus.android.newObject(NA, 'AB');
+      if (!ps) throw new Error('newObject(String)空');
+      var pb = plus.android.invoke(ps, 'getBytes', 'ISO-8859-1');
+      if (!pb) throw new Error('小样getBytes空');
+      if (plus.android.newObject(NA, pb, 0, 2, 'ISO-8859-1') !== 'AB') {
+        var bao0 = plus.android.newObject(BAOS);
+        plus.android.invoke(bao0, 'write', pb, 0, 2);
+        if (plus.android.invoke(bao0, 'toString', 'ISO-8859-1') !== 'AB') {
+          throw new Error('小样读回双路不符');
+        }
+        this._readback = 'baos';
+      } else this._readback = 'ctor4';
+    } catch (e0) {
+      this._jbufFailed = true; this.bufMode = 'FAILED';
+      this._jbufErr = '小样[' + msg(e0).slice(0, 60) + ']';
+      return null;
+    }
+    // ---------- 尺寸阶梯（r76 真机实锤：桥对大 JS 字符串参数有长度限制，小样正常） ----------
+    var sizes = [16384, 8192, 4096, 2048, 1024, 512];
+    var CHUNK = 256; // StringBuilder 分块拼接的块大小（小块参数远低于限制）
+    for (var si = 0; si < sizes.length; si++) {
+      var size = sizes[si];
+      // 路1：直接 String(种子) -> getBytes
+      try {
+        var js1 = plus.android.newObject(NA, new Array(size + 1).join('A'));
+        var jb1 = js1 ? plus.android.invoke(js1, 'getBytes', 'ISO-8859-1') : null;
+        if (jb1 && pickReadback(jb1, size)) {
+          this._jbuf = jb1; this._jbufLen = size; this.bulkInCap = size;
+          this.bufMode = 'str-getBytes' + size + '/' + this._readback;
+          return jb1;
+        }
+        rec.push(size + '/ctor:' + (!js1 ? 'ctor空' : !jb1 ? 'getBytes空' : '读回坏'));
+      } catch (e1) { rec.push(size + '/ctor:' + msg(e1).slice(0, 20)); }
+      // 路2：StringBuilder 分块拼接（绕开 JS 大字符串参数限制，全程实例调用）-> getBytes
+      try {
+        var sb = plus.android.newObject('java.lang.StringBuilder');
+        if (sb) {
+          var full = Math.floor(size / CHUNK), rem = size % CHUNK;
+          var chunkStr = new Array(CHUNK + 1).join('A');
+          for (var ai = 0; ai < full; ai++) plus.android.invoke(sb, 'append', chunkStr);
+          if (rem) plus.android.invoke(sb, 'append', new Array(rem + 1).join('A'));
+          var js2 = plus.android.invoke(sb, 'toString');
+          var jb2 = js2 ? plus.android.invoke(js2, 'getBytes', 'ISO-8859-1') : null;
+          if (jb2 && pickReadback(jb2, size)) {
+            this._jbuf = jb2; this._jbufLen = size; this.bulkInCap = size;
+            this.bufMode = 'sb-append' + size + '/' + this._readback;
+            return jb2;
+          }
+          rec.push(size + '/sb:' + (!sb ? 'SB空' : !js2 ? 'toString空' : !jb2 ? 'getBytes空' : '读回坏'));
+        } else rec.push(size + '/sb:SB空');
+      } catch (e2) { rec.push(size + '/sb:' + msg(e2).slice(0, 20)); }
+    }
+    // ---------- 末路：BAOS 逐字节写 512（桥调用多但一次性，读通道 512 足够） ----------
+    try {
+      var bao = plus.android.newObject(BAOS);
+      if (bao) {
+        for (var wi = 0; wi < 512; wi++) plus.android.invoke(bao, 'write', 65);
+        var jb3 = plus.android.invoke(bao, 'toByteArray');
+        if (jb3 && pickReadback(jb3, 512)) {
+          this._jbuf = jb3; this._jbufLen = 512; this.bulkInCap = 512;
+          this.bufMode = 'baos-write-int512/' + this._readback;
+          return jb3;
+        }
+        rec.push('512/baos:' + (!jb3 ? 'toByteArray空' : '读回坏'));
+      } else rec.push('512/baos:BAOS空');
+    } catch (e3) { rec.push('512/baos:' + msg(e3).slice(0, 20)); }
+    this._jbufFailed = true; this.bufMode = 'FAILED';
+    this._jbufErr = '全尺寸失败[' + rec.join(' ; ').slice(0, 180) + ']';
+    return null;
   };
 
   /**
@@ -233,6 +263,8 @@
     if (!jbuf) {
       throw new Error('读缓冲不可用(byte[]桥失败): ' + this._jbufErr);
     }
+    // r77：单次读长钳制到实际缓冲大小（阶梯可能只拿到 512/1024）
+    size = Math.min(size, this._jbufLen || 16384);
     return plus.android.invoke(this.connection, 'bulkTransfer', ep, jbuf, size, timeout);
   };
 
@@ -243,7 +275,8 @@
 
   /** 成功读到数据 → 尝试加大单次读（上限 16384 = Android 单次传输上限） */
   AndroidTransport.prototype._growReadSize = function () {
-    if (this._readSize < 16384) this._readSize = Math.min(16384, this._readSize << 1);
+    var cap = Math.min(this._jbufLen || 16384, 4096); // r77：按实际缓冲；4096 封顶防大串返回值转换限制中途引爆
+    if (this._readSize < cap) this._readSize = Math.min(cap, this._readSize << 1);
   };
 
   /**
@@ -601,7 +634,7 @@
     isSupported: isSupported,
     get: getUsbTether,
     probeByteArray: probeByteArray,
-    version: 'r76', // 页面用它显示库版本（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
+    version: 'r77', // 页面用它显示库版本（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
     /** r17：最近一次传输实际用的 buffer 形态（连接失败后也能读，单例级） */
     lastBufMode: function () { return singleton ? singleton._lastBufMode : '未连接'; }
   };
