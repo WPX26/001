@@ -1,5 +1,5 @@
 /* ============================================================
- * usb-transport.js — Android USB Host 传输层（Native.js，零原生编译）
+ * usb-transport.js — Android USB Host 传输层（Native.js，零原生编译）r72
  *
  * 在 uni-app App 的 web-view（5+ Webview）页面里直接调用
  * Android USB API：枚举设备 → 申请权限 → openDevice →
@@ -32,6 +32,10 @@
     this.bulkOutEp = deps.bulkOutEp;
     this.ifaceInfo = deps.ifaceInfo;   // 2026-08-16 排查补：接口结构（之前漏存，错误不带结构）
     this.released = false;
+    this.intrEp = deps.intrEp || null;   // r72：中断端点（ObjectAdded 事件通道）
+    this.bulkInCap = 16384;              // r72：协议层 readPacket 单次读上限（Android 单次传输硬上限）
+    this._jbuf = null;                   // r72：共享 Java byte[]（16384B，String.getBytes 路径创建）
+    this._jbufErr = '';                  // r72：buffer 创建失败原因（诊断）
     // 2026-08-16 r13：单次 bulk 读大小自适应。真机实锤：大 JS 数组（16384）被桥
     // byte[] 转换返回 null（"参数不匹配"语义）、65536 返回 -1（Android 上限）；
     // 512 已实证可读（2c9316e）。从 512 起，成功×2、失败÷2（512~16384），
@@ -41,56 +45,53 @@
   }
 
   /**
-   * 创建 bulk 读 buffer（2026-08-16 r15/r16 真机实锤修正）：
-   * **读方向必须用 Java byte[]**——JS 数组直传时桥只做 JS→byte[] 单向转换，
-   * bulkTransfer 写进 byte[] 的数据**不会回写 JS 数组**（真机：n=12 但读回全 0，
-   * 协议栈解析出"非法包长 0"）。写方向（bulkOut）JS 数组仍可用（命令已实证送达）。
-   * r16：newObject('byte[]') 若桥的类名解析不支持（很可能与 importClass 同病），
-   * 试 JNI 描述符 '[B'；仍失败则 JS 兜底并记录 bufMode 供 USB 诊断实锤。
+   * 创建共享 Java byte[]（16384B，r72 方案）：
+   * r16 的 newObject('byte[]'/'[B') 已实锤不支持（数组类名）；r71 的 importClass
+   * 静态方法路径也实锤 SyntaxError（web-view 桥铁律：只有 newObject 与实例
+   * invoke 安全）。r72 用 String(ISO-8859-1).getBytes 路径：
+   *   newObject('java.lang.String', seed)  -- 构造器，桥安全
+   *   invoke(jstr, 'getBytes', 'ISO-8859-1') -- 实例方法，桥安全，返回 Java byte[]
+   * ISO-8859-1 逐字节无损映射（字节值=字符码），seed 全 \\x00 得到干净 buffer。
+   * bulkTransfer(ep, buf, size, timeout) 的 size 参数独立于 buffer 长度
+   * （只写前 size 字节），故单一大 buffer 即可服务全部自适应读尺寸。
    */
-  AndroidTransport.prototype._makeBuf = function (size) {
-    var mode = 'js';
-    if (typeof plus !== 'undefined' && plus.android) {
-      for (var m = 0; m < 2; m++) {
-        try {
-          var j = m === 0 ? plus.android.newObject('byte[]', size)
-                          : plus.android.newObject('[B', size);
-          if (j) {
-            mode = m === 0 ? 'java' : '[B';
-            this.bufMode = mode;
-            if (getUsbTether) { try { getUsbTether()._lastBufMode = mode; } catch (e) {} }
-            return { java: j, js: null };
-          }
-        } catch (e) {}
+  AndroidTransport.prototype._ensureBuf = function () {
+    if (this._jbuf) return this._jbuf;
+    if (!(typeof plus !== 'undefined' && plus.android)) return null;
+    try {
+      var seed = new Array(16385).join('\x00'); // 16384 个 NUL 字符
+      var jstr = plus.android.newObject('java.lang.String', seed);
+      var jbuf = plus.android.invoke(jstr, 'getBytes', 'ISO-8859-1');
+      if (jbuf) {
+        this._jbuf = jbuf;
+        this.bufMode = 'java-str-getBytes';
+        if (getUsbTether) { try { getUsbTether()._lastBufMode = this.bufMode; } catch (e) {} }
+        return jbuf;
       }
+      this._jbufErr = 'getBytes 返回 null';
+    } catch (e) {
+      this._jbufErr = '' + (e && e.message || e);
     }
-    this.bufMode = mode;
-    if (getUsbTether) { try { getUsbTether()._lastBufMode = mode; } catch (e) {} }
-    var arr = new Array(size);
-    for (var i = 0; i < size; i++) arr[i] = 0;
-    return { java: null, js: arr }; // 兜底（非 App 环境/实验）
+    return null; // 失败：走 JS 数组兜底（数据不回写的已知死路，仅环境探测用）
   };
 
   /**
-   * 把读回的数据转 Uint8Array。
-   * Java byte[] → newObject('java.lang.String', jbuf, 'ISO-8859-1') 整块转换
-   * （1 次 invoke，ISO-8859-1 逐字节无损映射），比逐字节 get 快 3 个数量级；
-   * 转换失败兜底逐字节 get（慢但可靠，社区验证过）。
+   * 把读回的前 n 字节转 Uint8Array（r72）：
+   * String(byte[], offset, length, charsetName) 构造器整块转换（1 次 newObject），
+   * ISO-8859-1 逐字节无损；桥把 Java String 转 JS string（getDeviceName 等已实证）。
+   * r16 时代此路径「社区验证过」但上游 byte[] 创建失败没走到；r72 上游已通。
    */
-  AndroidTransport.prototype._toU8 = function (buf, n) {
+  AndroidTransport.prototype._toU8 = function (n) {
     var u8 = new Uint8Array(n);
-    if (buf.java) {
-      try {
-        var s = plus.android.newObject('java.lang.String', buf.java, 'ISO-8859-1');
-        if (typeof s === 'string' && s.length >= n) {
-          for (var i = 0; i < n; i++) u8[i] = s.charCodeAt(i) & 0xFF;
-          return u8;
-        }
-      } catch (e) {}
-      for (var k = 0; k < n; k++) u8[k] = plus.android.invoke(buf.java, 'get', k) & 0xFF;
-    } else {
-      for (var j = 0; j < n; j++) u8[j] = buf.js[j] & 0xFF; // Java byte 有符号，转 0-255
+    if (this._jbuf) {
+      var s = plus.android.newObject('java.lang.String', this._jbuf, 0, n, 'ISO-8859-1');
+      if (typeof s === 'string' && s.length >= n) {
+        for (var i = 0; i < n; i++) u8[i] = s.charCodeAt(i) & 0xFF;
+        return u8;
+      }
+      throw new Error('byte[]->String 桥转换失败（s.length=' + (s && s.length) + ' 需 ' + n + '）');
     }
+    if (this._lastJsBuf) { for (var j = 0; j < n; j++) u8[j] = this._lastJsBuf[j] & 0xFF; }
     return u8;
   };
 
@@ -185,18 +186,21 @@
     });
   };
 
-  /** 单次 bulkTransfer(in) 调用（JS 数组直传；useJavaByteArray 开关走 Java 数组对照） */
+  /** 单次 bulkTransfer(in)（r72：共享 Java byte[]，size 参数自适应；无 Java buffer 走 JS 兜底） */
   AndroidTransport.prototype._readOnce = function (ep, size, timeout) {
-    var buf = this._makeBuf(size);
-    var target = buf.java || buf.js;
-    var n = plus.android.invoke(this.connection, 'bulkTransfer', ep, target, size, timeout);
-    this._lastBuf = buf; // 供 _readBytes 回读
-    return n;
+    var jbuf = this._ensureBuf();
+    if (jbuf) {
+      return plus.android.invoke(this.connection, 'bulkTransfer', ep, jbuf, size, timeout);
+    }
+    var js = new Array(size);
+    for (var i = 0; i < size; i++) js[i] = 0;
+    this._lastJsBuf = js;
+    return plus.android.invoke(this.connection, 'bulkTransfer', ep, js, size, timeout);
   };
 
   /** 把最后一次读取的数据转 Uint8Array */
   AndroidTransport.prototype._readBytes = function (n) {
-    return this._toU8(this._lastBuf, n);
+    return this._toU8(n);
   };
 
   /** 成功读到数据 → 尝试加大单次读（上限 16384 = Android 单次传输上限） */
@@ -204,9 +208,67 @@
     if (this._readSize < 16384) this._readSize = Math.min(16384, this._readSize << 1);
   };
 
+  /**
+   * r72：清两端点 halt（PTP 打开会话前必须调用——r28 语义，容错不阻断）。
+   * 这就是 r68-r71 真机报错 "transport.clearPipe is not a function" 缺失的方法。
+   */
+  AndroidTransport.prototype.clearPipe = function () {
+    var self = this;
+    return new Promise(function (resolve) {
+      try {
+        var inAddr = 0, outAddr = 0;
+        try { inAddr = plus.android.invoke(self.bulkInEp, 'getAddress') & 0xFF; } catch (e) {}
+        try { outAddr = plus.android.invoke(self.bulkOutEp, 'getAddress') & 0xFF; } catch (e) {}
+        if (inAddr) self._clearHalt(inAddr);
+        if (outAddr) self._clearHalt(outAddr);
+      } catch (e) {}
+      resolve(); // clearHalt 失败不阻断连接（后续命令自然暴露问题）
+    });
+  };
+
+  /**
+   * r72：中断事件轮询（ObjectAdded 等 PTP 事件走中断 IN 端点）。
+   * setInterval 200ms 读中断端点（bulkTransfer 超时 200ms 自然节流）；
+   * JS 单线程保证与 bulkIn 不并发（bulkIn 阻塞时定时器排队）。
+   */
+  AndroidTransport.prototype.startEventReader = function (onEvent, onError) {
+    var self = this;
+    if (!self.intrEp) return; // 无中断端点：协议层自行降级 GetEvent 轮询
+    self.stopEventReader();
+    var mps = 64;
+    try { mps = plus.android.invoke(self.intrEp, 'getMaxPacketSize') || 64; } catch (e) {}
+    var readLen = Math.max(mps, 64);
+    self._intrTimer = setInterval(function () {
+      if (self.released) { self.stopEventReader(); return; }
+      try {
+        var jbuf = self._ensureBuf();
+        if (!jbuf) return;
+        var n = plus.android.invoke(self.connection, 'bulkTransfer', self.intrEp, jbuf, readLen, 200);
+        if (n > 0) onEvent(self._toU8(n));
+      } catch (e) { if (onError) { try { onError(e); } catch (e2) {} } }
+    }, 200);
+  };
+
+  AndroidTransport.prototype.stopEventReader = function () {
+    if (this._intrTimer) { clearInterval(this._intrTimer); this._intrTimer = null; }
+  };
+
+  /** r72：诊断信息（USB 诊断按钮消费） */
+  AndroidTransport.prototype.diagInfo = function () {
+    return {
+      mode: 'nativejs-plus-r72',
+      bufMode: this.bufMode,
+      jbufErr: this._jbufErr || '',
+      readSize: this._readSize,
+      hasIntrEp: !!this.intrEp,
+      ifaceInfo: this.ifaceInfo || ''
+    };
+  };
+
   AndroidTransport.prototype.release = function () {
     if (this.released) return;
     this.released = true;
+    this.stopEventReader();
     try {
       if (this.connection) {
         if (this.device && plus.android.invoke(this.device, 'getInterface', 0)) {
@@ -419,7 +481,7 @@
     }
     return new AndroidTransport({
       usbManager: this.um, device: device, connection: connection,
-      bulkInEp: bulkInEp, bulkOutEp: bulkOutEp, ifaceInfo: ifaceInfo.join(' | ')
+      bulkInEp: bulkInEp, bulkOutEp: bulkOutEp, intrEp: intrEp, ifaceInfo: ifaceInfo.join(' | ')
     });
   };
 
@@ -474,18 +536,23 @@
     return singleton;
   }
 
-  /** r17：当场探测桥能否创建 Java byte[]（诊断按钮直接用，不依赖连接状态） */
+  /** r72：当场探测 byte[] 双向桥（String+getBytes 创建 / String 构造器读回） */
   function probeByteArray() {
     if (!isSupported()) return '无plus';
     var out = [];
-    ['byte[]', '[B'].forEach(function (cls) {
-      try {
-        var j = plus.android.newObject(cls, 4);
-        out.push(cls + '=' + (j ? 'ok' : 'null'));
-      } catch (e) {
-        out.push(cls + '=throw:' + String(e && e.message || e).slice(0, 60));
+    // 写方向：'AB' -> getBytes -> [65,66]
+    try {
+      var jstr = plus.android.newObject('java.lang.String', 'AB');
+      var jbuf = plus.android.invoke(jstr, 'getBytes', 'ISO-8859-1');
+      out.push('getBytes=' + (jbuf ? 'ok' : 'null'));
+      if (jbuf) {
+        // 读方向：byte[] -> String 构造器 -> 'AB'
+        var back = plus.android.newObject('java.lang.String', jbuf, 0, 2, 'ISO-8859-1');
+        out.push('readback=' + (back === 'AB' ? 'ok("AB")' : JSON.stringify(back).slice(0, 40)));
       }
-    });
+    } catch (e) {
+      out.push('throw:' + String(e && e.message || e).slice(0, 80));
+    }
     return out.join(' | ');
   }
 
