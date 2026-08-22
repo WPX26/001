@@ -1322,6 +1322,7 @@
   body.full-embed.mobile-browser .phone-frame { height: var(--app-h, 100vh); }
 </style>
 <script src="lib/dexie/dexie.js"></script>
+<script src="lib/uni-webview.js"></script>
 
 <script>
 // ===== 移动端 web-view 桥接（不影响 Web 端 UI/功能） =====
@@ -1356,7 +1357,7 @@
       if (document.body) add();
       else document.addEventListener('DOMContentLoaded', add);
     }
-    var isAppWebview = !!(window.uni && uni.postMessage) || (typeof plus !== 'undefined' && plus.android);
+    var isAppWebview = (typeof plus !== 'undefined' && !!plus.android) || /Html5Plus/i.test(navigator.userAgent); // uni 桥 SDK 任何环境都定义 window.uni，不能作为 App 依据
     window.__isAppWebview = isAppWebview; // 供后续脚本（手机互联屏控）判断 App 内环境
     var addAppCls = function () { document.body.classList.add('app-webview'); };
     if (isAppWebview) {
@@ -1367,7 +1368,7 @@
     // App 桥（uni.webview SDK / plus）可能晚于本脚本注入 → 延迟复检，避免误判为浏览器环境
     function plRecheckAppMode() {
       if (window.__isAppWebview) return;
-      if ((window.uni && uni.postMessage) || (typeof plus !== 'undefined' && plus.android)) {
+      if ((typeof plus !== 'undefined' && plus.android) || /Html5Plus/i.test(navigator.userAgent)) {
         window.__isAppWebview = true;
         if (document.body) addAppCls(); else document.addEventListener('DOMContentLoaded', addAppCls);
         if (window.__plSetAppMode) window.__plSetAppMode(true); // 触发互联层 App 模式 UI 更新（兜底按钮等）
@@ -2906,8 +2907,19 @@
       if (window.uni && uni.postMessage) {
         try { uni.postMessage({ data: { type: type, data: data } }); plDiag('已发App: ' + type); return; } catch (e) { plDiag('postMessage异常: ' + type); }
       }
-      plDiag('uni桥缺失无法发: ' + type);
+      // 桥未就绪（SDK 加载晚于点击）：暂存，UniAppJSBridgeReady 后自动重发
+      window.__plPendingAppMsg = { type: type, data: data };
+      plDiag('uni桥未就绪已暂存: ' + type);
     }
+    // uni 桥就绪（App 内 SDK + plusready 完成）-> 重发暂存消息并确认 App 模式
+    document.addEventListener('UniAppJSBridgeReady', function () {
+      plDiag('uni桥已就绪 ✓');
+      if (typeof plus !== 'undefined' && !window.__isAppWebview && window.__plSetAppMode) window.__plSetAppMode(true);
+      if (window.__plPendingAppMsg) {
+        var pm = window.__plPendingAppMsg; window.__plPendingAppMsg = null;
+        plPostToApp(pm.type, pm.data);
+      }
+    });
     function plIsApp() { return !!window.__isAppWebview; }
 
     plScreenBtn.addEventListener('click', function () {

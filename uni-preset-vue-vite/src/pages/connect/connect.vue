@@ -84,6 +84,46 @@ export default {
     },
 
     // ---------- 系统相机拍照（兜底：getUserMedia 不可用时，用系统相机 App 拍照 → base64 回传 web 层） ----------
+    // 读照片为 base64：优先 uni.getFileSystemManager（App 端可能缺失），回退 plus.io
+    readPhotoBase64(filePath) {
+      const send = (base64) => {
+        if (base64) {
+          this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto('" + base64 + "')")
+        } else {
+          this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto(null)")
+        }
+      }
+      if (uni.getFileSystemManager) {
+        uni.getFileSystemManager().readFile({
+          filePath: filePath,
+          encoding: 'base64',
+          success: (readRes) => send('data:image/jpeg;base64,' + readRes.data),
+          fail: () => { this.readPhotoViaPlus(filePath, send) }
+        })
+      } else if (typeof plus !== 'undefined' && plus.io) {
+        this.readPhotoViaPlus(filePath, send)
+      } else {
+        send(null)
+      }
+    },
+    readPhotoViaPlus(filePath, send) {
+      try {
+        plus.io.resolveLocalFileSystemURL(filePath, (entry) => {
+          entry.file((file) => {
+            const reader = new plus.io.FileReader()
+            reader.onloadend = (evt) => {
+              const r = evt.target && evt.target.result
+              if (!r) return send(null)
+              send(r.indexOf('base64,') >= 0 ? r : 'data:image/jpeg;base64,' + r)
+            }
+            reader.onerror = () => send(null)
+            reader.readAsDataURL(file)
+          }, () => send(null))
+        }, () => send(null))
+      } catch (e) {
+        send(null)
+      }
+    },
     takeCameraPhoto() {
       uni.chooseImage({
         count: 1,
@@ -95,17 +135,7 @@ export default {
             return
           }
           // 读为 base64 回传 web 层（connect-prototype.html 的 __plCameraPhoto 回调）
-          uni.getFileSystemManager().readFile({
-            filePath: filePath,
-            encoding: 'base64',
-            success: (readRes) => {
-              const base64 = 'data:image/jpeg;base64,' + readRes.data
-              this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto('" + base64 + "')")
-            },
-            fail: () => {
-              this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto(null)")
-            }
-          })
+          this.readPhotoBase64(filePath)
         },
         fail: () => {
           this.evalWeb("window.__plCameraPhoto && window.__plCameraPhoto(null)")
