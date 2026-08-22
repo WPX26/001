@@ -442,6 +442,7 @@
     var ifaceCount = 0;
     try { ifaceCount = plus.android.invoke(device, 'getInterfaceCount'); } catch (e) {}
     var bulkInEp = null, bulkOutEp = null, iface = null, ifaceInfo = [cfgInfo];
+    var intrEp = null; // r72/r74：中断 IN 端点（r72 编辑事故：声明与收集段丢失导致 [open] intrEp is not defined，r74 修复）
     for (var i = 0; i < ifaceCount; i++) {
       var cand = plus.android.invoke(device, 'getInterface', i);
       if (!cand) continue;
@@ -460,6 +461,8 @@
         var dirByAddr = (eAddr >= 0 && (eAddr & 0x80)) ? 'IN' : ((eAddr >= 0) ? 'OUT' : '未知');
         epInfo.push('ep' + j + ':addr=0x' + (eAddr >= 0 ? (eAddr & 0xFF).toString(16) : '?') +
           ',type=' + eType + ',dir=' + eDir + '(' + dirByAddr + ')');
+        // r72/r74：中断 IN 端点（type=3）收集--PTP ObjectAdded 等事件通道
+        if (eType === 3 && !intrEp && (eDir === USB_DIR_IN || (eAddr >= 0 && (eAddr & 0x80)))) intrEp = ep;
         if (eType !== USB_ENDPOINT_XFER_BULK) continue;
         var isIn = (eDir === USB_DIR_IN) || (eAddr >= 0 && (eAddr & 0x80) && !bulkInEp);
         var isOut = (eDir === USB_DIR_OUT) || (eAddr >= 0 && !(eAddr & 0x80) && !bulkOutEp);
@@ -560,7 +563,7 @@
     isSupported: isSupported,
     get: getUsbTether,
     probeByteArray: probeByteArray,
-    version: 'r72', // r73 页面用它显示库版本（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
+    version: 'r74', // 页面用它显示库版本（旧缓存无此标记）（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
     /** r17：最近一次传输实际用的 buffer 形态（连接失败后也能读，单例级） */
     lastBufMode: function () { return singleton ? singleton._lastBufMode : '未连接'; }
   };
