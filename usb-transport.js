@@ -41,6 +41,7 @@
     // 512 已实证可读（2c9316e）。从 512 起，成功×2、失败÷2（512~16384），
     // 兼顾小包零开销与大文件吞吐（PacketStream 本来就是流式拼接）。
     this._readSize = 512;
+    this._readCap = 0; // r78：能力探测实证的最大转换长度（0=未探测）
     this.bufMode = 'unknown'; // r16 诊断：实际用的读 buffer 形态（java/[B/js）
   }
 
@@ -103,12 +104,8 @@
       try {
         var js1 = plus.android.newObject(NA, new Array(size + 1).join('A'));
         var jb1 = js1 ? plus.android.invoke(js1, 'getBytes', 'ISO-8859-1') : null;
-        if (jb1 && pickReadback(jb1, size)) {
-          this._jbuf = jb1; this._jbufLen = size; this.bulkInCap = size;
-          this.bufMode = 'str-getBytes' + size + '/' + this._readback;
-          return jb1;
-        }
-        rec.push(size + '/ctor:' + (!js1 ? 'ctor空' : !jb1 ? 'getBytes空' : '读回坏'));
+        if (jb1 && pickReadback(jb1, size) && this._adopt(jb1, size, 'str-getBytes' + size)) return jb1;
+        rec.push(size + '/ctor:' + (!js1 ? 'ctor空' : !jb1 ? 'getBytes空' : 'adopt:' + (this._jbufErr || '').slice(0, 24)));
       } catch (e1) { rec.push(size + '/ctor:' + msg(e1).slice(0, 20)); }
       // 路2：StringBuilder 分块拼接（绕开 JS 大字符串参数限制，全程实例调用）-> getBytes
       try {
@@ -120,12 +117,8 @@
           if (rem) plus.android.invoke(sb, 'append', new Array(rem + 1).join('A'));
           var js2 = plus.android.invoke(sb, 'toString');
           var jb2 = js2 ? plus.android.invoke(js2, 'getBytes', 'ISO-8859-1') : null;
-          if (jb2 && pickReadback(jb2, size)) {
-            this._jbuf = jb2; this._jbufLen = size; this.bulkInCap = size;
-            this.bufMode = 'sb-append' + size + '/' + this._readback;
-            return jb2;
-          }
-          rec.push(size + '/sb:' + (!sb ? 'SB空' : !js2 ? 'toString空' : !jb2 ? 'getBytes空' : '读回坏'));
+          if (jb2 && pickReadback(jb2, size) && this._adopt(jb2, size, 'sb-append' + size)) return jb2;
+          rec.push(size + '/sb:' + (!sb ? 'SB空' : !js2 ? 'toString空' : !jb2 ? 'getBytes空' : 'adopt:' + (this._jbufErr || '').slice(0, 24)));
         } else rec.push(size + '/sb:SB空');
       } catch (e2) { rec.push(size + '/sb:' + msg(e2).slice(0, 20)); }
     }
@@ -135,17 +128,44 @@
       if (bao) {
         for (var wi = 0; wi < 512; wi++) plus.android.invoke(bao, 'write', 65);
         var jb3 = plus.android.invoke(bao, 'toByteArray');
-        if (jb3 && pickReadback(jb3, 512)) {
-          this._jbuf = jb3; this._jbufLen = 512; this.bulkInCap = 512;
-          this.bufMode = 'baos-write-int512/' + this._readback;
-          return jb3;
-        }
+        if (jb3 && pickReadback(jb3, 512) && this._adopt(jb3, 512, 'baos-write-int512')) return jb3;
         rec.push('512/baos:' + (!jb3 ? 'toByteArray空' : '读回坏'));
       } else rec.push('512/baos:BAOS空');
     } catch (e3) { rec.push('512/baos:' + msg(e3).slice(0, 20)); }
     this._jbufFailed = true; this.bufMode = 'FAILED';
     this._jbufErr = '全尺寸失败[' + rec.join(' ; ').slice(0, 180) + ']';
     return null;
+  };
+
+  /**
+   * r78：采纳缓冲。先真实读回校验（'A' 填充 + 长度转换能力），
+   * 找出本机桥可稳定转换的最大读长（512 逐级降），据此设读长上限。
+   * 失败返回 false（阶梯继续尝试更小尺寸/别的路）。
+   */
+  AndroidTransport.prototype._adopt = function (jb, size, mode) {
+    var probes = [Math.min(4096, size), 2048, 1024, 512, 256, 128, 64, 32, 16]; // 从大到小：探测即证据，拿最大的实证读长
+    var lastErr = '';
+    for (var pi = 0; pi < probes.length; pi++) {
+      var ps = probes[pi];
+      if (ps > size) continue;
+      this._jbuf = jb; this._jbufLen = size;
+      try {
+        var u = this._toU8(ps);
+        if (u.length === ps && u[0] === 0x41 && u[ps - 1] === 0x41) {
+          this._readSize = ps;
+          this._readCap = ps;
+          this.bulkInCap = size;
+          this.bufMode = mode + '/' + this._readback + '/R' + ps;
+          return true;
+        }
+        lastErr = '内容不符@' + ps + '(u0=' + u[0] + 'uN=' + u[ps - 1] + ')';
+      } catch (e) { lastErr = '读回@' + ps + ':' + String(e && e.message || e).slice(0, 30); }
+      this._jbuf = null;
+    }
+    this._jbufLen = 0;
+    this.bufMode = 'FAILED';
+    this._jbufErr = '能力探测失败[' + mode + ' ' + lastErr + ']';
+    return false;
   };
 
   /**
@@ -224,19 +244,19 @@
         var n = self._readOnce(inEp, size, timeout);
         // n=null（桥转换失败/参数不匹配）→ 减半重试一次（真机 16384→null 的修复路径）
         if (n === null) {
-          if (self._readSize > 512) self._readSize = Math.max(512, self._readSize >> 1);
+          if (self._readSize > (self._readCap || 512)) self._readSize = Math.max(self._readCap || 512, self._readSize >> 1);
           n = self._readOnce(inEp, size, timeout);
         }
         // n=-1（STALL）→ clear halt(IN) 重试一次（gphoto2 标准做法，端点 STALL 时必用）
         if (!(n > 0) && n === -1) {
           self._clearHalt(inAddr & 0xFF);
           n = self._readOnce(inEp, size, timeout);
-          if (n > 0) { self._growReadSize(); return resolve(self._readBytes(n)); }
+          if (n > 0) { return resolve(self._readBytesThenGrow(n)); }
         }
         // n=0：ZLP（上次传输末尾设备遗留的零写，gphoto2 读到 0 字节再读一次）
         if (n === 0) {
           n = self._readOnce(inEp, size, timeout);
-          if (n > 0) { self._growReadSize(); return resolve(self._readBytes(n)); }
+          if (n > 0) { return resolve(self._readBytesThenGrow(n)); }
         }
         // 读空/错误时把 n 值 + 接口结构打出来（2026-08-16 全面扫描：-1 可能是指向
         // 端点方向/接口选错，带上 ifaceInfo 定位）
@@ -249,8 +269,7 @@
           if (n === 0) throw new Error('bulkTransfer(in) 连续两次返回 0（相机无响应）' + why);
           throw new Error('bulkTransfer(in) 返回 n=' + n + why);
         }
-        self._growReadSize();
-        resolve(self._readBytes(n));
+        resolve(self._readBytesThenGrow(n));
       } catch (e) { reject(new Error('[bulkIn] ' + (e && e.message || e) +
         ' [buf=' + self.bufMode + (self._jbufErr ? ' err=' + self._jbufErr.slice(0, 60) : '') + ']' +
         (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : ''))); }
@@ -273,9 +292,16 @@
     return this._toU8(n);
   };
 
+  /** r78：先转换后增长（转换失败数据已丢，必须报错；成功才允许加大读长） */
+  AndroidTransport.prototype._readBytesThenGrow = function (n) {
+    var u8 = this._toU8(n);
+    this._growReadSize();
+    return u8;
+  };
+
   /** 成功读到数据 → 尝试加大单次读（上限 16384 = Android 单次传输上限） */
   AndroidTransport.prototype._growReadSize = function () {
-    var cap = Math.min(this._jbufLen || 16384, 4096); // r77：按实际缓冲；4096 封顶防大串返回值转换限制中途引爆
+    var cap = this._readCap || Math.min(this._jbufLen || 16384, 4096); // r78：只增长到能力探测实证过的大小
     if (this._readSize < cap) this._readSize = Math.min(cap, this._readSize << 1);
   };
 
@@ -314,7 +340,7 @@
       try {
         var jbuf = self._ensureBuf();
         if (!jbuf) return;
-        var n = plus.android.invoke(self.connection, 'bulkTransfer', self.intrEp, jbuf, readLen, 200);
+        var n = plus.android.invoke(self.connection, 'bulkTransfer', self.intrEp, jbuf, readLen, 30);
         if (n > 0) onEvent(self._toU8(n));
       } catch (e) { if (onError) { try { onError(e); } catch (e2) {} } }
     }, 200);
@@ -634,7 +660,7 @@
     isSupported: isSupported,
     get: getUsbTether,
     probeByteArray: probeByteArray,
-    version: 'r77', // 页面用它显示库版本（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
+    version: 'r78', // 页面用它显示库版本（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
     /** r17：最近一次传输实际用的 buffer 形态（连接失败后也能读，单例级） */
     lastBufMode: function () { return singleton ? singleton._lastBufMode : '未连接'; }
   };
