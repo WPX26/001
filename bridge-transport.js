@@ -100,7 +100,7 @@
     this.info = connectRes;
     this.bufMode = 'uts-rpc';            // 出现在错误诊断里，一眼识别走的原生桥
     this.bulkInCap = BULK_IN_CAP;
-    this.version = 'r79';
+    this.version = 'r82';
     this.ifaceInfo = 'iface=' + (connectRes && connectRes.iface);
     this._onEvent = null;
     this.released = false;
@@ -133,7 +133,7 @@
     return rpc('release', {}, 3000).catch(function () {});
   };
   RpcBridgeTransport.prototype.diagInfo = function () {
-    return { mode: 'uts-rpc-r79', bufMode: this.bufMode, ifaceInfo: this.ifaceInfo };
+    return { mode: 'uts-rpc-r82', bufMode: this.bufMode, ifaceInfo: this.ifaceInfo };
   };
 
   // ---------- 设备枚举结果 → 页面形状（对齐 UsbTetherAndroid.listDevices） ----------
@@ -173,6 +173,24 @@
       });
     }
     return probePromise;
+  }
+
+  // r82【根因修复】：每次「检测设备」都强制重新探测——不复用 probePromise 缓存。
+  // 根因：probe() 在页面加载瞬间缓存了首次 rpc('scan') 结果（此刻相机通常未插/
+  // 未枚举完成，缓存的是空数组），scan() 复用它会让「先开页后插 OTG」的用户
+  // 永远看到"未检测到 USB 设备"——这正是 r80 上线后王总操作无误却检测不到的根因。
+  // freshScan 每次向原生层真实查询设备列表，插线后点「检测设备」必然重新枚举。
+  function freshScan() {
+    return rpc('scan', {}, RPC_TIMEOUT).then(function (s) {
+      bridgeState = 'ok';
+      if (global.UsbTether) global.UsbTether.utsMode = true; // r80：成功明确保持
+      fireInstalled();
+      return parseDevices(s);
+    }, function (e) {
+      bridgeState = 'missing';
+      probePromise = null; // 失败允许重试
+      throw e;
+    });
   }
 
   // r80：桥激活事件（页面 usbtether-installed 监听 → 弹层开着时自动重扫 + 刷新诊断行）
@@ -215,7 +233,7 @@
           }
           return inner.scan ? inner.scan() : Promise.resolve(inner.listDevices());
         }
-        return probe(); // 失败（旧 APK 无插件）→ 页面已有「USB桥超时→升级APK」提示文案
+        return freshScan(); // r82：每次点击都真实查询原生设备列表（不复用加载时缓存；失败→旧 APK 无插件，页面已有升级提示文案）
       },
       listDevices: function () { return inner.listDevices(); }, // plus 同步路径（桥缺失时）
       requestConnect: function (deviceId, opts) {
@@ -289,6 +307,6 @@
   // connect.vue 兜底触发点（forceAppMode：8 次 × 500ms evalJS）——实现 r70 预留的钩子
   global.__usbAppBridgeReady = function () { try { install(); } catch (e) {} };
   try {
-    console.log('[usb-bridge] r80：UTS 原生桥门面已安装（env=' + JSON.stringify(bridgeDiag()) + '）');
+    console.log('[usb-bridge] r82：UTS 原生桥门面已安装（env=' + JSON.stringify(bridgeDiag()) + '）');
   } catch (e) {}
 })();
