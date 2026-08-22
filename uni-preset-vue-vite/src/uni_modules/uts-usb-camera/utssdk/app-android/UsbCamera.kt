@@ -13,6 +13,7 @@ import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.util.Base64
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -27,17 +28,27 @@ import java.util.concurrent.atomic.AtomicReference
  *  - r41 序列：release 容错 -> claimInterface(force=true)
  *  - bulk 读写的 STALL -> clearHalt -> 重试一次
  *  - 中断端点常驻读（ObjectAdded 0x4002 事件通道，r44 结论）
- *  - 连接前弹 USB 权限框（PendingIntent + 广播，阻塞等待在 exec 线程）
+ *  - 连接前弹 USB 权限框（PendingIntent + 广播，阻塞等待在调用线程）
  *
  * 线程模型：所有 USB 命令走单线程 executor（与协议层 _txRun 串行纪律一致），
  * 中断读循环独立线程（不同 endpoint，usbdevfs 层支持并发，与 WebUSB 同模式）。
+ *
+ * r71 双通道：
+ *  - 回调式（connect/bulkOut/bulkIn...）：UTS index.uts -> connect.vue -> uni.postMessage 桥
+ *  - 同步式（connectSync/bulkOutSync/...）：web-view 页面 plus.android(Native.js) 直接反射调用
+ *    （Native.js 跑在 web-view 独占 JS 线程，天然串行；阻塞该线程不影响 App 主线程）。
+ *    中断事件经 ConcurrentLinkedQueue 暂存，由 pollInterrupts() 轮询取走。
+ * 全部公开方法 @JvmStatic：Native.js importClass 反射要求静态方法（Kotlin object
+ * 默认编译为实例方法 + INSTANCE 字段，不加注解 Native.js 调不到）。
  */
 object UsbCamera {
 
     private const val ACTION_USB_PERMISSION = "io.dcloud.uni_modules.uts_usbcamera.USB_PERMISSION"
     private const val MAX_CHUNK = 1 shl 20 // 1MB 单次读上限（协议层 bulkInCap 指定）
+    private const val INTR_QUEUE_MAX = 64  // 中断队列上限（Native.js 轮询消费，防爆内存）
 
     private val exec = Executors.newSingleThreadExecutor()
+    private val intrQueue = ConcurrentLinkedQueue<String>()
 
     private var connection: UsbDeviceConnection? = null
     private var claimedItf: UsbInterface? = null
@@ -52,7 +63,7 @@ object UsbCamera {
     @Volatile private var candidatesJson: String = "[]"
 
     // ---------- 设备枚举（JSON 字符串：[{vid,pid,name,serial,hasPerm}]） ----------
-    fun listDevices(ctx: Context): String {
+    @JvmStatic fun listDevices(ctx: Context): String {
         lastErr = ""
         val mgr = ctx.getSystemService(Context.USB_SERVICE) as UsbManager
         val sb = StringBuilder("[")
@@ -78,10 +89,11 @@ object UsbCamera {
     // ---------- 连接 ----------
     class IfaceInfo(val itf: UsbInterface, val idx: Int, val epIn: UsbEndpoint?, val epOut: UsbEndpoint?, val epIntr: UsbEndpoint?)
 
-    fun connect(ctx: Context, deviceId: String, ifaceIdx: Int, cb: (String) -> Unit) {
+    /** 回调式（UTS 桥用）：连接在 exec 线程执行 */
+    @JvmStatic fun connect(ctx: Context, deviceId: String, ifaceIdx: Int, cb: (String) -> Unit) {
         exec.execute {
             try {
-                cb(connectSync(ctx, deviceId, ifaceIdx))
+                cb(doConnect(ctx, deviceId, ifaceIdx))
             } catch (e: Exception) {
                 lastErr = "" + e
                 cb("{\"ok\":false,\"message\":\"" + jsonEsc("" + e) + "\"}")
@@ -89,7 +101,17 @@ object UsbCamera {
         }
     }
 
-    private fun connectSync(ctx: Context, deviceId: String, ifaceIdx: Int): String {
+    /** 同步式（Native.js 直连用）：在调用线程（web-view JS 线程）执行，返回 JSON */
+    @JvmStatic fun connectSync(ctx: Context, deviceId: String, ifaceIdx: Int): String {
+        return try {
+            doConnect(ctx, deviceId, ifaceIdx)
+        } catch (e: Exception) {
+            lastErr = "" + e
+            "{\"ok\":false,\"message\":\"" + jsonEsc("" + e) + "\"}"
+        }
+    }
+
+    private fun doConnect(ctx: Context, deviceId: String, ifaceIdx: Int): String {
         // 解析 deviceId：uts:vid:pid:serial（与 browser 版 webusb: 同语义；serial 空/ns/0 = 无序列号）
         val m = Regex("^uts:([0-9a-fA-F]+):([0-9a-fA-F]+)(?::(.*))?$").find(deviceId)
             ?: return fail("非法设备标识: " + deviceId)
@@ -109,7 +131,8 @@ object UsbCamera {
                 ")：请确认 OTG 线已插紧、相机已开机后重新检测")
         }
 
-        // USB 权限（非 dangerous 组，须显式 requestPermission + 广播；阻塞等待在 exec 线程，主线程不卡）
+        // USB 权限（非 dangerous 组，须显式 requestPermission + 广播；阻塞等待在调用线程，
+        // Android 系统弹框/广播走主线程，不与调用线程互锁）
         if (!mgr.hasPermission(dev)) {
             if (!requestPermissionAndWait(ctx, mgr, dev, 25000)) {
                 return fail("USB 授权未通过：" + (if (lastErr.isNotEmpty()) lastErr else "用户拒绝或超时"))
@@ -223,45 +246,57 @@ object UsbCamera {
     }
 
     // ---------- bulk 读写（STALL -> clearHalt -> 重试一次，对齐 browser 版语义） ----------
-    fun bulkOut(dataB64: String, timeoutMs: Int, cb: (Int) -> Unit) {
-        exec.execute {
-            val conn = connection
-            val ep = epOut
-            if (conn == null || ep == null) { cb(-1); return@execute }
-            try {
-                val data = Base64.decode(dataB64, Base64.NO_WRAP)
-                var n = conn.bulkTransfer(ep, data, data.size, timeoutMs)
-                if (n < 0) {
-                    clearHalt(ep)
-                    n = conn.bulkTransfer(ep, data, data.size, timeoutMs)
-                }
-                cb(n)
-            } catch (e: Exception) {
-                lastErr = "bulkOut: " + e
-                cb(-1)
+
+    /** 回调式（UTS 桥用） */
+    @JvmStatic fun bulkOut(dataB64: String, timeoutMs: Int, cb: (Int) -> Unit) {
+        exec.execute { cb(doBulkOut(dataB64, timeoutMs)) }
+    }
+
+    /** 同步式（Native.js 直连用）：调用线程执行（web-view JS 线程） */
+    @JvmStatic fun bulkOutSync(dataB64: String, timeoutMs: Int): Int = doBulkOut(dataB64, timeoutMs)
+
+    private fun doBulkOut(dataB64: String, timeoutMs: Int): Int {
+        val conn = connection
+        val ep = epOut
+        if (conn == null || ep == null) return -1
+        return try {
+            val data = Base64.decode(dataB64, Base64.NO_WRAP)
+            var n = conn.bulkTransfer(ep, data, data.size, timeoutMs)
+            if (n < 0) {
+                clearHalt(ep)
+                n = conn.bulkTransfer(ep, data, data.size, timeoutMs)
             }
+            n
+        } catch (e: Exception) {
+            lastErr = "bulkOut: " + e
+            -1
         }
     }
 
-    fun bulkIn(maxLen: Int, timeoutMs: Int, cb: (String) -> Unit) {
-        exec.execute {
-            val conn = connection
-            val ep = epIn
-            if (conn == null || ep == null) { cb(""); return@execute }
-            try {
-                val len = maxLen.coerceIn(1, MAX_CHUNK)
-                val buf = ByteArray(len)
-                var n = conn.bulkTransfer(ep, buf, len, timeoutMs)
-                if (n < 0) {
-                    clearHalt(ep)
-                    n = conn.bulkTransfer(ep, buf, len, timeoutMs)
-                }
-                if (n > 0) cb(Base64.encodeToString(buf.copyOf(n), Base64.NO_WRAP))
-                else cb("")
-            } catch (e: Exception) {
-                lastErr = "bulkIn: " + e
-                cb("")
+    /** 回调式（UTS 桥用） */
+    @JvmStatic fun bulkIn(maxLen: Int, timeoutMs: Int, cb: (String) -> Unit) {
+        exec.execute { cb(doBulkIn(maxLen, timeoutMs)) }
+    }
+
+    /** 同步式（Native.js 直连用）：调用线程执行，返回 base64（空串 = 超时/无数据，短包语义） */
+    @JvmStatic fun bulkInSync(maxLen: Int, timeoutMs: Int): String = doBulkIn(maxLen, timeoutMs)
+
+    private fun doBulkIn(maxLen: Int, timeoutMs: Int): String {
+        val conn = connection
+        val ep = epIn
+        if (conn == null || ep == null) return ""
+        return try {
+            val len = maxLen.coerceIn(1, MAX_CHUNK)
+            val buf = ByteArray(len)
+            var n = conn.bulkTransfer(ep, buf, len, timeoutMs)
+            if (n < 0) {
+                clearHalt(ep)
+                n = conn.bulkTransfer(ep, buf, len, timeoutMs)
             }
+            if (n > 0) Base64.encodeToString(buf.copyOf(n), Base64.NO_WRAP) else ""
+        } catch (e: Exception) {
+            lastErr = "bulkIn: " + e
+            ""
         }
     }
 
@@ -273,22 +308,48 @@ object UsbCamera {
         } catch (e: Exception) { false }
     }
 
-    fun clearPipe(cb: (Boolean) -> Unit) {
-        exec.execute {
-            val a = epIn?.let { clearHalt(it) } ?: true
-            val b = epOut?.let { clearHalt(it) } ?: true
-            cb(a && b)
-        }
+    /** 回调式（UTS 桥用） */
+    @JvmStatic fun clearPipe(cb: (Boolean) -> Unit) {
+        exec.execute { cb(doClearPipe()) }
+    }
+
+    /** 同步式（Native.js 直连用） */
+    @JvmStatic fun clearPipeSync(): Boolean = doClearPipe()
+
+    private fun doClearPipe(): Boolean {
+        val a = epIn?.let { clearHalt(it) } ?: true
+        val b = epOut?.let { clearHalt(it) } ?: true
+        return a && b
     }
 
     // ---------- 中断端点常驻读（ObjectAdded 0x4002 事件通道） ----------
-    fun setInterruptHandler(cb: ((String) -> Unit)?) {
+
+    /** 回调式消费者（UTS 桥：connect.vue setInterruptHandler -> evalJS 推页面） */
+    @JvmStatic fun setInterruptHandler(cb: ((String) -> Unit)?) {
         interruptCb.set(cb)
+    }
+
+    /**
+     * 同步式消费者（Native.js 轮询）：取走全部排队的中断事件，JSON 字符串数组
+     * （["base64",...]，空数组 = 无事件）。中断循环同时入队与回调（回调存在时
+     * 队列仍在写，pollInterrupts 取走即可，两消费者不会同 APK 并存）。
+     */
+    @JvmStatic fun pollInterrupts(): String {
+        val sb = StringBuilder("[")
+        var first = true
+        while (true) {
+            val b64 = intrQueue.poll() ?: break
+            if (!first) sb.append(',')
+            first = false
+            sb.append('"').append(b64).append('"')
+        }
+        return sb.append(']').toString()
     }
 
     private fun startInterruptLoop() {
         val ep = epIntr ?: return // 无中断端点：协议层自动降级为仅 GetEvent 轮询（camera-ptp.js L542）
         intrRunning.set(true)
+        intrQueue.clear()
         intrThread = Thread {
             val buf = ByteArray(512)
             while (intrRunning.get()) {
@@ -297,6 +358,8 @@ object UsbCamera {
                     val n = conn.bulkTransfer(ep, buf, buf.size, 250)
                     if (n > 0) {
                         val b64 = Base64.encodeToString(buf.copyOf(n), Base64.NO_WRAP)
+                        if (intrQueue.size >= INTR_QUEUE_MAX) intrQueue.poll()
+                        intrQueue.offer(b64)
                         try { interruptCb.get()?.invoke(b64) } catch (e: Exception) { /* 回调异常不停读 */ }
                     }
                 } catch (e: Exception) {
@@ -308,14 +371,22 @@ object UsbCamera {
     }
 
     // ---------- 释放 ----------
-    fun release() {
+
+    /** 回调式（UTS 桥用）：exec 线程释放 */
+    @JvmStatic fun release() {
         exec.execute { closeQuiet() }
+    }
+
+    /** 同步式（Native.js 直连用）：调用线程释放（含中断线程 join，最多阻塞约 0.6s） */
+    @JvmStatic fun releaseSync() {
+        closeQuiet()
     }
 
     private fun closeQuiet() {
         intrRunning.set(false)
         try { intrThread?.join(600) } catch (e: Exception) {}
         intrThread = null
+        intrQueue.clear()
         try { claimedItf?.let { connection?.releaseInterface(it) } } catch (e: Exception) {}
         claimedItf = null
         try { connection?.close() } catch (e: Exception) {}
@@ -325,9 +396,8 @@ object UsbCamera {
         epIntr = null
     }
 
-    fun isConnected(): Boolean = connection != null
+    @JvmStatic fun isConnected(): Boolean = connection != null
 
-    fun diag(): String =
+    @JvmStatic fun diag(): String =
         "{\"connected\":" + (connection != null) +
             ",\"err\":\"" + jsonEsc(lastErr) + "\",\"candidates\":" + candidatesJson + "}"
-}
