@@ -48,7 +48,9 @@ export default {
     buildWebSrc() {
       const sep = CONNECT_URL.indexOf('?') >= 0 ? '&' : '?'
       const token = memoApi.getToken()
-      this.webSrc = CONNECT_URL + (token ? sep + 'token=' + encodeURIComponent(token) + '&full=1' : '?full=1')
+      // 加时间戳破坏 WebView 缓存：每次 onLoad/onShow 都强制加载最新页面
+      const cacheBuster = '_t=' + Date.now()
+      this.webSrc = CONNECT_URL + (token ? sep + 'token=' + encodeURIComponent(token) + '&full=1&' + cacheBuster : '?full=1&' + cacheBuster)
     },
 
     // ---------- 显式声明 App 模式：重复探测直至页面加载完成（页面侧 __plSetAppMode 会启用 App UI 与系统相机兜底） ----------
