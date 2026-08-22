@@ -45,6 +45,7 @@ object UsbCamera {
 
     private const val ACTION_USB_PERMISSION = "io.dcloud.uni_modules.uts_usbcamera.USB_PERMISSION"
     private const val MAX_CHUNK = 1 shl 20 // 1MB 单次读上限（协议层 bulkInCap 指定）
+    private const val MAX_SINGLE = 1 shl 14 // 16384：Android bulkTransfer 单次调用上限（超出会失败/截断，必须分片循环）
     private const val INTR_QUEUE_MAX = 64  // 中断队列上限（Native.js 轮询消费，防爆内存）
 
     private val exec = Executors.newSingleThreadExecutor()
@@ -156,6 +157,14 @@ object UsbCamera {
         val idx = if (ifaceIdx in cand.indices) ifaceIdx else 0
         val tgt = cand[idx]
 
+        // 配置激活保险（r79）：部分机型/线序下系统未自动 setConfiguration，
+        // 未激活配置时 bulk 传输必失败（plus 时代 cfg? 悬案的正解在原生层做）
+        try {
+            if (dev.configuration == null && dev.configurationCount > 0) {
+                conn.setConfiguration(dev.getConfiguration(0))
+            }
+        } catch (e: Exception) { /* 已配置/机型自动配置：忽略 */ }
+
         // r41 序列：release 容错 -> claim(force)
         try { conn.releaseInterface(tgt.itf) } catch (e: Exception) { /* 未 claim 接口的 release 安全失败 */ }
         if (!conn.claimInterface(tgt.itf, true)) {
@@ -261,12 +270,19 @@ object UsbCamera {
         if (conn == null || ep == null) return -1
         return try {
             val data = Base64.decode(dataB64, Base64.NO_WRAP)
-            var n = conn.bulkTransfer(ep, data, data.size, timeoutMs)
-            if (n < 0) {
-                clearHalt(ep)
-                n = conn.bulkTransfer(ep, data, data.size, timeoutMs)
+            var off = 0
+            while (off < data.size) {
+                val slice = data.copyOfRange(off, minOf(off + MAX_SINGLE, data.size))
+                var n = conn.bulkTransfer(ep, slice, slice.size, timeoutMs)
+                if (n < 0) {
+                    clearHalt(ep)
+                    n = conn.bulkTransfer(ep, slice, slice.size, timeoutMs)
+                }
+                if (n < 0) return if (off == 0) -1 else off
+                off += n
+                if (n < slice.size) break
             }
-            n
+            off
         } catch (e: Exception) {
             lastErr = "bulkOut: " + e
             -1
@@ -287,13 +303,26 @@ object UsbCamera {
         if (conn == null || ep == null) return ""
         return try {
             val len = maxLen.coerceIn(1, MAX_CHUNK)
-            val buf = ByteArray(len)
-            var n = conn.bulkTransfer(ep, buf, len, timeoutMs)
-            if (n < 0) {
-                clearHalt(ep)
-                n = conn.bulkTransfer(ep, buf, len, timeoutMs)
+            val out = ByteArray(len)
+            var total = 0
+            val deadline = System.currentTimeMillis() + timeoutMs
+            // 分片循环（Android 单次 bulkTransfer 上限 16384）：填满 maxLen
+            // 或遇短包（该次传输结束）即返回，STALL 先 clearHalt 重试一次
+            while (total < len) {
+                val remainMs = (deadline - System.currentTimeMillis()).toInt()
+                if (remainMs <= 0) break
+                val chunk = ByteArray(minOf(MAX_SINGLE, len - total))
+                var n = conn.bulkTransfer(ep, chunk, chunk.size, remainMs)
+                if (n < 0) {
+                    clearHalt(ep)
+                    n = conn.bulkTransfer(ep, chunk, chunk.size, remainMs)
+                }
+                if (n <= 0) break
+                System.arraycopy(chunk, 0, out, total, n)
+                total += n
+                if (n < chunk.size) break // 短包 = 本批数据读完
             }
-            if (n > 0) Base64.encodeToString(buf.copyOf(n), Base64.NO_WRAP) else ""
+            if (total > 0) Base64.encodeToString(out.copyOf(total), Base64.NO_WRAP) else ""
         } catch (e: Exception) {
             lastErr = "bulkIn: " + e
             ""
@@ -351,7 +380,8 @@ object UsbCamera {
         intrRunning.set(true)
         intrQueue.clear()
         intrThread = Thread {
-            val buf = ByteArray(512)
+            // 中断端点按 maxPacketSize 读（请求超过 mps 在部分机型会挂死；PTP 事件容器 ≤64B）
+            val buf = ByteArray(ep.maxPacketSize.coerceIn(64, 512))
             while (intrRunning.get()) {
                 val conn = connection ?: break
                 try {
