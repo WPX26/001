@@ -660,7 +660,7 @@
     isSupported: isSupported,
     get: getUsbTether,
     probeByteArray: probeByteArray,
-    version: 'r79', // 页面用它显示库版本（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
+    version: 'r88', // r88：页面用它显示库版本（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
     /** r17：最近一次传输实际用的 buffer 形态（连接失败后也能读，单例级） */
     lastBufMode: function () { return singleton ? singleton._lastBufMode : '未连接'; }
   };

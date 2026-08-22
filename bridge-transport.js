@@ -28,6 +28,16 @@
  *   3. installCalls（connect.vue 每 500ms evalJS 触发 install 的次数 = App→web 通道探针）、
  *      扫描时刻环境快照 env@scan、用时 lastScanMs、迟到回复 lateReplies（慢 vs 根本不回）；
  *      全部进 bridgeDiag，页面 USB 弹层底部 env 行一键可见。
+ *
+ * r88【往返通道分诊（r85 截图实锤：installCalls=1 + lastScanMs=8001 但无法定位断环）】：
+ *   1. ping 往返探针：scan 失败后自动发 rpc('ping')（1.5s）——快速收到任意回复(未知 op:ping)
+ *      = 往返通（问题在 App 原生/UTS 层）；超时 = 通道断（web→App 或 App→web 至少一环）；
+ *   2. lastScanErr/lastScanErrKind：freshScan 原始错误——'timeout'(8s 无回) vs
+ *      'reply-error'(App 回了错,如 UtsUsb 未定义)——两种对策完全不同；
+ *   3. deliveryPath：page 侧直读 plus.webview.currentWebview / getWebviewById('__uniapp__service')
+ *      / getLaunchWebview——标出 uni-webview SDK 实际投递分支(postMessageToUniNView vs evalJS-UniPlusBridge)；
+ *   4. bridgeVer:'r88' 进 env 行——nginx no-store 下桥内容随刷新即新,以 env 行字段为准,
+ *      不受页面 ?v= 缓存标签(UI 并行进程持有)影响。
  * ============================================================ */
 (function () {
   'use strict';
@@ -116,7 +126,7 @@
     this.info = connectRes;
     this.bufMode = 'uts-rpc';            // 出现在错误诊断里，一眼识别走的原生桥
     this.bulkInCap = BULK_IN_CAP;
-    this.version = 'r85';
+    this.version = 'r88';
     this.ifaceInfo = 'iface=' + (connectRes && connectRes.iface);
     this._onEvent = null;
     this.released = false;
@@ -149,7 +159,7 @@
     return rpc('release', {}, 3000).catch(function () {});
   };
   RpcBridgeTransport.prototype.diagInfo = function () {
-    return { mode: 'uts-rpc-r85', bufMode: this.bufMode, ifaceInfo: this.ifaceInfo };
+    return { mode: 'uts-rpc-r88', bufMode: this.bufMode, ifaceInfo: this.ifaceInfo };
   };
 
   // ---------- 设备枚举结果 → 页面形状（对齐 UsbTetherAndroid.listDevices） ----------
@@ -177,6 +187,42 @@
   var lastScanMs = 0;    // r85：最近一次 scan 用时 ms
   var lastScanEnv = null;// r85：最近一次 scan 时刻的环境快照（env 行默认只在加载时刷新，点击时已过期）
   var lastScanPath = ''; // r85：最近一次 scan 成功路径：uts | plus | uts-fail
+  var pingState = '';    // r88：往返探测结果：'' | ok(往返通) | timeout(超时=通道断) | err(其它错误)
+  var pingMs = 0;        // r88：往返探测耗时 ms
+  var pingReply = '';    // r88：往返探测回复摘要（通='未知 op: ping'/scan ok；断='USB桥超时(ping)'）
+  var lastScanErr = '';  // r88：最近一次 freshScan 原始错误（超时 vs 真错误——对策不同）
+  var lastScanErrKind = ''; // r88：'timeout'(8s无回复=往返断) | 'reply-error'(App回了错=往返通,问题在原生) | 'noenv'
+  // r88：page 侧直读 SDK 投递分支（不依赖 App 回复）——plus.webview 三个关键视图是否存在
+  function deliveryPath() {
+    var out = { cwv: false, cwvId: '', svc: false, launch: false };
+    try {
+      if (typeof plus !== 'undefined' && plus.webview) {
+        var cw = (plus.webview.currentWebview) ? plus.webview.currentWebview() : null;
+        out.cwv = !!cw;
+        if (cw && cw.id) out.cwvId = String(cw.id);
+        var svc = (plus.webview.getWebviewById) ? plus.webview.getWebviewById('__uniapp__service') : null;
+        out.svc = !!svc;
+        var lw = (plus.webview.getLaunchWebview) ? plus.webview.getLaunchWebview() : null;
+        out.launch = !!lw;
+      }
+    } catch (e) {}
+    return out;
+  }
+  // r88：往返探针——rpc('ping') 1.5s。快速收到任意回复（含"未知 op: ping"）= 往返通；
+  // 超时 = web→App 或 App→web 至少一环断。connect.vue 对未知 op 会回错，正好当探针。
+  function pingNow() {
+    var t0 = Date.now();
+    return rpc('ping', {}, 1500).then(function (s) {
+      pingState = 'ok'; pingMs = Date.now() - t0;
+      pingReply = (typeof s === 'string' ? s : JSON.stringify(s || '')).slice(0, 60);
+    }, function (e) {
+      pingMs = Date.now() - t0;
+      var m = ((e && e.message) || String(e)).toString();
+      if (/USB桥超时/.test(m)) { pingState = 'timeout'; pingReply = m.slice(0, 60); }
+      else if (/未知 op: ping/.test(m)) { pingState = 'ok'; pingReply = m.slice(0, 60); }
+      else { pingState = 'err'; pingReply = m.slice(0, 60); }
+    });
+  }
   function snapDiag() {  // r85：无自嵌套的环境快照（防诊断对象随扫描次数无限加深）
     var d = bridgeDiag();
     delete d.lastScanEnv;
@@ -212,6 +258,7 @@
       lastScanMs = Date.now() - t0;
       lastScanPath = 'uts';
       bridgeState = 'ok';
+      pingState = 'ok'; pingMs = lastScanMs; pingReply = '(scan ok)'; // r88：scan 有回=往返通
       if (global.UsbTether) global.UsbTether.utsMode = true; // r80：成功明确保持
       fireInstalled();
       return parseDevices(s);
@@ -252,7 +299,14 @@
       scanAttempts: scanAttempts,
       lastScanMs: lastScanMs,
       lastScanPath: lastScanPath,
-      lastScanEnv: lastScanEnv
+      lastScanEnv: lastScanEnv,
+      bridgeVer: 'r88',
+      pingState: pingState,
+      pingMs: pingMs,
+      pingReply: pingReply,
+      lastScanErr: lastScanErr,
+      lastScanErrKind: lastScanErrKind,
+      deliv: deliveryPath()
     };
   }
 
@@ -294,18 +348,29 @@
         if (!bridgeEnv()) {
           if (typeof plus !== 'undefined') {
             // App 内但 uni 桥缺失：plus 枚举方向可靠，直接枚举给出设备（不静默失败）
-            return plusEnumFallback(null, t0);
+            lastScanErr = 'uni 桥不可用（plus 在但 uni.postMessage 缺）';
+            lastScanErrKind = 'noenv';
+            return pingNow().then(function () { return plusEnumFallback(null, t0); });
           }
           return inner.scan ? inner.scan() : Promise.resolve(inner.listDevices());
         }
         // r82：每次点击都真实查询原生设备列表；r85：失败自动回落 plus 枚举
-        return freshScan().catch(function (e) { return plusEnumFallback(e, t0); });
+        return freshScan().catch(function (e) {
+          lastScanErr = ((e && e.message) || String(e)).slice(0, 160);
+          lastScanErrKind = /USB桥超时/.test(lastScanErr) ? 'timeout' : 'reply-error';
+          // r88：回落前先做 1.5s 往返探针——env 行立刻能看出「通道断」还是「往返通但原生层出问题」
+          return pingNow().then(function () { return plusEnumFallback(e, t0); });
+        });
       },
       listDevices: function () { return inner.listDevices(); }, // plus 同步路径（桥缺失时）
       requestConnect: function (deviceId, opts) {
         if (bridgeState === 'plus') {
             // r85：scan 走的是备用 plus 枚举（原生桥不可用）——任何连接都快速失败并给指引，别走死路 plus 桥
-            return Promise.reject(new Error('UTS 原生桥未响应（列表来自备用枚举）。请彻底退出 App 重开重试；仍失败请把 USB 弹层底部 env 诊断发我'));
+            // r88：错误信息带上分诊结论（timeout=通道断 vs reply-error=往返通、问题在原生层）
+            var why = lastScanErrKind === 'timeout'
+              ? ('原生桥8s超时未回、往返ping=' + pingState + (pingState === 'ok' ? '(通→问题在App/UTS层)' : '(断→通道需新APK)'))
+              : ('原生桥:' + (lastScanErr || '不可用'));
+            return Promise.reject(new Error('UTS 原生桥未响应（' + why + '，列表来自备用枚举）。请把 USB 弹层底部 env 诊断发我'));
           }
         if (typeof deviceId === 'string' && deviceId.indexOf('uts:') === 0) {
           return rpc('connect', { deviceId: deviceId, iface: (opts && opts.iface) || 0 }, CONNECT_TIMEOUT)
@@ -375,9 +440,11 @@
   }
 
   install();
+  // r88：加载后 1.5s 做一次往返基线探测（不依赖用户点击，env 行早出结论）
+  setTimeout(function () { if (bridgeEnv()) { pingNow(); } }, 1500);
   // connect.vue 兜底触发点（forceAppMode：8 次 × 500ms evalJS）——实现 r70 预留的钩子
   global.__usbAppBridgeReady = function () { try { install(); } catch (e) {} };
   try {
-    console.log('[usb-bridge] r85：UTS 原生桥门面已安装（env=' + JSON.stringify(bridgeDiag()) + '）');
+    console.log('[usb-bridge] r88：UTS 原生桥门面已安装（env=' + JSON.stringify(bridgeDiag()) + '）');
   } catch (e) {}
 })();
