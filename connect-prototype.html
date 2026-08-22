@@ -966,7 +966,7 @@
   }
   .pair-host-cam-status b { color: #4CAF50; font-weight: 600; }
   .pair-host-cam-status.err { color: #F0A040; }
-/* ===== r83 相机 UI 完全重做：对标 OPPO ColorOS 相机 + iOS 26 Liquid Glass ===== */
+/* ===== r83/r84 相机 UI 完全重做：对标 OPPO ColorOS 相机 + iOS 26 Liquid Glass ===== */
 .cam-viewfinder {
   position: absolute;
   inset: 0;
@@ -980,6 +980,9 @@
   height: 100%;
   object-fit: cover;
   background: #000;
+  transform-origin: center center;
+  transition: transform 0.18s ease-out;
+  will-change: transform;
 }
 /* 画幅遮罩（4:3 / 1:1 / 16:9 黑边示意实际裁剪） */
 .cam-aspect-mask { position: absolute; z-index: 3; background: #000; pointer-events: none; }
@@ -1967,7 +1970,7 @@
         <div class="pair-input-mask" id="usbCamMask">
           <div class="pair-input-card">
             <div class="pair-input-title">USB 连接相机</div>
-            <div style="font-size:10px;color:rgba(245,223,192,0.45);margin-top:-3px;margin-bottom:6px;text-align:center;" id="usbLibVer">联机传输 页r83 · 库检测中…</div>
+            <div style="font-size:10px;color:rgba(245,223,192,0.45);margin-top:-3px;margin-bottom:6px;text-align:center;" id="usbLibVer">联机传输 页r84 · 库检测中…</div>
             <div style="font-size:9px;color:rgba(245,223,192,0.3);margin:-6px 0 6px;text-align:center;font-family:monospace;word-break:break-all;" id="usbBridgeDiag"></div>
             <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机</div>
             <div class="usb-cam-list" id="usbCamList"></div>
@@ -2036,7 +2039,7 @@
 <!-- r18：WebUSB 传输层（Chrome/Edge 桌面 + Android Chrome 直连；App web-view 内自动不生效，仍走 plus 版） -->
 <script src="browser-usb-transport.js?v=20260821-r79"></script>
   <!-- r69：UTS 原生 USB 桥（App web-view 内覆盖 UsbTether 走原生 USB Host；非 App 环境自动不生效，WebUSB 版继续用） -->
-  <script src="bridge-transport.js?v=20260822-r83"></script>
+  <script src="bridge-transport.js?v=20260822-r84"></script>
 
 <script>
   var db = new Dexie('memoPhotos');
@@ -2630,7 +2633,7 @@
       return new Promise(function (resolve) {
         var track = plStream && plStream.getVideoTracks ? plStream.getVideoTracks()[0] : null;
         var canIC = track && window.ImageCapture && typeof ImageCapture === 'function';
-        if (!canIC || plActiveFilter !== 'none' || plWatermark || plAspect !== 'full') { resolve(plCanvasStill()); return; }
+        if (!canIC || plActiveFilter !== 'none' || plWatermark || plAspect !== 'full' || plZoom > 1.0001) { resolve(plCanvasStill()); return; }
         try {
           new ImageCapture(track).takePhoto().then(function (blob) {
             var reader = new FileReader();
@@ -2743,9 +2746,9 @@
     var plTorchOn = false;
     var plGridOn = false;
     // =====================================================================
-    // r83 相机 Pro UI：对标 OPPO ColorOS 相机（变焦胶囊/长按滑杆/角标指示器）
+    // r83/r84 相机 Pro UI：对标 OPPO ColorOS 相机（变焦胶囊/长按滑杆/角标指示器）
     // + iOS 26 Liquid Glass（快门环下模式条/圆角相册/悬浮玻璃按钮）
-    // 变焦= getCapabilities().zoom + applyConstraints advanced.zoom（业界成熟方案）
+    // 变焦=r84 纯前端数码变焦（CSS transform + canvas 中心裁剪，不依赖硬件能力）
     // =====================================================================
     var plZoomCaps = $('plZoomCaps');
     var plZoomDrawer = $('plZoomDrawer');
@@ -2862,7 +2865,7 @@
         plVideo.srcObject = stream;
         plVideo.play().catch(function () {});
         plShowCamActive();
-        plInitZoom(); // r83：能力检测后挂变焦/对焦/曝光/滤镜 UI
+        plInitZoom(); // r84：数码变焦+对焦/曝光/滤镜 UI（不再依赖硬件 zoom 能力）
         plUpdateAspect();
         var plWsLive = document.getElementById('phoneWorkspace');
         if (plWsLive) plWsLive.classList.add('cam-live');
@@ -2964,6 +2967,7 @@
       plZoom = 1;
       if (plZoomSlider) plZoomSlider.value = '1';
       if (plZoomCur) plZoomCur.textContent = '1.0x';
+      if (plVideo) plVideo.style.transform = '';
       plEv = 0;
       plActiveFilter = 'none';
       plFilterCss = '';
@@ -3179,7 +3183,8 @@
     });
 
     // =====================================================================
-    // 变焦（核心）：getUserMedia 数码变焦 + OPPO 交互（底部胶囊 → 长按展开滑杆）
+    // 变焦（r84）：纯前端数码变焦（CSS transform 放大取景器 + canvas 中心裁剪拍照/推流），
+    // 不依赖硬件 zoom 能力——任何浏览器/相机全通；OPPO 交互（胶囊点按+长按滑杆）
     // =====================================================================
     function plGetVideoTrack() {
       return plStream ? plStream.getVideoTracks()[0] : null;
@@ -3208,17 +3213,20 @@
       catch (e) { return false; }
     }
     function plApplyZoom(z) {
-      if (!plZoomCap) return;
-      z = Math.min(plZoomCap.max, Math.max(plZoomCap.min, z));
-      if (plZoomCap.step) z = Math.round(z / plZoomCap.step) * plZoomCap.step;
+      z = Math.max(1, Math.min(10, z));
       z = Math.round(z * 100) / 100;
       plZoom = z;
       var txt = (z >= 10 ? String(z) : z.toFixed(1)) + 'x';
-      plZoomCur.textContent = txt;
+      if (plZoomCur) plZoomCur.textContent = txt;
       if (plZoomIndicator) plZoomIndicator.textContent = txt;
-      plZoomSlider.value = String(z);
+      if (plZoomSlider) plZoomSlider.value = String(z);
       plSyncZoomCaps();
-      plApplyTrack({ zoom: z });
+      plApplyVideoZoom();
+    }
+    // 取景器放大：CSS transform scale（视频铺满 + overflow hidden 裁剪 = 中心数码变焦）
+    function plApplyVideoZoom() {
+      if (!plVideo) return;
+      plVideo.style.transform = plZoom > 1.0001 ? 'scale(' + plZoom.toFixed(3) + ')' : '';
     }
     function plSyncZoomCaps() {
       if (!plZoomCaps) return;
@@ -3230,17 +3238,10 @@
     }
     // OPPO 预设焦段：0.6x / 1x / 2x / 5x / 10x（按设备能力过滤）
     function plBuildZoomCaps() {
-      if (!plZoomCap || !plZoomCaps) return;
+      if (!plZoomCaps) return;
       plZoomCaps.innerHTML = '';
-      var stops = [];
-      var preset = [0.6, 1, 2, 5, 10];
-      for (var i = 0; i < preset.length; i++) {
-        var v = preset[i];
-        if (v >= plZoomCap.min - 1e-9 && v <= plZoomCap.max + 1e-9) stops.push(v);
-      }
-      if (!stops.length) stops = [plZoomCap.min, plZoomCap.max];
-      if (stops.length > 5) stops = stops.slice(0, 5);
-      for (var j = 0; j < stops.length; j++) {
+      var preset = [1, 2, 5, 10];
+      for (var j = 0; j < preset.length; j++) {
         (function (v) {
           var b = document.createElement('button');
           b.type = 'button';
@@ -3249,34 +3250,25 @@
           b.textContent = (v >= 10 ? String(v) : v.toFixed(1)) + 'x';
           b.addEventListener('click', function () { plApplyZoom(v); plCloseZoomDrawer(); });
           plZoomCaps.appendChild(b);
-        })(stops[j]);
+        })(preset[j]);
       }
       plSyncZoomCaps();
     }
     function plInitZoom() {
       plProbeCapabilities();
-      if (plZoomCap) {
-        plZoomSlider.min = String(plZoomCap.min);
-        plZoomSlider.max = String(plZoomCap.max);
-        plZoomSlider.step = String(plZoomCap.step || 0.1);
-        plZoomSlider.value = String(Math.min(plZoomCap.max, Math.max(plZoomCap.min, plZoom)));
-        if (plZoomMax) plZoomMax.textContent = (plZoomCap.max >= 10 ? String(plZoomCap.max) : plZoomCap.max.toFixed(1)) + 'x';
-        plBuildZoomCaps();
-        plZoomCaps.style.display = '';
-        if (plZoomIndicator) { plZoomIndicator.style.display = ''; plZoomIndicator.textContent = (plZoom >= 10 ? String(plZoom) : plZoom.toFixed(1)) + 'x'; }
-        plShowGestureHint();
-      } else {
-        plZoomCaps.style.display = 'none';
-        plZoomDrawer.style.display = 'none';
-        if (plZoomIndicator) plZoomIndicator.style.display = 'none';
-      }
+      if (plZoomSlider) { plZoomSlider.min = '1'; plZoomSlider.max = '10'; plZoomSlider.step = '0.1'; plZoomSlider.value = String(plZoom); }
+      if (plZoomMax) plZoomMax.textContent = '10x';
+      plBuildZoomCaps();
+      if (plZoomCaps) plZoomCaps.style.display = '';
+      if (plZoomIndicator) { plZoomIndicator.style.display = ''; plZoomIndicator.textContent = (plZoom >= 10 ? String(plZoom) : plZoom.toFixed(1)) + 'x'; }
+      plApplyVideoZoom();
+      plShowGestureHint();
       plUpdateLiveHud();
     }
 
     // 长按胶囊空白处展开连续滑杆（OPPO：长按 1X 弹滑杆）；松手/滑动结束收起
     var plZoomPressTimer = null;
     function plOpenZoomDrawer() {
-      if (!plZoomCap) return;
       plZoomDrawer.style.display = '';
       plZoomSlider.value = String(plZoom);
       plZoomCur.textContent = (plZoom >= 10 ? String(plZoom) : plZoom.toFixed(1)) + 'x';
@@ -3299,9 +3291,7 @@
       plZoomCaps.addEventListener('mouseleave', function () { clearTimeout(plZoomPressTimer); });
     }
     if (plZoomSlider) {
-      plZoomSlider.addEventListener('input', function () {
-        if (plZoomCap) plApplyZoom(parseFloat(plZoomSlider.value));
-      });
+      plZoomSlider.addEventListener('input', function () { plApplyZoom(parseFloat(plZoomSlider.value)); });
       plZoomSlider.addEventListener('change', function () { plCloseZoomDrawer(); });
     }
 
@@ -3434,7 +3424,7 @@
       if (!vf) return;
       var vw = vf.clientWidth, vh = vf.clientHeight;
       if (plAspect === 'full' || !vw || !vh) { plAspectMask.style.display = 'none'; return; }
-      var ar = parseFloat(plAspect);
+      var ar = plAspectValue(plAspect);
       if (vw / vh > ar) {
         var bar = (vh - vw / ar) / 2;
         plAspectMask.style.cssText = 'display:block; top:' + bar + 'px; bottom:' + bar + 'px; left:0; right:0;';
@@ -3443,12 +3433,27 @@
         plAspectMask.style.cssText = 'display:block; left:' + bar2 + 'px; right:' + bar2 + 'px; top:0; bottom:0;';
       }
     }
+    // 画幅比例解析："4:3"→1.333，"16:9"→1.778（parseFloat("4:3") 会误得 4）
+    function plAspectValue(as) {
+      if (!as || as === 'full') return 0;
+      var parts = String(as).split(':');
+      if (parts.length === 2) return parseFloat(parts[0]) / parseFloat(parts[1]);
+      return parseFloat(as) || 0;
+    }
     function plGetCrop(vw, vh) {
-      if (plAspect === 'full' || !plAspect) return { sx: 0, sy: 0, sw: vw, sh: vh, w: vw, h: vh };
-      var ar = parseFloat(plAspect);
-      var sw, sh;
-      if (vw / vh > ar) { sw = vh * ar; sh = vh; } else { sw = vw; sh = vw / ar; }
-      return { sx: (vw - sw) / 2, sy: (vh - sh) / 2, sw: sw, sh: sh, w: sw, h: sh };
+      var sx = 0, sy = 0, sw = vw, sh = vh;
+      if (plAspect !== 'full' && plAspect) {
+        var ar = plAspectValue(plAspect);
+        if (vw / vh > ar) { sw = vh * ar; sh = vh; } else { sw = vw; sh = vw / ar; }
+        sx = (vw - sw) / 2; sy = (vh - sh) / 2;
+      }
+      if (plZoom && plZoom > 1.0001) {
+        var nsw = sw / plZoom, nsh = sh / plZoom;
+        sx = sx + (sw - nsw) / 2;
+        sy = sy + (sh - nsh) / 2;
+        sw = nsw; sh = nsh;
+      }
+      return { sx: sx, sy: sy, sw: sw, sh: sh, w: sw, h: sh };
     }
     if (window.addEventListener) window.addEventListener('resize', function () { if (plStream) { plUpdateAspect(); plFitCameraUI(); } });
 
@@ -3486,12 +3491,12 @@
     var plEvDrag = null;
     if (plViewfinder) {
       plViewfinder.addEventListener('touchstart', function (e) {
-        if (!plStream || !plZoomCap || e.touches.length !== 2) { plZoomTouches = null; return; }
+        if (!plStream || e.touches.length !== 2) { plZoomTouches = null; return; }
         plZoomTouches = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         plZoomTouchStart = plZoom;
       }, { passive: true });
       plViewfinder.addEventListener('touchmove', function (e) {
-        if (!plStream || !plZoomCap || plZoomTouches == null || e.touches.length !== 2) return;
+        if (!plStream || plZoomTouches == null || e.touches.length !== 2) return;
         var d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         var z = plZoomTouchStart * (d / plZoomTouches);
         if (z >= 1 - 0.05 || (d / plZoomTouches) > 1) plApplyZoom(z);
@@ -3547,11 +3552,13 @@
         if (plScreenActive) return; // 屏控激活：帧源切换为屏幕（evalJS 注入），停用相机帧
         var vw = plVideo.videoWidth, vh = plVideo.videoHeight;
         if (!vw || !vh) return;
-        var scale = 1080 / vw;
+        var z = plZoom > 1.0001 ? plZoom : 1;
+        var sx = (vw - vw / z) / 2, sy = (vh - vh / z) / 2, sw = vw / z, sh = vh / z;
+        var scale = 1080 / sw;
         canvas.width = 1080;
-        canvas.height = Math.max(1, Math.round(vh * scale));
+        canvas.height = Math.max(1, Math.round(sh * scale));
         canvas.getContext('2d').filter = plFilterCss || 'none';
-        canvas.getContext('2d').drawImage(plVideo, 0, 0, canvas.width, canvas.height);
+        canvas.getContext('2d').drawImage(plVideo, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
         var dataUrl = null;
         try { dataUrl = canvas.toDataURL('image/jpeg', 0.75); } catch (e) {}
         if (dataUrl) plWs.send(JSON.stringify({ type: 'frame', data: dataUrl }));
@@ -4213,7 +4220,7 @@
           var st = bd.bridgeState === 'ok' ? '桥OK' : (bd.bridgeState === 'missing' ? '桥缺失' : '桥探测中');
           tail = ' · ' + st + (bd.weexPost ? '·weex✓' : '') + (bd.uniPostMessage ? '·uni✓' : '');
         }
-        el.textContent = '联机传输 页r83 · 库' + lib +
+        el.textContent = '联机传输 页r84 · 库' + lib +
           ((typeof UsbTether !== 'undefined' && UsbTether.utsMode) ? ' · 原生桥' : '') + tail;
         var de = $('usbBridgeDiag');
         if (de && typeof UsbTether !== 'undefined' && UsbTether.bridgeDiag) {
@@ -4748,7 +4755,7 @@
       panel.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,6,3,0.94);display:flex;align-items:center;justify-content:center;padding:24px;';
       panel.innerHTML = '<div style="background:#1c0f08;border:1px solid rgba(212,165,116,0.4);border-radius:16px;padding:20px;max-width:540px;width:100%;">' +
         '<div style="font-size:15px;font-weight:600;color:#E89020;margin-bottom:2px;">📷 相机已连接</div>' +
-        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260822-r83 · 相机Pro重做：EVFMode=1+输出到PC(0xD1B0=2)+0x9151完整序列，帧blob链解析；事件循环与LV共存，拍照导入恢复</div>' +
+        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260822-r84 · 数码变焦全通：EVFMode=1+输出到PC(0xD1B0=2)+0x9151完整序列，帧blob链解析；事件循环与LV共存，拍照导入恢复</div>' +
         '<div style="font-size:12px;color:#F5DFC0;line-height:1.6;margin-bottom:10px;"><b>请在相机机身上按一次快门</b>，然后点下方蓝色按钮立即扫描检测（事件通道 0x4002/0xC181 也在自动监听）。<br>' +
         '<span style="color:#c9a06a;">r53：远程模式（0x9114=1）+ 设卡=CF 卡（0xD11C=1）。不做卡枚举。事件通道 0xC181 经 GetEvent 到达，中断端点 0x4002 双通道监听。按快门即收。</span></div>' +
         '<button id="wsBodyTestPressed" style="margin:6px 0 10px;width:100%;padding:10px;border:none;border-radius:10px;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">📸 我已在相机上按过快门（事件通道自动监听中）</button>' +
@@ -5103,7 +5110,7 @@
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260822-r83',               // r54 2026-08-21【工作台打通·全链路】：主连接路径+(startEvents+工作台事件循环)，webusb不再重定向到bodyTest—— → 5D2 一直「读卡忙」→ 机身快门锁死。证据链：r43/r44（等待循环=GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；r45 加 0x1007 轮询后 r46-r50 全锁；r50 恢复 GetEvent 仍锁 → 证明 GetEvent 不是变量（r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举；gphoto2 等待事件从不连续枚举卡、r38 wasm 补丁会话（非远程、不枚举）→ 快门可用，同机制。r51：① waitForObject 轮询默认关闭（{poll:true} 才开）→ 等待循环回到 r44 证明可行的形态（GetEvent 排空+保活）；② 传输层中断读取器瞬时错误延时重挂（不永久停，保 0x4002 通道）；③ 页面「我已按过快门」按钮=一次性 GetObjectHandles 扫描（瞬时枚举不锁快门）；④ 连接后一次性建立扫描基线。r50 的 GetEvent 排空结论保留（防事件堆积 Busy），但其「GetEvent 是锁快门根因」判断经 r51 真机复测推翻 // r50 2026-08-21【误诊记录，已被 r51 推翻】当时判定根因=SetEventMode 后从不 GetEvent 排空→Busy 锁快门；真机 r50 复测仍锁→该理论不成立，真根因=0x1007 轮询（见 r51） // r49 // r49 2026-08-21【r48 数据点后·锁快门嫌疑隔离】r48 截图：基线 GetObjectHandles 真机成功（0x2=1/0x10001=128/0x30000=1，128 张全数出）→ 检测通道活了；但机身快门仍按不下去，且王总说「一点击连接就弹报错」= 连接成功测试面板（非报错）。对比 gphoto2 非远程(SetEventMode)会话：它从不调 GetEvent(0x9116)，我们连接时却 drainEosEvents(4) 连发 4 次——GetEvent 是远程通道命令，非远程调用有锁快门嫌疑。r49：drainEosEvents 非远程跳过（setRemoteMode 维护 _remoteMode 状态）；页面连接流非远程不再排空；首屏日志明示「非远程已跳过 GetEvent 排空」。若仍锁 → 嫌疑转移：中断端点常驻读/2s 轮询，再与 wasm 逐字节对照。测试 58/58 绿 // r48 2026-08-21【r47真机实锤后·句柄枚举】r47 截图（角标可见）：串行化修复成功——0x1004 不再挂、相机秒答 3 存储（0x2/0x10001/0x30000）；但 GetNumObjects(0x1006) 一律回 PTP 0x201d（Invalid Parameter，EOS 不实现该命令；gphoto2 canon 驱动从不调 0x1006）→ 轮询从「计数+句柄」改为纯 GetObjectHandles(0x1007) 句柄差集（与 gphoto2 同款语义），基线=句柄集、检测=差集；快门按不下去=上一会话残留锁，需整机断电（电源开关 OFF→ON）复位 // r47 2026-08-21【r46真机实锤后·串行化修复】真机 r46 日志：初始化命令全秒回（含 0x911D），但 keepAlive(0x911D) fire-and-forget 与 0x1004 GetStorageIDs 同 bulk 管道并发 transact（违反本文件 L774「勿并发」注释与 gphoto2 串行纪律）→ 0x1004 被相机丢弃 → 20s 读超时 → 管道毒化 → 24s 内会话死。r47：① transact 全局 mutex 串行化（_txRun 链，fire-and-forget 也只排队）；② _pollEnsureBaseline 存储探测短超时 3s，失败即 _storageOk=false 关轮询兜底（防反复 20s 卡死饿死事件循环，仅靠事件通道），GetNumObjects/GetObjectHandles 短超时 2.5s；③ 慢命令追踪（>800ms 打 ⏱ 诊断）；④ 非远程轮询/保活加 _storageOk 闸；⑤ 远程 GetEvent 短超时 2s；⑥ 面板加「我已按过快门」确认按钮 // r46 2026-08-21【r45真机实锤后】waitForObject 非远程模式跳过 GetEvent(0x9116)（高频 GetEvent 挂起/异常→拖死循环→r45 轮询兜底轮不到→6分钟零检测+掉线）；GetEvent 仅远程模式；轮询/保活加诊断回调（基线/心跳/命中/降级/失败进日志）；mock 加 hangGetEvent 模式回归 // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
+      usbVer: '20260822-r84',               // r54 2026-08-21【工作台打通·全链路】：主连接路径+(startEvents+工作台事件循环)，webusb不再重定向到bodyTest—— → 5D2 一直「读卡忙」→ 机身快门锁死。证据链：r43/r44（等待循环=GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；r45 加 0x1007 轮询后 r46-r50 全锁；r50 恢复 GetEvent 仍锁 → 证明 GetEvent 不是变量（r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举；gphoto2 等待事件从不连续枚举卡、r38 wasm 补丁会话（非远程、不枚举）→ 快门可用，同机制。r51：① waitForObject 轮询默认关闭（{poll:true} 才开）→ 等待循环回到 r44 证明可行的形态（GetEvent 排空+保活）；② 传输层中断读取器瞬时错误延时重挂（不永久停，保 0x4002 通道）；③ 页面「我已按过快门」按钮=一次性 GetObjectHandles 扫描（瞬时枚举不锁快门）；④ 连接后一次性建立扫描基线。r50 的 GetEvent 排空结论保留（防事件堆积 Busy），但其「GetEvent 是锁快门根因」判断经 r51 真机复测推翻 // r50 2026-08-21【误诊记录，已被 r51 推翻】当时判定根因=SetEventMode 后从不 GetEvent 排空→Busy 锁快门；真机 r50 复测仍锁→该理论不成立，真根因=0x1007 轮询（见 r51） // r49 // r49 2026-08-21【r48 数据点后·锁快门嫌疑隔离】r48 截图：基线 GetObjectHandles 真机成功（0x2=1/0x10001=128/0x30000=1，128 张全数出）→ 检测通道活了；但机身快门仍按不下去，且王总说「一点击连接就弹报错」= 连接成功测试面板（非报错）。对比 gphoto2 非远程(SetEventMode)会话：它从不调 GetEvent(0x9116)，我们连接时却 drainEosEvents(4) 连发 4 次——GetEvent 是远程通道命令，非远程调用有锁快门嫌疑。r49：drainEosEvents 非远程跳过（setRemoteMode 维护 _remoteMode 状态）；页面连接流非远程不再排空；首屏日志明示「非远程已跳过 GetEvent 排空」。若仍锁 → 嫌疑转移：中断端点常驻读/2s 轮询，再与 wasm 逐字节对照。测试 58/58 绿 // r48 2026-08-21【r47真机实锤后·句柄枚举】r47 截图（角标可见）：串行化修复成功——0x1004 不再挂、相机秒答 3 存储（0x2/0x10001/0x30000）；但 GetNumObjects(0x1006) 一律回 PTP 0x201d（Invalid Parameter，EOS 不实现该命令；gphoto2 canon 驱动从不调 0x1006）→ 轮询从「计数+句柄」改为纯 GetObjectHandles(0x1007) 句柄差集（与 gphoto2 同款语义），基线=句柄集、检测=差集；快门按不下去=上一会话残留锁，需整机断电（电源开关 OFF→ON）复位 // r47 2026-08-21【r46真机实锤后·串行化修复】真机 r46 日志：初始化命令全秒回（含 0x911D），但 keepAlive(0x911D) fire-and-forget 与 0x1004 GetStorageIDs 同 bulk 管道并发 transact（违反本文件 L774「勿并发」注释与 gphoto2 串行纪律）→ 0x1004 被相机丢弃 → 20s 读超时 → 管道毒化 → 24s 内会话死。r47：① transact 全局 mutex 串行化（_txRun 链，fire-and-forget 也只排队）；② _pollEnsureBaseline 存储探测短超时 3s，失败即 _storageOk=false 关轮询兜底（防反复 20s 卡死饿死事件循环，仅靠事件通道），GetNumObjects/GetObjectHandles 短超时 2.5s；③ 慢命令追踪（>800ms 打 ⏱ 诊断）；④ 非远程轮询/保活加 _storageOk 闸；⑤ 远程 GetEvent 短超时 2s；⑥ 面板加「我已按过快门」确认按钮 // r46 2026-08-21【r45真机实锤后】waitForObject 非远程模式跳过 GetEvent(0x9116)（高频 GetEvent 挂起/异常→拖死循环→r45 轮询兜底轮不到→6分钟零检测+掉线）；GetEvent 仅远程模式；轮询/保活加诊断回调（基线/心跳/命中/降级/失败进日志）；mock 加 hangGetEvent 模式回归 // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
