@@ -57,48 +57,88 @@
    */
   AndroidTransport.prototype._ensureBuf = function () {
     if (this._jbuf) return this._jbuf;
-    if (!(typeof plus !== 'undefined' && plus.android)) return null;
+    if (this._jbufFailed) return null; // 已判定失败：读方向无解，快速失败
+    var NA = 'java.lang.String';
+    function msg(e) { return e && e.message || String(e); }
+    // ---------- 主路：String 种子 -> getBytes 建 byte[]，4参 String 构造读回 ----------
     try {
-      var seed = new Array(16385).join('\x00'); // 16384 个 NUL 字符
-      var jstr = plus.android.newObject('java.lang.String', seed);
-      var jbuf = plus.android.invoke(jstr, 'getBytes', 'ISO-8859-1');
-      if (jbuf) {
-        this._jbuf = jbuf;
-        this.bufMode = 'java-str-getBytes';
-        if (getUsbTether) { try { getUsbTether()._lastBufMode = this.bufMode; } catch (e) {} }
-        return jbuf;
+      var probeStr = plus.android.newObject(NA, 'AB');
+      if (!probeStr) throw new Error('newObject(String)空');
+      var probeBuf = plus.android.invoke(probeStr, 'getBytes', 'ISO-8859-1');
+      if (!probeBuf) throw new Error('getBytes空');
+      var back = plus.android.newObject(NA, probeBuf, 0, 2, 'ISO-8859-1');
+      if (back === 'AB') this._readback = 'ctor4';
+      else {
+        // 回读 4参构造挂 -> BAOS 读回兜底（write(byte[],int,int)+toString(charset)，纯实例调用）
+        var bao = plus.android.newObject('java.io.ByteArrayOutputStream');
+        if (!bao) throw new Error('newObject(BAOS)空');
+        plus.android.invoke(bao, 'write', probeBuf, 0, 2);
+        var s2 = plus.android.invoke(bao, 'toString', 'ISO-8859-1');
+        if (s2 !== 'AB') throw new Error('回读自测不符 ctor4=' + JSON.stringify(String(back)).slice(0, 24) + ' baos=' + JSON.stringify(String(s2)).slice(0, 24));
+        this._readback = 'baos';
       }
-      this._jbufErr = 'getBytes 返回 null';
-    } catch (e) {
-      this._jbufErr = '' + (e && e.message || e);
+      var seed = new Array(16385).join('A'); // 'A'=0x41 填充，规避 \x00 可能被桥截断
+      var jbuf = plus.android.invoke(plus.android.newObject(NA, seed), 'getBytes', 'ISO-8859-1');
+      if (!jbuf) throw new Error('16384缓冲getBytes空');
+      this._jbuf = jbuf;
+      this.bufMode = 'str-getBytes/' + this._readback;
+      return jbuf;
+    } catch (e1) {
+      // ---------- 兜底：BAOS 全链（1字节起步指数扩容到16384，仅实例调用） ----------
+      try {
+        var baos = plus.android.newObject('java.io.ByteArrayOutputStream');
+        if (!baos) throw new Error('newObject(BAOS)空');
+        plus.android.invoke(baos, 'write', 0x41);
+        var jb = plus.android.invoke(baos, 'toByteArray');
+        if (!jb) throw new Error('toByteArray空');
+        var len = 1;
+        while (len < 16384) { // 翻倍：write(旧快照) -> 新快照，15次扩满
+          plus.android.invoke(baos, 'write', jb, 0, len);
+          jb = plus.android.invoke(baos, 'toByteArray');
+          len *= 2;
+        }
+        // 决定读回方式（ctor4 若可用更快）
+        var rb = plus.android.newObject(NA, jb, 0, 1, 'ISO-8859-1');
+        if (rb === 'A') this._readback = 'ctor4';
+        else {
+          var tb = plus.android.newObject('java.io.ByteArrayOutputStream');
+          plus.android.invoke(tb, 'write', jb, 0, 1);
+          this._readback = (plus.android.invoke(tb, 'toString', 'ISO-8859-1') === 'A') ? 'baos' : null;
+        }
+        if (!this._readback) throw new Error('BAOS读回自测不符');
+        this._jbuf = jb;
+        this.bufMode = 'baos-doubling/' + this._readback;
+        return jb;
+      } catch (e2) {
+        this._jbufFailed = true;
+        this._jbufErr = '主[' + msg(e1).slice(0, 50) + ']备[' + msg(e2).slice(0, 50) + ']';
+        this.bufMode = 'FAILED';
+        return null;
+      }
     }
-    return null; // 失败：走 JS 数组兜底（数据不回写的已知死路，仅环境探测用）
   };
 
   /**
-   * 把读回的前 n 字节转 Uint8Array（r72）：
-   * String(byte[], offset, length, charsetName) 构造器整块转换（1 次 newObject），
-   * ISO-8859-1 逐字节无损；桥把 Java String 转 JS string（getDeviceName 等已实证）。
-   * r16 时代此路径「社区验证过」但上游 byte[] 创建失败没走到；r72 上游已通。
+   * 把读回的前 n 字节转 Uint8Array（r76）：按 _ensureBuf 判定的读回方式（ctor4 主路 / BAOS 兜底），
+   * ISO-8859-1 逐字节无损。失败抛明确错误（不再静默返回 0）。
    */
   AndroidTransport.prototype._toU8 = function (n) {
-    var u8 = new Uint8Array(n);
-    if (this._jbuf) {
-      var s = plus.android.newObject('java.lang.String', this._jbuf, 0, n, 'ISO-8859-1');
-      if (typeof s === 'string' && s.length >= n) {
-        for (var i = 0; i < n; i++) u8[i] = s.charCodeAt(i) & 0xFF;
-        return u8;
-      }
-      throw new Error('byte[]->String 桥转换失败（s.length=' + (s && s.length) + ' 需 ' + n + '）');
+    var s;
+    if (this._readback === 'ctor4') {
+      s = plus.android.newObject('java.lang.String', this._jbuf, 0, n, 'ISO-8859-1');
+    } else {
+      var bao = plus.android.newObject('java.io.ByteArrayOutputStream');
+      plus.android.invoke(bao, 'write', this._jbuf, 0, n);
+      s = plus.android.invoke(bao, 'toString', 'ISO-8859-1');
     }
-    if (this._lastJsBuf) { for (var j = 0; j < n; j++) u8[j] = this._lastJsBuf[j] & 0xFF; }
+    if (typeof s !== 'string' || s.length < n) {
+      throw new Error('byte[]读回失败[' + this._readback + '] len=' + (s && s.length) + '/' + n);
+    }
+    var u8 = new Uint8Array(n);
+    for (var i = 0; i < n; i++) u8[i] = s.charCodeAt(i) & 0xFF;
     return u8;
   };
 
-  /**
-   * clear halt：CLEAR_FEATURE(ENDPOINT_HALT)（gphoto2 gp_port_usb_clear_halt 同法）。
-   * 端点地址用真实端点（2026-08-16 修正：之前硬编码 0x81，换相机/固件会错）。
-   */
   AndroidTransport.prototype._clearHalt = function (epAddr) {
     if (!epAddr) return;
     try {
@@ -182,20 +222,18 @@
         self._growReadSize();
         resolve(self._readBytes(n));
       } catch (e) { reject(new Error('[bulkIn] ' + (e && e.message || e) +
+        ' [buf=' + self.bufMode + (self._jbufErr ? ' err=' + self._jbufErr.slice(0, 60) : '') + ']' +
         (e && e.stack ? ' | ' + String(e.stack).split('\n').slice(0, 3).join(' | ') : ''))); }
     });
   };
 
-  /** 单次 bulkTransfer(in)（r72：共享 Java byte[]，size 参数自适应；无 Java buffer 走 JS 兜底） */
+  /** 单次 bulkTransfer(in)（r75：必须 Java byte[]；JS 数组读方向不回写是实锤死路，直接报错） */
   AndroidTransport.prototype._readOnce = function (ep, size, timeout) {
     var jbuf = this._ensureBuf();
-    if (jbuf) {
-      return plus.android.invoke(this.connection, 'bulkTransfer', ep, jbuf, size, timeout);
+    if (!jbuf) {
+      throw new Error('读缓冲不可用(byte[]桥失败): ' + this._jbufErr);
     }
-    var js = new Array(size);
-    for (var i = 0; i < size; i++) js[i] = 0;
-    this._lastJsBuf = js;
-    return plus.android.invoke(this.connection, 'bulkTransfer', ep, js, size, timeout);
+    return plus.android.invoke(this.connection, 'bulkTransfer', ep, jbuf, size, timeout);
   };
 
   /** 把最后一次读取的数据转 Uint8Array */
@@ -563,7 +601,7 @@
     isSupported: isSupported,
     get: getUsbTether,
     probeByteArray: probeByteArray,
-    version: 'r74', // 页面用它显示库版本（旧缓存无此标记）（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
+    version: 'r76', // 页面用它显示库版本（旧缓存无此标记 -> 显示"旧版"，一眼看出缓存/未部署）
     /** r17：最近一次传输实际用的 buffer 形态（连接失败后也能读，单例级） */
     lastBufMode: function () { return singleton ? singleton._lastBufMode : '未连接'; }
   };
