@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
@@ -47,6 +46,11 @@ object UsbCamera {
     private const val MAX_CHUNK = 1 shl 20 // 1MB 单次读上限（协议层 bulkInCap 指定）
     private const val MAX_SINGLE = 1 shl 14 // 16384：Android bulkTransfer 单次调用上限（超出会失败/截断，必须分片循环）
     private const val INTR_QUEUE_MAX = 64  // 中断队列上限（Native.js 轮询消费，防爆内存）
+    // USB 端点类型/方向（与 android.hardware.usb.UsbConstants 同值；本地常量
+    // 规避云编译管线对 UsbConstants 常量引用的解析问题）
+    private const val XFER_BULK = 2
+    private const val XFER_INTERRUPT = 3
+    private const val DIR_IN = 0x80
 
     private val exec = Executors.newSingleThreadExecutor()
     private val intrQueue = ConcurrentLinkedQueue<String>()
@@ -88,13 +92,16 @@ object UsbCamera {
         s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", " ")
 
     // ---------- 连接 ----------
-    class IfaceInfo(val itf: UsbInterface, val idx: Int, val epIn: UsbEndpoint?, val epOut: UsbEndpoint?, val epIntr: UsbEndpoint?)
+    class IfaceInfo(
+        val itf: UsbInterface, val idx: Int,
+        val epIn: UsbEndpoint?, val epOut: UsbEndpoint?, val epIntr: UsbEndpoint?
+    )
 
     /** 回调式（UTS 桥用）：连接在 exec 线程执行 */
-    @JvmStatic fun connect(ctx: Context, deviceId: String, ifaceIdx: Int, cb: (String) -> Unit) {
+    @JvmStatic fun connect(ctx: Context, deviceId: String, ifaceIdx: Number, cb: (String) -> Unit) {
         exec.execute {
             try {
-                cb(doConnect(ctx, deviceId, ifaceIdx))
+                cb(doConnect(ctx, deviceId, ifaceIdx.toInt()))
             } catch (e: Exception) {
                 lastErr = "" + e
                 cb("{\"ok\":false,\"message\":\"" + jsonEsc("" + e) + "\"}")
@@ -147,20 +154,26 @@ object UsbCamera {
             conn.close()
             return fail("未找到可用 PTP 接口（bulk IN/OUT 端点缺失）")
         }
-        candidatesJson = "[" + cand.map { c ->
-            "{\"iface\":" + c.idx + ",\"cls\":" + c.itf.interfaceClass +
-                ",\"epIn\":" + (c.epIn?.address ?: -1) +
-                ",\"epOut\":" + (c.epOut?.address ?: -1) +
-                ",\"epIntr\":" + (c.epIntr?.address ?: -1) + "}"
-        }.joinToString(",") + "]"
+        val cjs = StringBuilder("[")
+        for ((k, c) in cand.withIndex()) {
+            if (k > 0) cjs.append(',')
+            cjs.append("{\"iface\":").append(c.idx)
+            cjs.append(",\"cls\":").append(c.itf.interfaceClass)
+            cjs.append(",\"epIn\":").append(c.epIn?.address ?: -1)
+            cjs.append(",\"epOut\":").append(c.epOut?.address ?: -1)
+            cjs.append(",\"epIntr\":").append(c.epIntr?.address ?: -1)
+            cjs.append('}')
+        }
+        candidatesJson = cjs.append(']').toString()
 
         val idx = if (ifaceIdx in cand.indices) ifaceIdx else 0
         val tgt = cand[idx]
 
         // 配置激活保险（r79）：部分机型/线序下系统未自动 setConfiguration，
-        // 未激活配置时 bulk 传输必失败（plus 时代 cfg? 悬案的正解在原生层做）
+        // 未激活配置时 bulk 传输必失败。UsbDevice 没有"当前配置"查询 API，
+        // 统一按 configurationCount>0 幂等激活一次（已激活时为无害空操作）
         try {
-            if (dev.configuration == null && dev.configurationCount > 0) {
+            if (dev.configurationCount > 0) {
                 conn.setConfiguration(dev.getConfiguration(0))
             }
         } catch (e: Exception) { /* 已配置/机型自动配置：忽略 */ }
@@ -180,7 +193,10 @@ object UsbCamera {
         epIntr = tgt.epIntr
         lastErr = ""
         startInterruptLoop()
-        return "{\"ok\":true,\"message\":\"connected\",\"iface\":" + tgt.idx + ",\"candidates\":" + candidatesJson + "}"
+        val rsb = StringBuilder("{\"ok\":true,\"message\":\"connected\"")
+        rsb.append(",\"iface\":").append(tgt.idx)
+        rsb.append(",\"candidates\":").append(candidatesJson)
+        return rsb.append('}').toString()
     }
 
     private fun fail(msg: String): String {
@@ -239,12 +255,12 @@ object UsbCamera {
             for (j in 0 until itf.endpointCount) {
                 val ep = itf.getEndpoint(j)
                 when (ep.type) {
-                    UsbConstants.USB_ENDPOINT_XFER_BULK -> {
-                        if (ep.direction == UsbConstants.USB_DIR_IN) { if (epIn == null) epIn = ep }
+                    XFER_BULK -> {
+                        if (ep.direction == DIR_IN) { if (epIn == null) epIn = ep }
                         else { if (epOut == null) epOut = ep }
                     }
-                    UsbConstants.USB_ENDPOINT_XFER_INTERRUPT -> {
-                        if (ep.direction == UsbConstants.USB_DIR_IN && epIntr == null) epIntr = ep
+                    XFER_INTERRUPT -> {
+                        if (ep.direction == DIR_IN && epIntr == null) epIntr = ep
                     }
                 }
             }
@@ -257,8 +273,8 @@ object UsbCamera {
     // ---------- bulk 读写（STALL -> clearHalt -> 重试一次，对齐 browser 版语义） ----------
 
     /** 回调式（UTS 桥用） */
-    @JvmStatic fun bulkOut(dataB64: String, timeoutMs: Int, cb: (Int) -> Unit) {
-        exec.execute { cb(doBulkOut(dataB64, timeoutMs)) }
+    @JvmStatic fun bulkOut(dataB64: String, timeoutMs: Number, cb: (Number) -> Unit) {
+        exec.execute { cb(doBulkOut(dataB64, timeoutMs.toInt())) }
     }
 
     /** 同步式（Native.js 直连用）：调用线程执行（web-view JS 线程） */
@@ -290,8 +306,8 @@ object UsbCamera {
     }
 
     /** 回调式（UTS 桥用） */
-    @JvmStatic fun bulkIn(maxLen: Int, timeoutMs: Int, cb: (String) -> Unit) {
-        exec.execute { cb(doBulkIn(maxLen, timeoutMs)) }
+    @JvmStatic fun bulkIn(maxLen: Number, timeoutMs: Number, cb: (String) -> Unit) {
+        exec.execute { cb(doBulkIn(maxLen.toInt(), timeoutMs.toInt())) }
     }
 
     /** 同步式（Native.js 直连用）：调用线程执行，返回 base64（空串 = 超时/无数据，短包语义） */
@@ -428,6 +444,11 @@ object UsbCamera {
 
     @JvmStatic fun isConnected(): Boolean = connection != null
 
-    @JvmStatic fun diag(): String =
-        "{\"connected\":" + (connection != null) +
-            ",\"err\":\"" + jsonEsc(lastErr) + "\",\"candidates\":" + candidatesJson + "}"
+    @JvmStatic fun diag(): String {
+        val sb = StringBuilder()
+        sb.append("{\"connected\":").append(connection != null)
+        sb.append(",\"err\":\"").append(jsonEsc(lastErr)).append('"')
+        sb.append(",\"candidates\":").append(candidatesJson)
+        return sb.append('}').toString()
+    }
+}
