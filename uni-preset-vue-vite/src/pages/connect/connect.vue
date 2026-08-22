@@ -56,6 +56,8 @@ export default {
       for (let i = 1; i <= 8; i++) {
         setTimeout(() => {
           this.evalWeb("window.__plSetAppMode && window.__plSetAppMode(true)")
+          // r70：USB 桥安装通知（页面 bridge-transport.js 的 uni 桥注入晚时由这里兜底触发安装）
+          this.evalWeb("window.__usbAppBridgeReady && window.__usbAppBridgeReady()")
         }, i * 500)
       }
     },
