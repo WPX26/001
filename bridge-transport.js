@@ -160,22 +160,59 @@
     if (!probePromise) {
       probePromise = rpc('scan', {}, RPC_TIMEOUT).then(function (s) {
         bridgeState = 'ok';
+        if (global.UsbTether) global.UsbTether.utsMode = true; // r80：成功明确保持
+        fireInstalled();
         return parseDevices(s);
       }, function (e) {
         bridgeState = 'missing';
-        if (global.UsbTether) global.UsbTether.utsMode = false;
+        // r80【根因修复】：失败不再永久禁用 utsMode——保留乐观置位，下次 scan/install
+        // 触发全新重试。此前"首次探测失败→utsMode=false→页面静默退回 plus 旧桥(IN 方向
+        // 已被 r78 真机证死，读到缓冲残留 0x41414141)"是本次"一模一样报错"的直接原因。
+        probePromise = null; // 失败后允许重试
         throw e;
       });
     }
     return probePromise;
   }
 
+  // r80：桥激活事件（页面 usbtether-installed 监听 → 弹层开着时自动重扫 + 刷新诊断行）
+  function fireInstalled() {
+    try {
+      var ev = (typeof Event === 'function') ? new Event('usbtether-installed')
+        : (function () { var e = document.createEvent('Event'); e.initEvent('usbtether-installed', false, false); return e; })();
+      global.dispatchEvent(ev);
+    } catch (e) {}
+  }
+
+  // r80：桥诊断（页面底部/错误提示用，一眼看出哪一环断了）
+  function bridgeDiag() {
+    return {
+      bridgeEnv: bridgeEnv(),
+      plus: typeof plus !== 'undefined',
+      plusAndroid: !!(typeof plus !== 'undefined' && plus.android),
+      uni: !!global.uni,
+      uniPostMessage: !!(global.uni && global.uni.postMessage),
+      weexPost: typeof (global.__dcloud_weex_postMessage) !== 'undefined',
+      weex: typeof (global.__dcloud_weex_) !== 'undefined',
+      uaHtml5: /Html5Plus/i.test(navigator.userAgent),
+      utsMode: !!(global.UsbTether && global.UsbTether.utsMode),
+      bridgeState: bridgeState,
+      rpcPending: Object.keys(rpcPending).length
+    };
+  }
+
   // ---------- 门面：包装 UsbTether.get() ----------
   function makeFacade(inner) {
     return {
       __facade: true,
+      diag: bridgeDiag,
       scan: function () {
         if (!bridgeEnv()) {
+          // r80：App 内（plus 存在）但 uni 桥缺失——plus 旧桥 IN 方向已被真机证死，
+          // 直接给明确错误而非静默走死路；浏览器（无 plus）WebUSB 委托不变。
+          if (typeof plus !== 'undefined') {
+            return Promise.reject(new Error('App 内 uni 桥不可用（window.uni 或 uni.postMessage 缺失）——请彻底退出 App 重开，若仍如此请把 USB 弹层底部环境诊断发给我'));
+          }
           return inner.scan ? inner.scan() : Promise.resolve(inner.listDevices());
         }
         return probe(); // 失败（旧 APK 无插件）→ 页面已有「USB桥超时→升级APK」提示文案
@@ -211,22 +248,47 @@
   }
 
   function install() {
-    if (!global.UsbTether || global.UsbTether.__r79facade) return;
-    var origGet = global.UsbTether.get;
-    var facade = null;
-    global.UsbTether.get = function () {
-      if (facade) return facade;
-      facade = makeFacade(origGet());
-      return facade;
-    };
-    global.UsbTether.__r79facade = true;
+    if (!global.UsbTether) {
+      // r80：usb-transport.js 尚未就绪（极少见），短轮询等待后重装
+      if (!global.__usbInstallT) {
+        global.__usbInstallT = setInterval(function () {
+          if (global.UsbTether) {
+            clearInterval(global.__usbInstallT);
+            global.__usbInstallT = null;
+            install();
+          }
+        }, 250);
+      }
+      return;
+    }
+    if (!global.UsbTether.__r79facade) {
+      var origGet = global.UsbTether.get;
+      var facade = null;
+      global.UsbTether.get = function () {
+        if (facade) return facade;
+        facade = makeFacade(origGet());
+        return facade;
+      };
+      global.UsbTether.__r79facade = true;
+      if (!global.UsbTether.bridgeDiag) global.UsbTether.bridgeDiag = bridgeDiag;
+    }
+    // r80【根因修复】：幂等重装。connect.vue 每 500ms evalJS __usbAppBridgeReady() 触发本函数；
+    // uni/plus 注入晚时，这里反复评估，一旦就绪即置位 utsMode 并启动探测——
+    // 杜绝「脚本加载瞬间 plus/uni 未就绪 → utsMode 永不置位 → 页面静默走死路旧桥」的根因。
     if (bridgeEnv()) {
-      // 乐观置位（页面检测分支选择 scan 路径的依据）；探测失败自动回落
-      global.UsbTether.utsMode = true;
-      probe().catch(function () {});
+      if (!global.UsbTether.utsMode) {
+        global.UsbTether.utsMode = true;
+      }
+      if (bridgeState !== 'ok') {
+        probe().catch(function () {});
+      }
     }
   }
 
   install();
-  try { console.log('[usb-bridge] r79：UTS 原生桥门面已安装（bridgeEnv=' + bridgeEnv() + '）'); } catch (e) {}
+  // connect.vue 兜底触发点（forceAppMode：8 次 × 500ms evalJS）——实现 r70 预留的钩子
+  global.__usbAppBridgeReady = function () { try { install(); } catch (e) {} };
+  try {
+    console.log('[usb-bridge] r80：UTS 原生桥门面已安装（env=' + JSON.stringify(bridgeDiag()) + '）');
+  } catch (e) {}
 })();
