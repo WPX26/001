@@ -291,7 +291,10 @@
       // 旧实现把 3s 小预算当传输层超时——5D2 慢响应/瞬时故障时一次超时即毒化管道，必败。
       var remain = deadline - Date.now();
       if (remain <= 0) return Promise.reject(PtpTimeoutError('等待 PTP 包超时'));
-      return self.transport.bulkIn(16384, remain).then(function (chunk) {
+      // r69：读块上限可由 transport 声明（bulkInCap，UTS 原生桥 1MB 大块读减少桥往返；
+      // WebUSB 版不声明，保持 16384 原行为不变）
+      var cap = (self.transport && self.transport.bulkInCap) || 16384;
+      return self.transport.bulkIn(cap, remain).then(function (chunk) {
         if (chunk && chunk.length) self._append(chunk);
         // 空读（ZLP 遗留）不算错误，继续 pump；超时由 pump 顶部检查兜底
         return pump();

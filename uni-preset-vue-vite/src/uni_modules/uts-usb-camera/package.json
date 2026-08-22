@@ -1,0 +1,15 @@
+{
+  "id": "uts-usb-camera",
+  "displayName": "相机USB直连（Android USB Host PTP传输）",
+  "version": "0.1.0",
+  "description": "相机互联App直连相机：USB Host bulk/interrupt传输，接口与browser-usb-transport.js同构，协议栈camera-ptp.js零改动",
+  "keywords": [
+    "usb",
+    "ptp",
+    "camera",
+    "usbhost"
+  ],
+  "uni_modules": {
+    "dependencies": []
+  }
+}

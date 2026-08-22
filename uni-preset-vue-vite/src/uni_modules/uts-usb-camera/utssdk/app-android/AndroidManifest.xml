@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- USB Host 能力声明（required=false：无 OTG 的设备仍可安装 App 其他功能不受影响）。
+         USB 权限不是 manifest 权限组，无需 uses-permission，运行时 UsbManager.requestPermission 弹框。 -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+
+</manifest>

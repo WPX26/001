@@ -7,12 +7,17 @@
 <script>
 import memoApi from '../../utils/memoApi'
 import { CONNECT_URL } from '../../utils/config'
+import webviewBack from '../../utils/webview-back'
 // 屏控 UTS 插件（Android）：MediaProjection 录屏 + 无障碍手势注入
 // 桥：web-view 页面 ⇄ uni.postMessage / evalJS ⇄ 本层 ⇄ UTS 插件 ⇄ Android
 import * as ScreenControl from '@/uni_modules/uts-screencontrol'
+// 相机USB直连 UTS 插件（Android）：USB Host bulk/interrupt 传输（协议栈在 web 页 camera-ptp.js）
+// 桥：web-view 页面(bridge-transport.js) ⇄ uni.postMessage/evalJS ⇄ 本层 ⇄ UTS ⇄ Android USB
+import * as UtsUsb from '@/uni_modules/uts-usb-camera'
 
 // 联机页：1:1 嵌入原型 connect-prototype.html（手机互联 + 屏控）
 export default {
+  mixins: [webviewBack],
   data() {
     return {
       webSrc: '',
@@ -35,6 +40,8 @@ export default {
   },
   onUnload() {
     this.stopScreen()
+    // 释放 USB 直连（相机 CloseSession 由 web 页协议层负责，这里兜底关原生连接）
+    try { UtsUsb.release() } catch (e) {}
   },
 
   methods: {
@@ -222,6 +229,59 @@ export default {
       } else if (msg.type === 'pl_camera_photo') {
         // web 层请求系统相机拍照（getUserMedia 不可用时的兜底）
         this.takeCameraPhoto()
+      } else if (msg.type === 'usb') {
+        // web 层 USB 桥命令（bridge-transport.js 的 rpc）: {id, op, args}
+        this.handleUsb(msg)
+      }
+    },
+
+    // ---------- USB 桥：web-view(bridge-transport.js) -> UTS(uts-usb-camera) ----------
+    // 命令按 msgId 关联，结果 evalJS 回推 window.__usbBridge.__resolve({id,ok,result})；
+    // 中断事件由 App 侧常驻回调 evalJS 主动推 __usbBridge.__interrupt(base64)。
+    handleUsb(msg) {
+      const self = this
+      const d = msg && msg.args ? msg.args : {}
+      const id = msg.id
+      const reply = (ok, result) => {
+        let payload
+        try {
+          payload = JSON.stringify({ id: id, ok: !!ok, result: result === undefined ? null : result })
+        } catch (e) {
+          payload = JSON.stringify({ id: id, ok: false, result: { message: '结果序列化失败' } })
+        }
+        this.evalWeb("window.__usbBridge && window.__usbBridge.__resolve(" + payload + ")")
+      }
+      try {
+        if (msg.op === 'scan') {
+          UtsUsb.listDevices().then((s) => reply(true, s)).catch((e) => reply(false, { message: String(e) }))
+        } else if (msg.op === 'connect') {
+          UtsUsb.connect(d.deviceId || '', d.iface || 0).then((s) => {
+            // 连接成功：挂中断回调（相机 ObjectAdded 0x4002 事件 -> 页面协议层）
+            if (s && s.indexOf('"ok":true') >= 0) {
+              UtsUsb.setInterruptHandler((b64) => {
+                self.evalWeb("window.__usbBridge && window.__usbBridge.__interrupt('" + b64 + "')")
+              })
+            }
+            reply(true, s)
+          }).catch((e) => reply(false, { message: String(e) }))
+        } else if (msg.op === 'out') {
+          UtsUsb.bulkOut(d.data || '', d.timeout || 4000)
+            .then((n) => reply(true, n)).catch((e) => reply(false, { message: String(e) }))
+        } else if (msg.op === 'in') {
+          UtsUsb.bulkIn(d.maxLen || 16384, d.timeout || 20000)
+            .then((s) => reply(true, s)).catch((e) => reply(false, { message: String(e) }))
+        } else if (msg.op === 'clear') {
+          UtsUsb.clearPipe().then((b) => reply(true, b)).catch((e) => reply(false, { message: String(e) }))
+        } else if (msg.op === 'release') {
+          UtsUsb.release()
+          reply(true, true)
+        } else if (msg.op === 'diag') {
+          reply(true, UtsUsb.diag())
+        } else {
+          reply(false, { message: '未知 op: ' + msg.op })
+        }
+      } catch (e) {
+        reply(false, { message: String(e) })
       }
     },
   },

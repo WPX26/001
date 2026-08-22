@@ -1,0 +1,105 @@
+import { UTSAndroid } from "io.dcloud.uts"
+import { UsbCamera } from 'io.dcloud.uni_modules.uts_usbcamera'
+
+/**
+ * 相机互联「UTS USB 传输层」插件（仅 Android）。
+ *
+ * 真正的 USB 逻辑在混编 Kotlin 对象 UsbCamera（包 io.dcloud.uni_modules.uts_usbcamera），
+ * 本文件只做类型化包装。接口与 browser-usb-transport.js 同构：
+ * 二进制一律走 base64 字符串，由 connect.vue 桥接到 web-view 页面（bridge-transport.js）。
+ * 协议栈 camera-ptp.js 零改动（仅新增 bulkInCap 大块读支持）。
+ */
+
+/** 设备枚举，返回 JSON 字符串：[{"vid":1225,"pid":1024,"name":"...","serial":"","hasPerm":false}] */
+export function listDevices(): Promise<string> {
+	return new Promise<string>((resolve) => {
+		const activity = UTSAndroid.getUniActivity()
+		if (activity != null) {
+			resolve(UsbCamera.listDevices(activity))
+			return
+		}
+		const app = UTSAndroid.getAppContext()
+		if (app != null) {
+			resolve(UsbCamera.listDevices(app))
+			return
+		}
+		resolve("[]")
+	})
+}
+
+/**
+ * 连接相机（USB 权限弹框 -> openDevice -> claim PTP 接口 -> 启动中断读循环）。
+ * @param deviceId "uts:vid:pid:serial" 格式（bridge-transport.js 生成）
+ * @param ifaceIdx 候选接口下标（0=自动选 class6 优先；换接口重试用）
+ * @returns JSON：{"ok":true,"message":"connected","iface":0,"candidates":[...]} 或 {"ok":false,"message":"原因"}
+ */
+export function connect(deviceId: string, ifaceIdx: number): Promise<string> {
+	return new Promise<string>((resolve) => {
+		const activity = UTSAndroid.getUniActivity()
+		if (activity != null) {
+			UsbCamera.connect(activity, deviceId, ifaceIdx, (res: string) => {
+				resolve(res)
+			})
+			return
+		}
+		const app = UTSAndroid.getAppContext()
+		if (app != null) {
+			UsbCamera.connect(app, deviceId, ifaceIdx, (res: string) => {
+				resolve(res)
+			})
+			return
+		}
+		resolve("{\"ok\":false,\"message\":\"无法获取 Activity/Context\"}")
+	})
+}
+
+/** 写 USB OUT（base64 数据），返回写入字节数（-1 = 失败） */
+export function bulkOut(dataB64: string, timeoutMs: number): Promise<number> {
+	return new Promise<number>((resolve) => {
+		UsbCamera.bulkOut(dataB64, timeoutMs, (n: number) => {
+			resolve(n)
+		})
+	})
+}
+
+/** 读 USB IN（至多 maxLen 字节），返回 base64（空串 = 超时未读到；短包语义） */
+export function bulkIn(maxLen: number, timeoutMs: number): Promise<string> {
+	return new Promise<string>((resolve) => {
+		UsbCamera.bulkIn(maxLen, timeoutMs, (s: string) => {
+			resolve(s)
+		})
+	})
+}
+
+/** 清 IN/OUT 端点 halt（连接前端点卫生，r28） */
+export function clearPipe(): Promise<boolean> {
+	return new Promise<boolean>((resolve) => {
+		UsbCamera.clearPipe((b: boolean) => {
+			resolve(b)
+		})
+	})
+}
+
+/** 释放连接（停中断线程 + releaseInterface + close，fire-and-forget） */
+export function release(): void {
+	UsbCamera.release()
+}
+
+/** 当前是否已连接 */
+export function isConnected(): boolean {
+	return UsbCamera.isConnected()
+}
+
+/** 诊断信息（JSON 字符串：connected/err/candidates） */
+export function diag(): string {
+	return UsbCamera.diag()
+}
+
+/**
+ * 注册中断端点数据回调（相机 ObjectAdded 0x4002 事件）。
+ * 回调在中断读线程执行，vue 层内直接 evalJS 推给 web-view 页面
+ * window.__usbBridge.__interrupt(base64)。
+ */
+export function setInterruptHandler(cb: (b64: string) => void): void {
+	UsbCamera.setInterruptHandler(cb)
+}
