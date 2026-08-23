@@ -966,7 +966,7 @@
   }
   .pair-host-cam-status b { color: #4CAF50; font-weight: 600; }
   .pair-host-cam-status.err { color: #F0A040; }
-/* ===== r91 相机 UI：Dazz 复古胶片机（大取景 + 右侧竖排控制列 + 左缘拨盘 + 底部机身名/相机库抽屉；互联全保留） ===== */
+/* ===== r92 相机 UI：Dazz 复古胶片机 + 焦距叠加 + 曝光滑杆 + 预览抽屉 + 视频录制（大取景 + 右侧竖排控制列 + 左缘拨盘 + 底部机身名/相机库抽屉；互联全保留） ===== */
 .cam-viewfinder {
   position: absolute;
   inset: 0;
@@ -1170,6 +1170,106 @@
 .dazz-dial .dazz-focal { font-size: 13rem; }
 .dazz-dial.on { color: #FFC860; border-color: rgba(255,200,96,0.55); background: rgba(255,200,96,0.2); }
 .dazz-dial.on b { color: #FFC860; }
+
+
+/* r92 焦距叠加层（Dazz 参考图：50mm 大字在取景器中央） */
+.dazz-focal-overlay {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5;
+  font-size: 52rem; font-weight: 300; color: rgba(255,255,255,0.72);
+  letter-spacing: -1rem; pointer-events: none;
+  text-shadow: 0 2rem 8rem rgba(0,0,0,0.5);
+  transition: opacity 0.35s, transform 0.25s;
+  opacity: 0;
+}
+.dazz-focal-overlay.show { opacity: 1; }
+
+/* r92 曝光滑杆（Dazz 参考图：左侧 -3…+3 竖条） */
+.dazz-ev-slider {
+  display: flex; flex-direction: column; align-items: center; gap: 4rem;
+  width: 44rem;
+}
+.dazz-ev-track {
+  position: relative;
+  width: 5rem; height: 180rem;
+  background: rgba(255,255,255,0.12);
+  border-radius: 999rem;
+  cursor: pointer;
+  touch-action: none;
+}
+.dazz-ev-fill {
+  position: absolute; left: 0; right: 0;
+  background: rgba(255,200,96,0.45);
+  border-radius: 999rem;
+  transition: height 0.06s linear, bottom 0.06s linear;
+  pointer-events: none;
+}
+.dazz-ev-thumb {
+  position: absolute; left: 50%; transform: translate(-50%, 50%);
+  width: 18rem; height: 18rem; border-radius: 50%;
+  background: #fff; border: 2rem solid rgba(0,0,0,0.3);
+  box-shadow: 0 2rem 8rem rgba(0,0,0,0.35);
+  cursor: grab; touch-action: none; z-index: 2;
+  transition: box-shadow 0.12s;
+}
+.dazz-ev-thumb:active { cursor: grabbing; box-shadow: 0 2rem 14rem rgba(0,0,0,0.5); }
+.dazz-ev-ticks {
+  display: flex; flex-direction: column; justify-content: space-between;
+  position: absolute; right: -22rem; top: 0; bottom: 0;
+  font-size: 8rem; color: rgba(255,255,255,0.55);
+  pointer-events: none;
+}
+.dazz-ev-ticks span { line-height: 1; }
+.dazz-ev-val {
+  font-size: 10rem; font-weight: 700; color: #FFC860;
+  text-align: center; line-height: 1;
+}
+
+/* r92 预览抽屉（Dazz 参考图：底部"长按预览上一张"） */
+.dazz-preview-drawer {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 8;
+  height: 52rem;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  display: flex; align-items: center; justify-content: center; gap: 10rem;
+  border-top: 1rem solid rgba(255,255,255,0.08);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  transform: translateY(100%);
+}
+.dazz-preview-drawer.show { transform: translateY(0); }
+.dazz-preview-thumb {
+  width: 36rem; height: 36rem; border-radius: 6rem;
+  object-fit: cover; border: 1rem solid rgba(255,255,255,0.2);
+  background: #1a1a1a;
+}
+.dazz-preview-label {
+  font-size: 11rem; color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+}
+.dazz-preview-popup {
+  position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.dazz-preview-popup.show { opacity: 1; pointer-events: auto; }
+.dazz-preview-popup img {
+  max-width: 90%; max-height: 80%; border-radius: 8rem;
+  box-shadow: 0 8rem 40rem rgba(0,0,0,0.6);
+}
+
+/* r92 视频录制指示 */
+.cam-shutter.recording .cam-shutter-inner {
+  width: 28rem; height: 28rem; border-radius: 4rem; background: #ff3b30;
+}
+.cam-shutter.recording { box-shadow: 0 0 0 5rem rgba(255,59,48,0.35); }
+.dazz-rec-timer {
+  position: absolute; top: 16rem; left: 50%; transform: translateX(-50%); z-index: 7;
+  font-size: 13rem; font-weight: 700; color: #ff3b30;
+  background: rgba(0,0,0,0.5); border-radius: 999rem; padding: 4rem 12rem;
+  display: none; align-items: center; gap: 6rem;
+}
+.dazz-rec-timer.on { display: flex; }
+.dazz-rec-dot { width: 8rem; height: 8rem; border-radius: 50%; background: #ff3b30; animation: recPulse 1s infinite; }
+@keyframes recPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* 右侧控制列（Dazz：相机库/翻转/闪光/定时/双重曝光/快门/导入/相册） */
 .dazz-col {
@@ -1893,7 +1993,7 @@
                   <div class="fx-grain"></div>
                   <div class="fx-vig"></div>
                 </div>
-                <!-- r91 Dazz 日期时间戳（拍摄时同步烙入成片） -->
+                <!-- r92 Dazz 日期时间戳（拍摄时同步烙入成片） -->
                 <div class="dazz-stamp" id="plStamp">'26 08 22</div>
                 <div class="cam-grid" id="plGrid"></div>
                 <div class="cam-focus-ring" id="plFocusRing"></div>
@@ -1912,10 +2012,14 @@
                 </div>
                 <!-- 左缘拨盘列（Dazz：曝光/色温/焦距/夜景） -->
                 <div class="dazz-dials" id="plDials" style="display:none">
-                  <button class="dazz-dial" id="plEvDial" type="button" title="曝光补偿">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.9" y1="4.9" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.1" y2="19.1"/><line x1="4.9" y1="19.1" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.1" y2="4.9"/></svg>
-                    <b class="cam-ev-badge" id="plEvBadge" style="display:none">EV 0.0</b>
-                  </button>
+                  <div class="dazz-ev-slider" id="plEvDial">
+                    <div class="dazz-ev-val" id="plEvBadge">0.0</div>
+                    <div class="dazz-ev-track" id="plEvTrack">
+                      <div class="dazz-ev-fill" id="plEvFill"></div>
+                      <div class="dazz-ev-thumb" id="plEvThumb"></div>
+                      <div class="dazz-ev-ticks"><span>+1.5</span><span>+1.0</span><span>+0.5</span><span>0</span><span>-0.5</span><span>-1.0</span><span>-1.5</span></div>
+                    </div>
+                  </div>
                   <button class="dazz-dial" id="plWbDial" type="button" title="色温 A/暖/冷">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
                     <b id="plWbLbl">A</b>
@@ -1954,6 +2058,7 @@
                     <span class="cam-shutter-inner"></span>
                     <span class="cam-shutter-rec" id="plShutterRec"></span>
                   </button>
+                  <div class="dazz-rec-timer" id="plRecTimer"><span class="dazz-rec-dot"></span><span id="plRecTime">00:00</span></div>
                   <button class="dazz-cbtn" id="plImportBtn" type="button" title="导入照片按当前机身冲洗">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                   </button>
@@ -2036,6 +2141,14 @@
                 <!-- 轻提示 -->
                 <div class="cam-toast" id="plCamToast"></div>
               </div>
+                <!-- r92 Dazz 焦距叠加层（取景器中央 mm 数） -->
+                <div class="dazz-focal-overlay" id="plFocalOverlay">35</div>
+                <!-- r92 Dazz 预览抽屉（长按预览上一张） -->
+                <div class="dazz-preview-drawer" id="plPreviewDrawer">
+                  <img class="dazz-preview-thumb" id="plPreviewThumb" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Preview">
+                  <span class="dazz-preview-label">长按此处预览上一张照片</span>
+                </div>
+                <div class="dazz-preview-popup" id="plPreviewPopup"><img id="plPreviewPopupImg" src="" alt="Preview"></div>
               <button class="pair-btn ghost pl-screen-btn" id="plScreenBtn">屏幕共享</button>
               <div class="pl-screen-status" id="plScreenStatus" style="display:none"></div>
             </div>
@@ -2112,7 +2225,7 @@
         <div class="pair-input-mask" id="usbCamMask">
           <div class="pair-input-card">
             <div class="pair-input-title">USB 连接相机</div>
-            <div style="font-size:10px;color:rgba(245,223,192,0.45);margin-top:-3px;margin-bottom:6px;text-align:center;" id="usbLibVer">联机传输 页r91 · 库检测中…</div>
+            <div style="font-size:10px;color:rgba(245,223,192,0.45);margin-top:-3px;margin-bottom:6px;text-align:center;" id="usbLibVer">联机传输 页r92 · 库检测中…</div>
             <div style="font-size:9px;color:rgba(245,223,192,0.3);margin:-6px 0 6px;text-align:center;font-family:monospace;word-break:break-all;" id="usbBridgeDiag"></div>
             <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机</div>
             <div class="usb-cam-list" id="usbCamList"></div>
@@ -2181,7 +2294,7 @@
 <!-- r18：WebUSB 传输层（Chrome/Edge 桌面 + Android Chrome 直连；App web-view 内自动不生效，仍走 plus 版） -->
 <script src="browser-usb-transport.js?v=20260821-r79"></script>
   <!-- r69：UTS 原生 USB 桥（App web-view 内覆盖 UsbTether 走原生 USB Host；非 App 环境自动不生效，WebUSB 版继续用） -->
-  <script src="bridge-transport.js?v=20260822-r91"></script>
+  <script src="bridge-transport.js?v=20260822-r92"></script>
 
 <script>
   var db = new Dexie('memoPhotos');
@@ -2893,7 +3006,7 @@
     var plGridOn = false;
     // =====================================================================
 
-    // r91 相机 UI：Dazz 复古胶片机——三区布局(大取景+右侧竖排控制列+左缘拨盘)+机身即滤镜(8机身)+双重曝光+导入冲洗+时间戳（互联全保留）
+    // r92 相机 UI：Dazz 复古胶片机 + 焦距叠加 + 曝光滑杆 + 预览抽屉 + 视频录制——三区布局(大取景+右侧竖排控制列+左缘拨盘)+机身即滤镜(8机身)+双重曝光+导入冲洗+时间戳（互联全保留）
     // 变焦=纯前端数码变焦（CSS transform + canvas 中心裁剪，不依赖硬件能力）
 
     // =====================================================================
@@ -2929,7 +3042,7 @@ var plZoomIndicator = $('plZoomIndicator');
     var plFilterCss = '';         // 应用到 video/画布 的 filter 值
     var plTimerSec = 0;        // 定时器 0=关 3/5/10
     var plAspect = 'full';     // 画幅 'full' | '16:9' | '4:3' | '1:1'
-    var plWatermark = true;    // r91 Dazz 日期时间戳（默认开）
+    var plWatermark = true;    // r92 Dazz 日期时间戳（默认开）
     var plCamMode = 'photo';   // 'photo' | 'video'
     var plRecorder = null;     // MediaRecorder
     var plRecChunks = [];
@@ -3014,7 +3127,7 @@ var plZoomIndicator = $('plZoomIndicator');
         plVideo.srcObject = stream;
         plVideo.play().catch(function () {});
         plShowCamActive();
-        plInitZoom(); // r91：变焦滚轮隐藏，双指捏合+焦距拨盘变焦（纯前端数码变焦）
+        plInitZoom(); // r92：变焦滚轮隐藏，双指捏合+焦距拨盘变焦（纯前端数码变焦）
         plUpdateAspect();
         var plWsLive = document.getElementById('phoneWorkspace');
         if (plWsLive) plWsLive.classList.add('cam-live');
@@ -3064,7 +3177,11 @@ var plZoomIndicator = $('plZoomIndicator');
       if (plFilmFx) plFilmFx.classList.add('show');
       plDazzSyncDials();
       plDazzSyncStamp();
-      plFallbackCamBtn.style.display = 'none';
+      // r92：预览抽屉 + 焦距叠加层 + 滑杆初始化
+      var dd = document.getElementById('plPreviewDrawer');
+      if (dd && document.getElementById('plPreviewThumb') && document.getElementById('plPreviewThumb').src && document.getElementById('plPreviewThumb').src.indexOf('base64,R0lGOD') === -1) dd.classList.add('show');
+      plInitEvSlider();
+      plInitPreviewDrawer();
       plHostCamStatus.textContent = '📡 画面正在实时推送';
       plHostCamStatus.className = 'cam-status-overlay';
       setTimeout(function () {
@@ -3118,6 +3235,10 @@ var plZoomIndicator = $('plZoomIndicator');
       if (plFilmFx) plFilmFx.classList.remove('show');
       if (plStampEl) plStampEl.classList.remove('show');
 
+      var fo2 = document.getElementById('plFocalOverlay'); if (fo2) fo2.classList.remove('show');
+      var dd2 = document.getElementById('plPreviewDrawer'); if (dd2) dd2.classList.remove('show');
+      var pp2 = document.getElementById('plPreviewPopup'); if (pp2) pp2.classList.remove('show');
+      var rt2 = document.getElementById('plRecTimer'); if (rt2) rt2.classList.remove('on');
       if (plRecorder) plStopRecord(true);
       plResetCameraUI();
       plTorchOn = false;
@@ -3247,15 +3368,17 @@ var plZoomIndicator = $('plZoomIndicator');
     });
 
 
+
     function plFirePhoto() {
-      if (plDexpOn) { plDexpCapture(); return; }  // r91 Dazz：双重曝光流程
+      // r92：视频模式→录制
+      if (plCamMode === 'video') { plToggleVideoRecord(); return; }
+      if (plDexpOn) { plDexpCapture(); return; }  // r92 Dazz：双重曝光/视频录制
       plFlashOverlay.classList.remove('fire');
       void plFlashOverlay.offsetWidth;
       plFlashOverlay.classList.add('fire');
       if (navigator.vibrate) navigator.vibrate(30);
       plCapturePhoto();
     }
-
     // 实况照片（r86）：静态照 + 自动录 3 秒动态（Live Photo）
     function plFireLivePhoto() {
       if (plRecorder) return;
@@ -3560,7 +3683,7 @@ var plZoomIndicator = $('plZoomIndicator');
     function plWheelEnd() { plWheelState.on = false; }
     function plInitZoomWheel() {
       plBuildZoomWheel();
-      if (plZoomWheel) plZoomWheel.style.display = 'none'; // r91：Dazz 布局隐藏滚轮（捏合+焦距拨盘仍可变焦）
+      if (plZoomWheel) plZoomWheel.style.display = 'none'; // r92：Dazz 布局隐藏滚轮（捏合+焦距拨盘仍可变焦）
       if (plZoomIndicator) { plZoomIndicator.style.display = 'none'; plZoomIndicator.textContent = (plZoom >= 10 ? String(plZoom) : plZoom.toFixed(1)) + 'x'; }
       if (plEvBadge) { plEvBadge.style.display = ''; plEvBadge.textContent = 'EV 0.0'; }
       plUpdateZoomWheel();
@@ -3609,7 +3732,7 @@ var plZoomIndicator = $('plZoomIndicator');
 
 
     // =====================================================================
-    // r91 Dazz 胶片机身引擎：机身=滤镜配方（色彩+颗粒+漏光+暗角+时间戳+画框）
+    // r92 Dazz 胶片机身引擎：机身=滤镜配方（色彩+颗粒+漏光+暗角+时间戳+画框）
     // 预览=video CSS filter + 特效层；成片=canvas 后处理；推帧自带色彩与时间戳
     // =====================================================================
     var plDazzCams = [
@@ -3722,8 +3845,13 @@ var plZoomIndicator = $('plZoomIndicator');
       if (plEvBadge) {
         var ev = plDazzEvSoft;
         plEvBadge.style.display = '';
-        plEvBadge.textContent = 'EV ' + (ev > 0 ? '+' : '') + ev;
+        plEvBadge.textContent = (ev > 0 ? '+' : '') + ev.toFixed(1);
       }
+      // r92：焦距叠加层（取景器中央 mm 大字）
+      var fo = document.getElementById('plFocalOverlay');
+      if (fo) { fo.textContent = plFocalAt(Math.max(1, plZoom)); fo.classList.toggle('show', !!plStream); }
+      // r92：曝光滑杆同步
+      plSyncEvSlider();
     }
     function plApplyDazzCam(idx, silent) {
       plDazzCamIdx = Math.max(0, Math.min(plDazzCams.length - 1, idx));
@@ -3797,17 +3925,70 @@ var plZoomIndicator = $('plZoomIndicator');
       });
       var gimg = document.getElementById('plCamGalleryImg');
       if (gimg) { try { gimg.src = thumb; } catch (e) {} }
+      // r92：预览抽屉——存上一张缩略图
+      var dt = document.getElementById('plPreviewThumb');
+      if (dt && thumb) { try { dt.src = thumb; } catch (e) {} }
+      var dd = document.getElementById('plPreviewDrawer');
+      if (dd) dd.classList.add('show');
     }
-    // 左缘拨盘：曝光（软 EV）/色温（A/暖/冷）/焦距（28/35/50mm）
-    (function () {
-      var evBtn = document.getElementById('plEvDial');
-      if (evBtn) evBtn.addEventListener('click', function () {
-        plDazzEvIdx = (plDazzEvIdx + 1) % plDazzEvSteps.length;
-        plDazzEvSoft = plDazzEvSteps[plDazzEvIdx];
-        plComposeDazzFilter();
-        plDazzSyncDials();
-        plShowCamToast('曝光 ' + (plDazzEvSoft > 0 ? '+' : '') + plDazzEvSoft);
+    // r92 曝光滑杆：拖拽 + 点击（替换旧点按拨盘）
+    function plSyncEvSlider() {
+      var fill = document.getElementById('plEvFill');
+      var thumb = document.getElementById('plEvThumb');
+      if (!fill || !thumb) return;
+      // plDazzEvSteps[-1.5..1.5] 映射到滑杆 bottom 0%..100%
+      var pct = ((plDazzEvSoft + 1.5) / 3 * 100).toFixed(1);
+      fill.style.height = pct + '%';
+      fill.style.bottom = '0';
+      thumb.style.bottom = pct + '%';
+    }
+    function plEvFromPos(y, trackH) {
+      var pct = Math.max(0, Math.min(1, 1 - y / trackH));
+      var idx = Math.round(pct * (plDazzEvSteps.length - 1));
+      return { idx: idx, val: plDazzEvSteps[idx] };
+    }
+    function plInitEvSlider() {
+      var track = document.getElementById('plEvTrack');
+      var thumb = document.getElementById('plEvThumb');
+      if (!track || !thumb) return;
+      plSyncEvSlider();
+      var dragging = false;
+      function onStart(e) {
+        e.preventDefault(); dragging = true;
+      }
+      function onMove(e) {
+        if (!dragging) return;
+        e.preventDefault();
+        var t = e.touches ? e.touches[0] : e;
+        var rect = track.getBoundingClientRect();
+        var y = t.clientY - rect.top;
+        var r = plEvFromPos(y, rect.height);
+        if (r.val !== plDazzEvSoft) {
+          plDazzEvSoft = r.val; plDazzEvIdx = r.idx;
+          plComposeDazzFilter();
+          plDazzSyncDials();
+        }
+      }
+      function onEnd() { dragging = false; }
+      thumb.addEventListener('mousedown', onStart);
+      thumb.addEventListener('touchstart', onStart, { passive: false });
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('mouseup', onEnd);
+      document.addEventListener('touchend', onEnd);
+      // 点击轨道直接跳转
+      track.addEventListener('click', function (e) {
+        var rect = track.getBoundingClientRect();
+        var y = e.clientY - rect.top;
+        var r = plEvFromPos(y, rect.height);
+        if (r.val !== plDazzEvSoft) {
+          plDazzEvSoft = r.val; plDazzEvIdx = r.idx;
+          plComposeDazzFilter();
+          plDazzSyncDials();
+        }
       });
+    }
+    // 色温拨盘（保留点按）
       var wbBtn = document.getElementById('plWbDial');
       if (wbBtn) wbBtn.addEventListener('click', function () {
         plDazzWb = plDazzWb === 'A' ? 'warm' : (plDazzWb === 'warm' ? 'cool' : 'A');
@@ -3827,7 +4008,106 @@ var plZoomIndicator = $('plZoomIndicator');
         plDazzSyncDials();
         plShowCamToast('焦距 ' + mm + 'mm');
       });
-    })();
+
+    // r92 预览抽屉：长按弹出大图
+    function plInitPreviewDrawer() {
+      var drawer = document.getElementById('plPreviewDrawer');
+      var popup = document.getElementById('plPreviewPopup');
+      var popImg = document.getElementById('plPreviewPopupImg');
+      var thumb = document.getElementById('plPreviewThumb');
+      if (!drawer || !popup || !popImg || !thumb) return;
+      var pressTimer = null;
+      function showPopup() {
+        if (thumb.src && thumb.src.indexOf('base64,R0lGOD') === -1) {
+          popImg.src = thumb.src;
+          popup.classList.add('show');
+        }
+      }
+      function hidePopup() { popup.classList.remove('show'); if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } }
+      drawer.addEventListener('touchstart', function (e) { pressTimer = setTimeout(showPopup, 500); });
+      drawer.addEventListener('touchend', hidePopup);
+      drawer.addEventListener('touchmove', function () { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
+      drawer.addEventListener('mousedown', function (e) { pressTimer = setTimeout(showPopup, 500); });
+      drawer.addEventListener('mouseup', hidePopup);
+      drawer.addEventListener('mouseleave', function () { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
+      popup.addEventListener('click', hidePopup);
+    }
+    // r92 视频录制引擎
+    var plVideoRecCanvas = null;
+    var plVideoRecCtx = null;
+    var plVideoRecStream = null;
+    var plVideoRecording = false;
+    var plVideoRecStart = 0;
+    function plToggleVideoRecord() {
+      if (plVideoRecording) { plStopVideoRecord(); return; }
+      if (!plStream) { plShowCamToast('相机未就绪'); return; }
+      plVideoRecCanvas = document.createElement('canvas');
+      plVideoRecCtx = plVideoRecCanvas.getContext('2d');
+      var vw = plVideo.videoWidth, vh = plVideo.videoHeight;
+      if (!vw || !vh) { plShowCamToast('视频流未就绪'); return; }
+      var crop = plGetCrop(vw, vh);
+      plVideoRecCanvas.width = crop.w; plVideoRecCanvas.height = crop.h;
+      try {
+        plVideoRecStream = plVideoRecCanvas.captureStream(30);
+      } catch (e) { plShowCamToast('浏览器不支持录制'); return; }
+      var mime = 'video/webm;codecs=vp8';
+      if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+      if (!MediaRecorder.isTypeSupported(mime)) { plShowCamToast('浏览器不支持视频编码'); return; }
+      plRecChunks = [];
+      try {
+        plRecorder = new MediaRecorder(plVideoRecStream, { mimeType: mime, videoBitsPerSecond: 2500000 });
+      } catch (e) { plRecorder = new MediaRecorder(plVideoRecStream); }
+      plRecorder.ondataavailable = function (e) { if (e.data && e.data.size > 0) plRecChunks.push(e.data); };
+      plRecorder.onstop = function () {
+        var blob = new Blob(plRecChunks, { type: mime });
+        var url = URL.createObjectURL(blob);
+        // 存为缩略图
+        var th = document.createElement('canvas');
+        var ts = Math.min(200 / crop.w, 200 / crop.h, 1);
+        th.width = Math.max(1, Math.round(crop.w * ts));
+        th.height = Math.max(1, Math.round(crop.h * ts));
+        var thCtx = th.getContext('2d');
+        thCtx.drawImage(plVideo, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, th.width, th.height);
+        var thumbUrl = th.toDataURL('image/jpeg', 0.6);
+        plFinishPhoto(url, thumbUrl, crop.w, crop.h);
+        plShowCamToast('视频已保存');
+        plRecorder = null; plRecChunks = [];
+        plVideoRecStream = null; plVideoRecCanvas = null; plVideoRecCtx = null;
+        var rt = document.getElementById('plRecTimer'); if (rt) rt.classList.remove('on');
+        var sh = document.getElementById('plCamShutter'); if (sh) sh.classList.remove('recording');
+      };
+      plRecorder.start(1000);
+      plVideoRecording = true;
+      plVideoRecStart = Date.now();
+      var sh = document.getElementById('plCamShutter'); if (sh) sh.classList.add('recording');
+      var rt = document.getElementById('plRecTimer'); if (rt) rt.classList.add('on');
+      plShowCamToast('● 录制中…');
+      // 帧绘制循环
+      function drawRecFrame() {
+        if (!plVideoRecording || !plVideoRecCtx || !plVideoRecCanvas) return;
+        var vw2 = plVideo.videoWidth, vh2 = plVideo.videoHeight;
+        if (!vw2 || !vh2) { requestAnimationFrame(drawRecFrame); return; }
+        var c2 = plGetCrop(vw2, vh2);
+        plVideoRecCtx.filter = plFilterCss || 'none';
+        plVideoRecCtx.drawImage(plVideo, c2.sx, c2.sy, c2.sw, c2.sh, 0, 0, c2.w, c2.h);
+        plVideoRecCtx.filter = 'none';
+        // 更新时间
+        var elapsed = Math.floor((Date.now() - plVideoRecStart) / 1000);
+        var mm = Math.floor(elapsed / 60), ss = elapsed % 60;
+        var rt2 = document.getElementById('plRecTime');
+        if (rt2) rt2.textContent = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+        requestAnimationFrame(drawRecFrame);
+      }
+      requestAnimationFrame(drawRecFrame);
+    }
+    function plStopVideoRecord() {
+      if (!plVideoRecording) return;
+      plVideoRecording = false;
+      if (plRecorder && plRecorder.state === 'recording') {
+        plRecorder.onstop = plRecorder.onstop; // keep
+        plRecorder.stop();
+      }
+    }
     // 双重曝光：两拍 screen 合成
     function plDexpSet(on) {
       plDexpOn = on;
@@ -4188,7 +4468,7 @@ var plZoomIndicator = $('plZoomIndicator');
 
 
     plBuildFilters();
-    plApplyDazzCam(plDazzCamIdx, true); // r91：默认机身 CLASSIC U
+    plApplyDazzCam(plDazzCamIdx, true); // r92：默认机身 CLASSIC U
 
 
 
@@ -4877,7 +5157,7 @@ var plZoomIndicator = $('plZoomIndicator');
           var st = bd.bridgeState === 'ok' ? '桥OK' : (bd.bridgeState === 'missing' ? '桥缺失' : (bd.bridgeState === 'plus' ? '备用枚举' : '桥探测中'));
           tail = ' · ' + st + (bd.weexPost ? '·weex✓' : '') + (bd.uniPostMessage ? '·uni✓' : '');
         }
-        el.textContent = '联机传输 页r91 · 库' + lib +
+        el.textContent = '联机传输 页r92 · 库' + lib +
           ((typeof UsbTether !== 'undefined' && UsbTether.utsMode) ? ' · 原生桥' : '') + tail;
         var de = $('usbBridgeDiag');
         if (de && typeof UsbTether !== 'undefined' && UsbTether.bridgeDiag) {
@@ -5412,7 +5692,7 @@ var plZoomIndicator = $('plZoomIndicator');
       panel.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,6,3,0.94);display:flex;align-items:center;justify-content:center;padding:24px;';
       panel.innerHTML = '<div style="background:#1c0f08;border:1px solid rgba(212,165,116,0.4);border-radius:16px;padding:20px;max-width:540px;width:100%;">' +
         '<div style="font-size:15px;font-weight:600;color:#E89020;margin-bottom:2px;">📷 相机已连接</div>' +
-        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260822-r91 · 小米相机(大焦段滚轮+白色快门+5模式条)：EVFMode=1+输出到PC(0xD1B0=2)+0x9151完整序列，帧blob链解析；事件循环与LV共存，拍照导入恢复</div>' +
+        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260822-r92 · 小米相机(大焦段滚轮+白色快门+5模式条)：EVFMode=1+输出到PC(0xD1B0=2)+0x9151完整序列，帧blob链解析；事件循环与LV共存，拍照导入恢复</div>' +
         '<div style="font-size:12px;color:#F5DFC0;line-height:1.6;margin-bottom:10px;"><b>请在相机机身上按一次快门</b>，然后点下方蓝色按钮立即扫描检测（事件通道 0x4002/0xC181 也在自动监听）。<br>' +
         '<span style="color:#c9a06a;">r53：远程模式（0x9114=1）+ 设卡=CF 卡（0xD11C=1）。不做卡枚举。事件通道 0xC181 经 GetEvent 到达，中断端点 0x4002 双通道监听。按快门即收。</span></div>' +
         '<button id="wsBodyTestPressed" style="margin:6px 0 10px;width:100%;padding:10px;border:none;border-radius:10px;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">📸 我已在相机上按过快门（事件通道自动监听中）</button>' +
@@ -5767,7 +6047,7 @@ var plZoomIndicator = $('plZoomIndicator');
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260822-r91',               // r54 2026-08-21【工作台打通·全链路】：主连接路径+(startEvents+工作台事件循环)，webusb不再重定向到bodyTest—— → 5D2 一直「读卡忙」→ 机身快门锁死。证据链：r43/r44（等待循环=GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；r45 加 0x1007 轮询后 r46-r50 全锁；r50 恢复 GetEvent 仍锁 → 证明 GetEvent 不是变量（r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举；gphoto2 等待事件从不连续枚举卡、r38 wasm 补丁会话（非远程、不枚举）→ 快门可用，同机制。r51：① waitForObject 轮询默认关闭（{poll:true} 才开）→ 等待循环回到 r44 证明可行的形态（GetEvent 排空+保活）；② 传输层中断读取器瞬时错误延时重挂（不永久停，保 0x4002 通道）；③ 页面「我已按过快门」按钮=一次性 GetObjectHandles 扫描（瞬时枚举不锁快门）；④ 连接后一次性建立扫描基线。r50 的 GetEvent 排空结论保留（防事件堆积 Busy），但其「GetEvent 是锁快门根因」判断经 r51 真机复测推翻 // r50 2026-08-21【误诊记录，已被 r51 推翻】当时判定根因=SetEventMode 后从不 GetEvent 排空→Busy 锁快门；真机 r50 复测仍锁→该理论不成立，真根因=0x1007 轮询（见 r51） // r49 // r49 2026-08-21【r48 数据点后·锁快门嫌疑隔离】r48 截图：基线 GetObjectHandles 真机成功（0x2=1/0x10001=128/0x30000=1，128 张全数出）→ 检测通道活了；但机身快门仍按不下去，且王总说「一点击连接就弹报错」= 连接成功测试面板（非报错）。对比 gphoto2 非远程(SetEventMode)会话：它从不调 GetEvent(0x9116)，我们连接时却 drainEosEvents(4) 连发 4 次——GetEvent 是远程通道命令，非远程调用有锁快门嫌疑。r49：drainEosEvents 非远程跳过（setRemoteMode 维护 _remoteMode 状态）；页面连接流非远程不再排空；首屏日志明示「非远程已跳过 GetEvent 排空」。若仍锁 → 嫌疑转移：中断端点常驻读/2s 轮询，再与 wasm 逐字节对照。测试 58/58 绿 // r48 2026-08-21【r47真机实锤后·句柄枚举】r47 截图（角标可见）：串行化修复成功——0x1004 不再挂、相机秒答 3 存储（0x2/0x10001/0x30000）；但 GetNumObjects(0x1006) 一律回 PTP 0x201d（Invalid Parameter，EOS 不实现该命令；gphoto2 canon 驱动从不调 0x1006）→ 轮询从「计数+句柄」改为纯 GetObjectHandles(0x1007) 句柄差集（与 gphoto2 同款语义），基线=句柄集、检测=差集；快门按不下去=上一会话残留锁，需整机断电（电源开关 OFF→ON）复位 // r47 2026-08-21【r46真机实锤后·串行化修复】真机 r46 日志：初始化命令全秒回（含 0x911D），但 keepAlive(0x911D) fire-and-forget 与 0x1004 GetStorageIDs 同 bulk 管道并发 transact（违反本文件 L774「勿并发」注释与 gphoto2 串行纪律）→ 0x1004 被相机丢弃 → 20s 读超时 → 管道毒化 → 24s 内会话死。r47：① transact 全局 mutex 串行化（_txRun 链，fire-and-forget 也只排队）；② _pollEnsureBaseline 存储探测短超时 3s，失败即 _storageOk=false 关轮询兜底（防反复 20s 卡死饿死事件循环，仅靠事件通道），GetNumObjects/GetObjectHandles 短超时 2.5s；③ 慢命令追踪（>800ms 打 ⏱ 诊断）；④ 非远程轮询/保活加 _storageOk 闸；⑤ 远程 GetEvent 短超时 2s；⑥ 面板加「我已按过快门」确认按钮 // r46 2026-08-21【r45真机实锤后】waitForObject 非远程模式跳过 GetEvent(0x9116)（高频 GetEvent 挂起/异常→拖死循环→r45 轮询兜底轮不到→6分钟零检测+掉线）；GetEvent 仅远程模式；轮询/保活加诊断回调（基线/心跳/命中/降级/失败进日志）；mock 加 hangGetEvent 模式回归 // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
+      usbVer: '20260822-r92',               // r54 2026-08-21【工作台打通·全链路】：主连接路径+(startEvents+工作台事件循环)，webusb不再重定向到bodyTest—— → 5D2 一直「读卡忙」→ 机身快门锁死。证据链：r43/r44（等待循环=GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；r45 加 0x1007 轮询后 r46-r50 全锁；r50 恢复 GetEvent 仍锁 → 证明 GetEvent 不是变量（r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举；gphoto2 等待事件从不连续枚举卡、r38 wasm 补丁会话（非远程、不枚举）→ 快门可用，同机制。r51：① waitForObject 轮询默认关闭（{poll:true} 才开）→ 等待循环回到 r44 证明可行的形态（GetEvent 排空+保活）；② 传输层中断读取器瞬时错误延时重挂（不永久停，保 0x4002 通道）；③ 页面「我已按过快门」按钮=一次性 GetObjectHandles 扫描（瞬时枚举不锁快门）；④ 连接后一次性建立扫描基线。r50 的 GetEvent 排空结论保留（防事件堆积 Busy），但其「GetEvent 是锁快门根因」判断经 r51 真机复测推翻 // r50 2026-08-21【误诊记录，已被 r51 推翻】当时判定根因=SetEventMode 后从不 GetEvent 排空→Busy 锁快门；真机 r50 复测仍锁→该理论不成立，真根因=0x1007 轮询（见 r51） // r49 // r49 2026-08-21【r48 数据点后·锁快门嫌疑隔离】r48 截图：基线 GetObjectHandles 真机成功（0x2=1/0x10001=128/0x30000=1，128 张全数出）→ 检测通道活了；但机身快门仍按不下去，且王总说「一点击连接就弹报错」= 连接成功测试面板（非报错）。对比 gphoto2 非远程(SetEventMode)会话：它从不调 GetEvent(0x9116)，我们连接时却 drainEosEvents(4) 连发 4 次——GetEvent 是远程通道命令，非远程调用有锁快门嫌疑。r49：drainEosEvents 非远程跳过（setRemoteMode 维护 _remoteMode 状态）；页面连接流非远程不再排空；首屏日志明示「非远程已跳过 GetEvent 排空」。若仍锁 → 嫌疑转移：中断端点常驻读/2s 轮询，再与 wasm 逐字节对照。测试 58/58 绿 // r48 2026-08-21【r47真机实锤后·句柄枚举】r47 截图（角标可见）：串行化修复成功——0x1004 不再挂、相机秒答 3 存储（0x2/0x10001/0x30000）；但 GetNumObjects(0x1006) 一律回 PTP 0x201d（Invalid Parameter，EOS 不实现该命令；gphoto2 canon 驱动从不调 0x1006）→ 轮询从「计数+句柄」改为纯 GetObjectHandles(0x1007) 句柄差集（与 gphoto2 同款语义），基线=句柄集、检测=差集；快门按不下去=上一会话残留锁，需整机断电（电源开关 OFF→ON）复位 // r47 2026-08-21【r46真机实锤后·串行化修复】真机 r46 日志：初始化命令全秒回（含 0x911D），但 keepAlive(0x911D) fire-and-forget 与 0x1004 GetStorageIDs 同 bulk 管道并发 transact（违反本文件 L774「勿并发」注释与 gphoto2 串行纪律）→ 0x1004 被相机丢弃 → 20s 读超时 → 管道毒化 → 24s 内会话死。r47：① transact 全局 mutex 串行化（_txRun 链，fire-and-forget 也只排队）；② _pollEnsureBaseline 存储探测短超时 3s，失败即 _storageOk=false 关轮询兜底（防反复 20s 卡死饿死事件循环，仅靠事件通道），GetNumObjects/GetObjectHandles 短超时 2.5s；③ 慢命令追踪（>800ms 打 ⏱ 诊断）；④ 非远程轮询/保活加 _storageOk 闸；⑤ 远程 GetEvent 短超时 2s；⑥ 面板加「我已按过快门」确认按钮 // r46 2026-08-21【r45真机实锤后】waitForObject 非远程模式跳过 GetEvent(0x9116)（高频 GetEvent 挂起/异常→拖死循环→r45 轮询兜底轮不到→6分钟零检测+掉线）；GetEvent 仅远程模式；轮询/保活加诊断回调（基线/心跳/命中/降级/失败进日志）；mock 加 hangGetEvent 模式回归 // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
