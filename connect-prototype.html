@@ -966,7 +966,7 @@
   }
   .pair-host-cam-status b { color: #4CAF50; font-weight: 600; }
   .pair-host-cam-status.err { color: #F0A040; }
-/* ===== r83-r90 相机 UI 完全重做：对标小米相机参考图（焦段滚轮+顶部EV+照片居中模式条）+ iOS 26 Liquid Glass ===== */
+/* ===== r91 相机 UI：Dazz 复古胶片机（大取景 + 右侧竖排控制列 + 左缘拨盘 + 底部机身名/相机库抽屉；互联全保留） ===== */
 .cam-viewfinder {
   position: absolute;
   inset: 0;
@@ -981,9 +981,57 @@
   object-fit: cover;
   background: #000;
   transform-origin: center center;
-  transition: transform 0.18s ease-out;
+  transition: transform 0.18s ease-out, filter 0.25s ease-out;
   will-change: transform;
 }
+/* ---- Dazz 胶片实时特效层（CSS 变量由机身配方驱动，相机开启时显示） ---- */
+.dazz-fx { position: absolute; inset: 0; z-index: 2; pointer-events: none; display: none; }
+.dazz-fx.show { display: block; }
+.dazz-fx .fx-vig {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 52%, rgba(0,0,0,0.5) 100%);
+  opacity: var(--fx-vig, 0.6);
+}
+.dazz-fx .fx-leak {
+  position: absolute; inset: -6%;
+  opacity: var(--fx-leak, 0);
+  background:
+    radial-gradient(120% 60% at 85% 8%, rgba(255,160,60,0.6), rgba(255,160,60,0) 60%),
+    radial-gradient(90% 50% at 8% 95%, rgba(255,120,80,0.4), rgba(255,120,80,0) 55%);
+  mix-blend-mode: screen;
+  animation: fxLeakDrift 9s ease-in-out infinite alternate;
+}
+@keyframes fxLeakDrift {
+  0% { transform: translateX(-2%) translateY(-1%) scale(1.01); }
+  100% { transform: translateX(2%) translateY(1.5%) scale(1.05); }
+}
+.dazz-fx .fx-scan {
+  position: absolute; inset: 0; display: none;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0.16) 0 1px, rgba(0,0,0,0) 1px 3px);
+}
+.dazz-fx.scan .fx-scan { display: block; }
+.dazz-fx .fx-grain {
+  position: absolute; inset: -60%;
+  opacity: var(--fx-grain, 0);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='120' height='120' filter='url(%23n)' opacity='0.6'/></svg>");
+  animation: fxGrainShift 0.55s steps(4) infinite;
+}
+@keyframes fxGrainShift {
+  0% { transform: translate(0,0); }
+  25% { transform: translate(-3%, 2%); }
+  50% { transform: translate(2%, -3%); }
+  75% { transform: translate(-2%, -2%); }
+  100% { transform: translate(3%, 1%); }
+}
+/* Dazz 日期时间戳（取景预览；成片由 canvas 烙入同款） */
+.dazz-stamp {
+  position: absolute; right: 82rem; bottom: 26rem; z-index: 3;
+  font-family: 'Courier New', ui-monospace, Menlo, monospace;
+  font-size: 15rem; font-weight: 700; letter-spacing: 1rem;
+  color: #FF8A00; text-shadow: 0 1rem 3rem rgba(0,0,0,0.6);
+  pointer-events: none; display: none;
+}
+.dazz-stamp.show { display: block; }
 /* 画幅遮罩（4:3 / 1:1 / 16:9 黑边示意实际裁剪） */
 .cam-aspect-mask { position: absolute; z-index: 3; background: #000; pointer-events: none; }
 /* 定时拍照倒计时 */
@@ -1001,7 +1049,7 @@
 .cam-grid::before, .cam-grid::after { content: ''; position: absolute; background: rgba(255,255,255,0.2); }
 .cam-grid::before { left: 33.33%; top: 0; width: 1px; height: 100%; box-shadow: 33.33vw 0 0 rgba(255,255,255,0.2); }
 .cam-grid::after { top: 33.33%; left: 0; height: 1px; width: 100%; box-shadow: 0 33.33vh 0 rgba(255,255,255,0.2); }
-/* 对焦框（iOS 金色） */
+/* 对焦框（金色） */
 .cam-focus-ring {
   position: absolute;
   width: 72rem; height: 72rem;
@@ -1032,7 +1080,7 @@
 .workspace.cam-live .pair-host-cam { flex: 1; }
 .workspace.client-live .ws-header { display: none; }
 
-/* Liquid Glass 悬浮玻璃圆形按钮 */
+/* 玻璃圆形按钮（面板内使用） */
 .cam-icon-btn {
   position: relative;
   width: 42rem; height: 42rem;
@@ -1060,36 +1108,23 @@
 }
 .cam-ic-badge.show { display: block; }
 
-/* 顶部工具栏 */
+/* 顶部（Dazz 极简：左设备名 + 右 ⋯） */
 .cam-top-bar {
   position: absolute; top: 0; left: 0; right: 0; z-index: 6;
-  display: flex; align-items: center; gap: 12rem;
-  padding: 18rem 16rem 0;
+  display: flex; align-items: center; gap: 10rem;
+  padding: 14rem 14rem 0;
   pointer-events: none;
 }
 .cam-top-bar .cam-icon-btn { pointer-events: auto; }
 .cam-top-spacer { flex: 1; pointer-events: none; }
-/* 参考图顶部：闪光/夜景为胶囊药丸按钮 */
-.cam-pill { width: auto; min-width: 42rem; height: 38rem; padding: 0 12rem; border-radius: 999rem; display: inline-flex; align-items: center; gap: 3rem; }
-.cam-pill svg { width: 18rem; height: 18rem; }
-.cam-flash-label { font-size: 9rem; font-weight: 700; color: #fff; line-height: 1; }
-/* 参考图：EV 0.0 顶部琥珀色药丸（随上滑调曝光实时更新） */
-.cam-ev-inline {
-  position: relative;
-  display: flex; align-items: center; z-index: 7;
-  font-size: 11rem; font-weight: 700; color: #14120C; letter-spacing: 0.4rem;
-  padding: 3rem 10rem; border-radius: 999rem;
-  background: #FFC860; box-shadow: 0 2rem 10rem rgba(0,0,0,0.35);
-  white-space: nowrap;
-  pointer-events: none;
+.dazz-device {
+  font-size: 10rem; font-weight: 600; letter-spacing: 0.8rem;
+  color: rgba(255,255,255,0.6); text-shadow: 0 1rem 4rem rgba(0,0,0,0.5);
+  white-space: nowrap; pointer-events: none;
 }
-/* 参考图：顶部中央设备水印 + 左上版本水印 */
-.cam-watermark { position: absolute; top: 5rem; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.cam-watermark #plCamDevice { color: rgba(255,255,255,0.82); font-size: 11rem; letter-spacing: 0.6rem; text-shadow: 0 1rem 6rem rgba(0,0,0,0.6); }
-.cam-watermark .cam-wm-ver { position: absolute; left: 10rem; top: 2rem; font-size: 9rem; color: rgba(255,255,255,0.45); letter-spacing: 0.4rem; }
 /* LIVE 推送指示（互联专属） */
 .cam-live-hud {
-  position: absolute; top: 70rem; left: 50%; transform: translateX(-50%); z-index: 5;
+  position: absolute; top: 58rem; left: 50%; transform: translateX(-50%); z-index: 5;
   display: flex; align-items: center; gap: 6rem;
   padding: 4rem 12rem; border-radius: 12rem;
   background: rgba(0,0,0,0.45); backdrop-filter: blur(8px);
@@ -1099,7 +1134,7 @@
 .cam-live-dot { width: 7rem; height: 7rem; border-radius: 50%; background: #FF3B30; animation: camLivePulse 1.2s ease-in-out infinite; }
 @keyframes camLivePulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.75); } }
 .cam-live-tag { color: #FF3B30; font-weight: 700; }
-/* 变焦指示器（OPPO：右上角常显当前倍数） */
+/* 变焦指示器（保留 id，隐藏显示） */
 .cam-zoom-indicator {
   position: absolute; top: 76rem; right: 16rem; z-index: 6;
   font-size: 12rem; font-weight: 600; color: #fff; letter-spacing: 0.4rem;
@@ -1107,64 +1142,62 @@
   background: rgba(0,0,0,0.35); backdrop-filter: blur(6px);
   pointer-events: none;
 }
-/* 曝光 EV 显示（顶部中央，参考图：顶部中央 EV 0.0，随上滑调曝光实时更新） */
-.cam-ev-badge {
-  position: absolute; top: 32rem; left: 50%; transform: translateX(-50%); z-index: 7;
-  font-size: 10rem; font-weight: 700; color: rgba(255,255,255,0.95);
-  letter-spacing: 0.5rem; text-shadow: 0 1rem 6rem rgba(0,0,0,0.6);
-  pointer-events: none; white-space: nowrap;
+/* EV 徽标（r91：内嵌于左缘曝光拨盘下方） */
+.dazz-dial .cam-ev-badge {
+  position: static; transform: none; display: block;
+  font-size: 8rem; font-weight: 700; color: #FFC860;
+  letter-spacing: 0; white-space: nowrap; line-height: 1.1;
+  text-shadow: 0 1rem 3rem rgba(0,0,0,0.7);
 }
 
-/* 底部主区：变焦胶囊 + 快门行 + 模式条 */
-.cam-bottom-bar {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 6;
-  display: flex; flex-direction: column; align-items: center; gap: 12rem;
-  padding: 26rem 0 calc(10rem + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0) 100%);
-  pointer-events: none;
+/* 左缘拨盘列（Dazz：曝光 / 色温 / 焦距 / 夜景） */
+.dazz-dials {
+  position: absolute; left: 12rem; top: 64rem; z-index: 6;
+  display: flex; flex-direction: column; gap: 10rem;
 }
-.cam-bottom-bar > * { pointer-events: auto; }
-/* 滚轮变焦盘（r85：底部中央旋转变焦——刻度环 + 指针 + 中央旋钮 + 中央数值） */
-.cam-zoom-wheel {
-  position: relative;
-  width: min(82%, 50vh, 470px);
-  height: min(82%, 50vh, 470px);
-  border-radius: 50%;
-  background: rgba(16,16,20,0.42);
-  backdrop-filter: blur(18px) saturate(1.25);
-  -webkit-backdrop-filter: blur(18px) saturate(1.25);
-  border: 1rem solid rgba(255,255,255,0.16);
-  box-shadow: 0 8rem 30rem rgba(0,0,0,0.5), inset 0 0 30rem rgba(255,255,255,0.05);
-  user-select: none; -webkit-user-select: none;
-  touch-action: none;
-  cursor: grab;
-  flex: none;
-}
-.cam-zoom-wheel:active { cursor: grabbing; }
-.cam-zoom-wheel-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.cam-zoom-wheel-val {
-  position: absolute; left: 50%; top: 50%;
-  transform: translate(-50%, -50%);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  line-height: 1; text-align: center;
-  text-shadow: 0 1rem 10rem rgba(0,0,0,0.7);
-  pointer-events: none; gap: 4rem;
-}
-.cam-zoom-wheel-zoom { font-size: 30rem; font-weight: 700; color: #FFC860; letter-spacing: 0.4rem; }
-.cam-zoom-wheel-focal { font-size: 15rem; font-weight: 600; color: #fff; letter-spacing: 0.2rem; opacity: 0.95; }
-/* 快门行（iOS 26：圆角相册缩略 + 微环快门） */
-.cam-shutter-row { position: relative; display: flex; align-items: center; justify-content: center; gap: 40rem; }
-/* 实况小钮（r89：保留实况能力，居快门行左缘，不挤占参考图 3 键布局） */
-.cam-live-chip {
-  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  border: 1rem solid rgba(255,255,255,0.28); background: rgba(0,0,0,0.35);
-  color: rgba(255,255,255,0.8); font-size: 10rem; font-weight: 600;
-  padding: 3rem 9rem; border-radius: 999rem; cursor: pointer;
+.dazz-dial {
+  width: 44rem; height: 44rem; border-radius: 50%;
+  border: 1rem solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.32);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  color: #fff; cursor: pointer; flex: none; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;
+  transition: transform 0.12s, background 0.12s, color 0.12s;
 }
-.cam-live-chip.on { color: #FFC860; border-color: rgba(255,200,96,0.6); background: rgba(255,200,96,0.18); }
+.dazz-dial:active { transform: scale(0.88); background: rgba(255,255,255,0.22); }
+.dazz-dial svg { width: 17rem; height: 17rem; }
+.dazz-dial b { font-size: 8rem; font-weight: 700; color: rgba(255,255,255,0.92); line-height: 1; letter-spacing: 0; }
+.dazz-dial .dazz-focal { font-size: 13rem; }
+.dazz-dial.on { color: #FFC860; border-color: rgba(255,200,96,0.55); background: rgba(255,200,96,0.2); }
+.dazz-dial.on b { color: #FFC860; }
+
+/* 右侧控制列（Dazz：相机库/翻转/闪光/定时/双重曝光/快门/导入/相册） */
+.dazz-col {
+  position: absolute; right: 12rem; top: 50%; transform: translateY(-50%); z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 12rem;
+}
+.dazz-cbtn {
+  position: relative;
+  width: 46rem; height: 46rem; border-radius: 50%;
+  border: 1rem solid rgba(255,255,255,0.22);
+  background: rgba(0,0,0,0.32);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  color: #fff; cursor: pointer; flex: none; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.12s, background 0.12s, color 0.12s;
+}
+.dazz-cbtn:active { transform: scale(0.86); background: rgba(255,255,255,0.25); }
+.dazz-cbtn svg { width: 20rem; height: 20rem; }
+.dazz-cbtn.on { color: #FFC860; border-color: rgba(255,200,96,0.55); background: rgba(255,200,96,0.2); }
+.dazz-cbtn .cam-flash-label {
+  position: absolute; bottom: -2rem; right: -2rem;
+  font-size: 8rem; font-weight: 700; color: #FFC860; line-height: 1.2;
+  background: rgba(0,0,0,0.55); border-radius: 999rem; padding: 1rem 4rem;
+}
+.dazz-cbtn .cam-ic-badge { top: -2rem; right: -2rem; }
+/* 相册缩略 */
 .cam-gallery-thumb {
-  width: 52rem; height: 52rem; border-radius: 10rem;
+  width: 48rem; height: 48rem; border-radius: 50%;
   overflow: hidden; position: relative; cursor: pointer;
   background: rgba(255,255,255,0.15);
   border: 2rem solid rgba(255,255,255,0.35);
@@ -1172,7 +1205,6 @@
   flex: none;
 }
 .cam-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cam-gallery-round { border-radius: 50%; }
 .cam-gallery-badge {
   position: absolute; top: -4rem; right: -4rem;
   min-width: 18rem; height: 18rem; padding: 0 4rem;
@@ -1181,11 +1213,11 @@
   display: none;
 }
 .cam-gallery-badge.show { display: block; }
-/* 白色圆快门（r89：参考图小米大号白色圆钮） */
+/* 大白色快门（Dazz） */
 .cam-shutter {
-  width: 78rem; height: 78rem; border-radius: 50%;
+  width: 76rem; height: 76rem; border-radius: 50%;
   background: #fff; border: none;
-  position: relative; cursor: pointer; padding: 0;
+  position: relative; cursor: pointer; padding: 0; flex: none;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 0 5rem rgba(255,255,255,0.25), 0 6rem 24rem rgba(0,0,0,0.35);
   transition: transform 0.1s;
@@ -1193,52 +1225,70 @@
 .cam-shutter:active { transform: scale(0.92); }
 .cam-shutter-inner {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-  width: 64rem; height: 64rem; border-radius: 50%;
+  width: 62rem; height: 62rem; border-radius: 50%;
   background: #fff; transition: all 0.15s; box-shadow: inset 0 0 0 2rem rgba(0,0,0,0.05);
 }
-/* 视频模式：快门中心变红方块（白色外圈保留） */
-.cam-shutter.rec { background: #fff; }
-.cam-shutter.rec .cam-shutter-inner { width: 32rem; height: 32rem; border-radius: 7rem; background: #FF3B30; box-shadow: none; }
+.cam-shutter.rec .cam-shutter-inner { width: 30rem; height: 30rem; border-radius: 7rem; background: #FF3B30; box-shadow: none; }
 .cam-shutter-rec { display: none; }
 .cam-shutter-rec.rec { display: block; }
-/* 5 模式条（r89：参考图 大师/视频/照片/人像/更多，照片选中胶囊+琥珀▲） */
-.cam-mode-bar { display: flex; align-items: center; justify-content: center; gap: 10rem; }
-.cam-mode-btn {
-  border: none; background: transparent; color: rgba(255,255,255,0.6);
-  font-size: 13rem; font-weight: 500; letter-spacing: 0.4rem;
-  padding: 3rem 10rem; cursor: pointer; position: relative;
-  border-radius: 12rem; transition: color 0.15s, transform 0.15s;
-}
-.cam-mode-btn.on { color: #14120C; font-weight: 700; font-size: 14rem; background: #FFC860; box-shadow: 0 2rem 10rem rgba(0,0,0,0.3); }
-.cam-mode-caret { display: none; font-style: normal; margin-left: 3rem; color: #14120C; font-size: 10rem; line-height: 1; }
-.cam-mode-btn.on .cam-mode-caret { display: inline-block; }
-.cam-mode-btn.on::after { content: none; }
+/* 兼容隐藏：模式条 + 变焦滚轮（互联逻辑依赖 DOM，不显示） */
+.cam-mode-bar { display: none !important; }
+.cam-zoom-wheel { display: none !important; }
 
-/* 滤镜面板（底部弹出） */
-.cam-filter-panel {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: 158rem; z-index: 7;
-  display: flex; gap: 10rem; padding: 10rem 14rem; border-radius: 18rem;
-  background: rgba(20,20,20,0.55);
-  backdrop-filter: blur(16px) saturate(1.4);
-  border: 1rem solid rgba(255,255,255,0.14);
-  box-shadow: 0 6rem 24rem rgba(0,0,0,0.4);
+/* 底部机身名（Dazz：机身即滤镜；横线点击开参数面板） */
+.dazz-name {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(16rem + env(safe-area-inset-bottom, 0px)); z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 6rem;
+  cursor: pointer;
 }
-.cam-filter-item {
-  display: flex; flex-direction: column; align-items: center; gap: 4rem;
-  border: none; background: transparent; cursor: pointer; padding: 0;
+.dazz-name span {
+  font-size: 13rem; font-weight: 700; letter-spacing: 2rem; color: #fff;
+  text-shadow: 0 1rem 8rem rgba(0,0,0,0.65); white-space: nowrap;
 }
-.cam-filter-orb {
-  width: 34rem; height: 34rem; border-radius: 50%;
-  border: 2rem solid rgba(255,255,255,0.25); display: block; overflow: hidden;
+.dazz-name-bar {
+  display: block; width: 44rem; height: 3rem; border-radius: 2rem;
+  background: rgba(255,255,255,0.85); box-shadow: 0 1rem 6rem rgba(0,0,0,0.4);
 }
-.cam-filter-item.on .cam-filter-orb { border-color: #FFC860; box-shadow: 0 0 0 2rem rgba(255,200,96,0.3); }
-.cam-filter-name { font-size: 9rem; color: rgba(255,255,255,0.75); }
-.cam-filter-item.on .cam-filter-name { color: #FFC860; }
-/* 定时器菜单（Liquid Glass 弹出） */
+
+/* 相机库抽屉（Dazz：分组机身卡片，点选切换） */
+.dazz-drawer {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 8;
+  max-height: 66%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 16rem 14rem calc(18rem + env(safe-area-inset-bottom, 0px));
+  border-radius: 20rem 20rem 0 0;
+  background: rgba(12,12,14,0.86);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border-top: 1rem solid rgba(255,255,255,0.14);
+  box-shadow: 0 -8rem 32rem rgba(0,0,0,0.5);
+}
+.dazz-drawer-title {
+  font-size: 10rem; font-weight: 700; letter-spacing: 1.5rem;
+  color: rgba(255,200,96,0.85); margin: 6rem 0 8rem;
+}
+.dazz-drawer-row { display: flex; gap: 10rem; margin-bottom: 6rem; }
+.dazz-cam-card {
+  display: flex; flex-direction: column; align-items: center; gap: 5rem;
+  border: 1rem solid rgba(255,255,255,0.14); border-radius: 14rem;
+  background: rgba(255,255,255,0.05); cursor: pointer; padding: 8rem 8rem 7rem;
+  min-width: 74rem; flex: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dazz-cam-card.on { border-color: #FFC860; background: rgba(255,200,96,0.14); }
+.dazz-cam-thumb {
+  width: 56rem; height: 56rem; border-radius: 10rem; display: block;
+  border: 1rem solid rgba(255,255,255,0.2);
+}
+.dazz-cam-card.on .dazz-cam-thumb { border-color: rgba(255,200,96,0.8); box-shadow: 0 0 0 2rem rgba(255,200,96,0.25); }
+.dazz-cam-nm { font-size: 9rem; font-weight: 700; color: #fff; letter-spacing: 0.4rem; white-space: nowrap; }
+.dazz-cam-card.on .dazz-cam-nm { color: #FFC860; }
+.dazz-cam-ds { font-size: 8rem; color: rgba(255,255,255,0.5); white-space: nowrap; }
+/* 定时器菜单（横排胶囊） */
 .cam-timer-menu {
-  position: absolute; top: 70rem; left: 16rem; z-index: 8;
-  display: flex; flex-direction: column; gap: 4rem; padding: 8rem;
-  border-radius: 14rem; background: rgba(20,20,20,0.6);
+  position: absolute; bottom: 96rem; left: 50%; transform: translateX(-50%); z-index: 8;
+  display: flex; gap: 6rem; padding: 8rem;
+  border-radius: 14rem; background: rgba(20,20,20,0.72);
   backdrop-filter: blur(16px) saturate(1.4);
   border: 1rem solid rgba(255,255,255,0.14);
   box-shadow: 0 6rem 24rem rgba(0,0,0,0.4);
@@ -1250,9 +1300,9 @@
 }
 .cam-timer-opt.on { background: rgba(255,255,255,0.16); color: #fff; }
 .cam-timer-opt:active { background: rgba(255,255,255,0.25); }
-/* 设置面板（Liquid Glass 弹出） */
+/* 参数面板（⋯ / 机身名横线打开） */
 .cam-settings {
-  position: absolute; top: 70rem; right: 16rem; z-index: 8;
+  position: absolute; top: 58rem; right: 12rem; z-index: 8;
   display: flex; flex-direction: column; gap: 2rem; padding: 10rem 12rem;
   border-radius: 14rem; background: rgba(20,20,20,0.6);
   backdrop-filter: blur(16px) saturate(1.4);
@@ -1260,12 +1310,18 @@
   box-shadow: 0 6rem 24rem rgba(0,0,0,0.4);
   min-width: 168rem;
 }
-/* r90：⋮ 面板快捷行——顶部栏只留参考图元素，其余功能收纳于此 */
-.cam-set-quick { display: flex; align-items: center; gap: 8rem; padding: 2rem 0 8rem; border-bottom: 1rem solid rgba(255,255,255,0.1); margin-bottom: 6rem; }
+.cam-set-quick { display: flex; align-items: center; gap: 8rem; padding: 2rem 0 8rem; border-bottom: 1rem solid rgba(255,255,255,0.1); margin-bottom: 4rem; }
 .cam-set-quick .cam-icon-btn { width: 38rem; height: 38rem; }
 .cam-set-quick .cam-icon-btn svg { width: 18rem; height: 18rem; }
 .cam-set-quick .cam-ic-badge { top: -2rem; right: -2rem; }
 .cam-set-quick .cam-live-chip { position: static; transform: none; font-size: 11rem; padding: 6rem 10rem; }
+.cam-live-chip {
+  border: 1rem solid rgba(255,255,255,0.28); background: rgba(0,0,0,0.35);
+  color: rgba(255,255,255,0.8); font-size: 10rem; font-weight: 600;
+  padding: 3rem 9rem; border-radius: 999rem; cursor: pointer;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.cam-live-chip.on { color: #FFC860; border-color: rgba(255,200,96,0.6); background: rgba(255,200,96,0.18); }
 .cam-set-row { display: flex; align-items: center; justify-content: space-between; gap: 10rem; padding: 6rem 2rem; }
 .cam-set-label { font-size: 12rem; color: rgba(255,255,255,0.85); }
 .cam-set-val {
@@ -1314,7 +1370,7 @@
 .cam-gesture-hint.show { opacity: 1; }
 /* 轻提示 */
 .cam-toast {
-  position: absolute; bottom: 178rem; left: 50%; transform: translateX(-50%); z-index: 9;
+  position: absolute; bottom: 92rem; left: 50%; transform: translateX(-50%); z-index: 9;
   padding: 8rem 16rem; border-radius: 999rem;
   background: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
   color: #fff; font-size: 12rem; white-space: nowrap;
@@ -1323,17 +1379,20 @@
 .cam-toast.show { opacity: 1; }
 
 /* 矮取景器紧凑模式（桌面预览卡/短屏） */
-.cam-viewfinder.compact .cam-bottom-bar { gap: 5rem; padding-top: 8rem; }
-.cam-viewfinder.compact .cam-shutter-row { gap: 26rem; }
-.cam-viewfinder.compact .cam-shutter { width: 60rem; height: 60rem; }
-.cam-viewfinder.compact .cam-shutter-inner { width: 47rem; height: 47rem; }
-.cam-viewfinder.compact .cam-zoom-wheel { width: 112px; height: 112px; position: relative; top: 6px; margin-top: 8px; }
-.cam-viewfinder.compact .cam-zoom-wheel-zoom { font-size: 20rem; }
-.cam-viewfinder.compact .cam-zoom-wheel-focal { font-size: 11rem; }
-.cam-viewfinder.compact .cam-mode-btn { font-size: 12rem; padding: 2rem 7rem; }
-.cam-viewfinder.compact .cam-live-chip { font-size: 9rem; padding: 2rem 7rem; }
-.cam-viewfinder.compact .cam-filter-panel { bottom: 142rem; }
-.cam-viewfinder.compact .cam-toast { bottom: 150rem; }
+.cam-viewfinder.compact .dazz-col { gap: 8rem; }
+.cam-viewfinder.compact .dazz-cbtn { width: 38rem; height: 38rem; }
+.cam-viewfinder.compact .dazz-cbtn svg { width: 17rem; height: 17rem; }
+.cam-viewfinder.compact .cam-shutter { width: 58rem; height: 58rem; }
+.cam-viewfinder.compact .cam-shutter-inner { width: 45rem; height: 45rem; }
+.cam-viewfinder.compact .dazz-dials { top: 54rem; gap: 7rem; }
+.cam-viewfinder.compact .dazz-dial { width: 36rem; height: 36rem; }
+.cam-viewfinder.compact .dazz-dial svg { width: 14rem; height: 14rem; }
+.cam-viewfinder.compact .dazz-dial .dazz-focal { font-size: 11rem; }
+.cam-viewfinder.compact .dazz-name span { font-size: 11rem; }
+.cam-viewfinder.compact .cam-gallery-thumb { width: 38rem; height: 38rem; }
+.cam-viewfinder.compact .dazz-stamp { font-size: 11rem; right: 64rem; }
+.cam-viewfinder.compact .cam-toast { bottom: 78rem; }
+
 
   /* 屏控（2026-08-20 定稿：scrcpy 式「B 看 A 屏 + B 控 A」）
      A 端 App：UTS 插件 MediaProjection 录屏 → evalJS 注入帧 → 现有 frame 通道推给 B
@@ -1827,6 +1886,15 @@
             <div class="pair-host-cam">
               <div class="cam-viewfinder">
                 <video id="plHostVideo" autoplay playsinline muted></video>
+                <!-- r91 Dazz 胶片实时特效层：漏光/暗角/扫描线/颗粒（强度由机身配方驱动） -->
+                <div class="dazz-fx" id="plFilmFx" aria-hidden="true">
+                  <div class="fx-leak"></div>
+                  <div class="fx-scan"></div>
+                  <div class="fx-grain"></div>
+                  <div class="fx-vig"></div>
+                </div>
+                <!-- r91 Dazz 日期时间戳（拍摄时同步烙入成片） -->
+                <div class="dazz-stamp" id="plStamp">'26 08 22</div>
                 <div class="cam-grid" id="plGrid"></div>
                 <div class="cam-focus-ring" id="plFocusRing"></div>
                 <div class="cam-flash-overlay" id="plFlashOverlay"></div>
@@ -1834,94 +1902,109 @@
                 <div class="cam-aspect-mask" id="plAspectMask" style="display:none"></div>
                 <!-- 定时拍照倒计时 -->
                 <div class="cam-timer-overlay" id="plTimerOverlay" style="display:none">3</div>
-                <!-- 顶部水印（r89：设备名 + 版本，参考图） -->
-                <div class="cam-watermark"><span id="plCamDevice">小米 13 Ultra</span><span class="cam-wm-ver">v10.4.0</span></div>
-                <!-- 未开相机占位 -->
-                <div class="cam-placeholder" id="plCamPlaceholder">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
-                  </svg>
-                  <div class="cam-placeholder-text">点击下方按钮开启相机<br>控制端即可看到实时画面</div>
-                  <button class="pair-btn primary" id="plHostCamBtn">📷 开启相机</button>
-                  <button class="pair-btn ghost pl-fallback-cam" id="plFallbackCamBtn" style="display:none;margin-top:1.6rem">📱 使用系统相机拍照</button>
-                </div>
-                <!-- 顶部工具栏（Liquid Glass 悬浮玻璃按钮） -->
+                <!-- 顶部（Dazz 极简：左设备名 + 右 ⋯） -->
                 <div class="cam-top-bar" id="plCamTopBar" style="display:none">
-                  <button class="cam-icon-btn cam-pill" id="plFlashBtn" title="闪光灯">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                    <span class="cam-flash-label" id="plFlashLabel">A</span>
-                  </button>
-                  <button class="cam-icon-btn cam-pill" id="plNightBtn" title="夜景">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                  </button>
-                  <div class="cam-ev-inline" id="plEvBadge" style="display:none">EV 0.0</div>
+                  <span class="dazz-device" id="plCamDevice">相机</span>
                   <div class="cam-top-spacer"></div>
-                  <button class="cam-icon-btn" id="plSettingsBtn" title="设置">
+                  <button class="cam-icon-btn" id="plSettingsBtn" title="设置" type="button">
                     <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="12" cy="19" r="2.2"/></svg>
+                  </button>
+                </div>
+                <!-- 左缘拨盘列（Dazz：曝光/色温/焦距/夜景） -->
+                <div class="dazz-dials" id="plDials" style="display:none">
+                  <button class="dazz-dial" id="plEvDial" type="button" title="曝光补偿">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.9" y1="4.9" x2="6.3" y2="6.3"/><line x1="17.7" y1="17.7" x2="19.1" y2="19.1"/><line x1="4.9" y1="19.1" x2="6.3" y2="17.7"/><line x1="17.7" y1="6.3" x2="19.1" y2="4.9"/></svg>
+                    <b class="cam-ev-badge" id="plEvBadge" style="display:none">EV 0.0</b>
+                  </button>
+                  <button class="dazz-dial" id="plWbDial" type="button" title="色温 A/暖/冷">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+                    <b id="plWbLbl">A</b>
+                  </button>
+                  <button class="dazz-dial" id="plFocalDial" type="button" title="焦距 28/35/50mm">
+                    <b class="dazz-focal" id="plFocalLbl">35</b>
+                  </button>
+                  <button class="dazz-dial" id="plNightBtn" type="button" title="夜景增强">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                   </button>
                 </div>
                 <!-- LIVE 推送指示（互联专属） -->
                 <div class="cam-live-hud" id="plLiveHud" style="display:none"><span class="cam-live-dot"></span><span class="cam-live-tag">LIVE</span><span id="plLiveHudInfo"></span></div>
-                <!-- 变焦指示器（右上角常显当前倍数） -->
+                <!-- 变焦指示器（兼容保留） -->
                 <div class="cam-zoom-indicator" id="plZoomIndicator" style="display:none">1.0x</div>
-                <!-- 曝光 EV 显示（r89：内联于顶部工具栏，参考图顶部药丸） -->
-                <!-- 底部主区（r89：大焦段滚轮 + 白色快门行 + 5 模式条，参考小米 13 Ultra 相机） -->
-                <div class="cam-bottom-bar" id="plCamBottomBar" style="display:none">
-                  <!-- 大焦段滚轮（r89：参考图大圆盘——轮缘焦段刻度 + 中央倍率/焦段，半透明叠于画面） -->
-                  <div class="cam-zoom-wheel" id="plZoomWheel" style="display:none" role="slider" aria-label="变焦" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1">
-                    <svg class="cam-zoom-wheel-svg" id="plZoomWheelSvg" viewBox="0 0 100 100" aria-hidden="true"></svg>
-                    <div class="cam-zoom-wheel-val">
-                      <div class="cam-zoom-wheel-zoom" id="plZoomWheelVal">1.0x</div>
-                      <div class="cam-zoom-wheel-focal" id="plZoomWheelFocal">24mm</div>
-                    </div>
-                  </div>
-                  <!-- 快门行（r90：相册缩略左 / 白色圆快门中 / 翻转右，与参考图完全一致；实况收进 ⋮ 面板） -->
-                  <div class="cam-shutter-row">
-                    <div class="cam-gallery-thumb cam-gallery-round" id="plCamGallery" title="查看相册">
-                      <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" id="plCamGalleryImg" alt="Gallery">
-                      <div class="cam-gallery-badge" id="plCamGalleryBadge">0</div>
-                    </div>
-                    <button class="cam-shutter" id="plCamShutter" title="拍照/录像">
-                      <span class="cam-shutter-inner"></span>
-                      <span class="cam-shutter-rec" id="plShutterRec"></span>
-                    </button>
-                    <button class="cam-icon-btn" id="plFlipCamBtn" title="翻转摄像头">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                    </button>
-                  </div>
-                  <!-- 5 模式条（r89：大师/视频/照片/人像/更多，照片选中胶囊带▲，参考图） -->
-                  <div class="cam-mode-bar" id="plModeBar">
-                    <button class="cam-mode-btn" type="button" id="plModePro">大师</button>
-                    <button class="cam-mode-btn" type="button" id="plModeVideo">视频</button>
-                    <button class="cam-mode-btn on" type="button" id="plModePhoto">照片<i class="cam-mode-caret"></i></button>
-                    <button class="cam-mode-btn" type="button" id="plModePortrait">人像</button>
-                    <button class="cam-mode-btn" type="button" id="plModeMore">更多</button>
+                <!-- 右侧控制列（Dazz：相机库/翻转/闪光/定时/双重曝光/快门/导入/相册） -->
+                <div class="dazz-col" id="plCamBottomBar" style="display:none">
+                  <button class="dazz-cbtn" id="plFilterBtn" type="button" title="相机库">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  </button>
+                  <button class="dazz-cbtn" id="plFlipCamBtn" type="button" title="翻转摄像头">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  </button>
+                  <button class="dazz-cbtn" id="plFlashBtn" type="button" title="闪光灯">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <span class="cam-flash-label" id="plFlashLabel"></span>
+                  </button>
+                  <button class="dazz-cbtn" id="plTimerBtn" type="button" title="定时器">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="13" x2="15" y2="15"/><line x1="9" y1="2" x2="15" y2="2"/></svg>
+                    <span class="cam-ic-badge" id="plTimerBadge"></span>
+                  </button>
+                  <button class="dazz-cbtn" id="plDexpBtn" type="button" title="双重曝光">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg>
+                  </button>
+                  <button class="cam-shutter" id="plCamShutter" title="拍照" type="button">
+                    <span class="cam-shutter-inner"></span>
+                    <span class="cam-shutter-rec" id="plShutterRec"></span>
+                  </button>
+                  <button class="dazz-cbtn" id="plImportBtn" type="button" title="导入照片按当前机身冲洗">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  </button>
+                  <div class="cam-gallery-thumb" id="plCamGallery" title="查看相册">
+                    <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" id="plCamGalleryImg" alt="Gallery">
+                    <div class="cam-gallery-badge" id="plCamGalleryBadge">0</div>
                   </div>
                 </div>
-                <!-- 滤镜面板（底部弹出，OPPO 风格） -->
-                <div class="cam-filter-panel" id="plFilterPanel" style="display:none"></div>
-                <!-- 定时器菜单（Liquid Glass 弹出） -->
+                <!-- 兼容隐藏：模式条 + 变焦滚轮（互联模式切换/变焦逻辑依赖 DOM，不显示） -->
+                <div class="cam-mode-bar" id="plModeBar" style="display:none">
+                  <button class="cam-mode-btn" type="button" id="plModePro">大师</button>
+                  <button class="cam-mode-btn" type="button" id="plModeVideo">视频</button>
+                  <button class="cam-mode-btn on" type="button" id="plModePhoto">照片<i class="cam-mode-caret"></i></button>
+                  <button class="cam-mode-btn" type="button" id="plModePortrait">人像</button>
+                  <button class="cam-mode-btn" type="button" id="plModeMore">更多</button>
+                </div>
+                <div class="cam-zoom-wheel" id="plZoomWheel" style="display:none" role="slider" aria-label="变焦" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1">
+                  <svg class="cam-zoom-wheel-svg" id="plZoomWheelSvg" viewBox="0 0 100 100" aria-hidden="true"></svg>
+                  <div class="cam-zoom-wheel-val">
+                    <div class="cam-zoom-wheel-zoom" id="plZoomWheelVal">1.0x</div>
+                    <div class="cam-zoom-wheel-focal" id="plZoomWheelFocal">24mm</div>
+                  </div>
+                </div>
+                <!-- 底部机身名（Dazz：机身即滤镜，横线点击开参数面板） -->
+                <div class="dazz-name" id="plCamNameWrap" style="display:none">
+                  <span id="plCamName">CLASSIC U</span>
+                  <i class="dazz-name-bar" title="机身参数"></i>
+                </div>
+                <!-- 相机库抽屉（Dazz：机身即滤镜，分组卡片） -->
+                <div class="dazz-drawer" id="plFilterPanel" style="display:none"></div>
+                <!-- 定时器菜单 -->
                 <div class="cam-timer-menu" id="plTimerMenu" style="display:none">
                   <button class="cam-timer-opt on" type="button" data-sec="0">关</button>
                   <button class="cam-timer-opt" type="button" data-sec="3">3s</button>
                   <button class="cam-timer-opt" type="button" data-sec="5">5s</button>
                   <button class="cam-timer-opt" type="button" data-sec="10">10s</button>
                 </div>
-                <!-- 设置面板（Liquid Glass 弹出） -->
+                <!-- 参数面板（⋯ / 机身名横线打开） -->
                 <div class="cam-settings" id="plSettingsPanel" style="display:none">
                   <div class="cam-set-quick">
-                    <button class="cam-icon-btn" id="plCamCloseBtn" title="关闭相机">
+                    <button class="cam-icon-btn" id="plCamCloseBtn" title="关闭相机" type="button">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
-                    <button class="cam-icon-btn" id="plTimerBtn" title="定时器">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/></svg>
-                      <span class="cam-ic-badge" id="plTimerBadge"></span>
+                    <button class="cam-icon-btn" id="plPhotoBtn" title="照片模式" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                     </button>
-                    <button class="cam-icon-btn" id="plFilterBtn" title="滤镜">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    <button class="cam-icon-btn" id="plVideoBtn" title="视频模式" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
                     </button>
-                    <button class="cam-icon-btn" id="plGridBtn" title="网格">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="7" height="7"/><rect x="14" y="2" width="7" height="7"/><rect x="2" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    <button class="cam-icon-btn" id="plGridBtn" title="网格" type="button">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
                     </button>
                     <button class="cam-live-chip cam-quick-live" type="button" id="plModeLive" title="实况照片">实况</button>
                   </div>
@@ -1934,11 +2017,20 @@
                       <button class="cam-set-aspect" type="button" data-ar="16:9" data-label="16:9">16:9</button>
                     </span>
                   </div>
-                  <div class="cam-set-row"><span class="cam-set-label">水印</span><span class="cam-set-val" id="plSetWm">关</span></div>
+                  <div class="cam-set-row"><span class="cam-set-label">时间戳</span><span class="cam-set-val on" id="plSetWm">开</span></div>
                   <div class="cam-set-row"><span class="cam-set-label">闪光灯</span><span class="cam-set-val" id="plSetFlash">关</span></div>
                 </div>
+                <!-- 未开相机占位 -->
+                <div class="cam-placeholder" id="plCamPlaceholder">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  <div class="cam-placeholder-text">点击下方按钮开启相机<br>控制端即可看到实时画面</div>
+                  <button class="pair-btn primary" id="plHostCamBtn">📷 开启相机</button>
+                  <button class="pair-btn ghost pl-fallback-cam" id="plFallbackCamBtn" style="display:none;margin-top:1.6rem">📱 使用系统相机拍照</button>
+                </div>
                 <!-- 手势提示 -->
-                <div class="cam-gesture-hint" id="plGestureHint">转动滚轮变焦 · 双指捏合也可 · 点按对焦 · 上滑调曝光</div>
+                <div class="cam-gesture-hint" id="plGestureHint">左侧拨盘：曝光/色温/焦距 · 双指捏合变焦 · 点按对焦 · 上滑调曝光</div>
                 <!-- 连接状态 -->
                 <div class="cam-status-overlay" id="plHostCamStatus">等待控制端加入…</div>
                 <!-- 轻提示 -->
@@ -2020,7 +2112,7 @@
         <div class="pair-input-mask" id="usbCamMask">
           <div class="pair-input-card">
             <div class="pair-input-title">USB 连接相机</div>
-            <div style="font-size:10px;color:rgba(245,223,192,0.45);margin-top:-3px;margin-bottom:6px;text-align:center;" id="usbLibVer">联机传输 页r90 · 库检测中…</div>
+            <div style="font-size:10px;color:rgba(245,223,192,0.45);margin-top:-3px;margin-bottom:6px;text-align:center;" id="usbLibVer">联机传输 页r91 · 库检测中…</div>
             <div style="font-size:9px;color:rgba(245,223,192,0.3);margin:-6px 0 6px;text-align:center;font-family:monospace;word-break:break-all;" id="usbBridgeDiag"></div>
             <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机</div>
             <div class="usb-cam-list" id="usbCamList"></div>
@@ -2089,7 +2181,7 @@
 <!-- r18：WebUSB 传输层（Chrome/Edge 桌面 + Android Chrome 直连；App web-view 内自动不生效，仍走 plus 版） -->
 <script src="browser-usb-transport.js?v=20260821-r79"></script>
   <!-- r69：UTS 原生 USB 桥（App web-view 内覆盖 UsbTether 走原生 USB Host；非 App 环境自动不生效，WebUSB 版继续用） -->
-  <script src="bridge-transport.js?v=20260822-r90"></script>
+  <script src="bridge-transport.js?v=20260822-r91"></script>
 
 <script>
   var db = new Dexie('memoPhotos');
@@ -2704,28 +2796,32 @@
         } catch (e) { resolve(plCanvasStill()); }
       });
     }
+
     function plCanvasStill() {
       var canvas = document.createElement('canvas');
       var vw = plVideo.videoWidth, vh = plVideo.videoHeight;
       if (!vw || !vh) return null;
       var crop = plGetCrop(vw, vh);
-      canvas.width = crop.w; canvas.height = crop.h;
-      var ctx = canvas.getContext('2d');
-      if (plFilterCss) ctx.filter = plFilterCss;
-      ctx.drawImage(plVideo, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.w, crop.h);
-      if (plWatermark) {
-        var now = new Date();
-        var ds = now.getFullYear() + '-' + String(now.getMonth() + 1) + '-' + String(now.getDate()) + ' ' + String(now.getHours()) + ':' + String(now.getMinutes());
-        ctx.filter = 'none';
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.font = 'bold ' + Math.max(14, Math.round(crop.w / 60)) + 'px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(ds, crop.w - crop.w * 0.02, crop.h - crop.h * 0.03);
+      var cam = plDazzCams[plDazzCamIdx] || plDazzCams[0];
+      var fw = crop.w, fh = crop.h, ox = 0, oy = 0;
+      if (cam.frame === 'instax') {
+        var pm = Math.round(Math.min(crop.w, crop.h) * 0.07);
+        fw = crop.w + pm * 2; fh = crop.h + pm + Math.round(pm * 2.6);
+        ox = pm; oy = pm;
       }
+      canvas.width = fw; canvas.height = fh;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#F6F3EC'; ctx.fillRect(0, 0, fw, fh);
+      if (plFilterCss) ctx.filter = plFilterCss;
+      ctx.drawImage(plVideo, crop.sx, crop.sy, crop.sw, crop.sh, ox, oy, crop.w, crop.h);
+      ctx.filter = 'none';
+      plFilmPost(ctx, ox, oy, crop.w, crop.h, cam);
+      if (plWatermark) plDrawDazzStamp(ctx, ox + crop.w, oy + crop.h);
       var url = null;
-      try { url = canvas.toDataURL('image/jpeg', 0.8); } catch (e) {}
-      return url ? { img: null, dataUrl: url, width: crop.w, height: crop.h } : null;
+      try { url = canvas.toDataURL('image/jpeg', 0.85); } catch (e) {}
+      return url ? { img: null, dataUrl: url, width: fw, height: fh } : null;
     }
+
 
     // 写入待归类管线（与 wsWritePending 字段完全一致；不跳转页面，保持连接）
     function plWritePending(lng, lat, fullUrl, thumb, gpsSource) {
@@ -2796,9 +2892,10 @@
     var plTorchOn = false;
     var plGridOn = false;
     // =====================================================================
-    // r89 相机 UI：完全对标小米 13 Ultra 相机图——大焦段滚轮(24/35/70…mm)+顶部EV+白色快门+5模式条(大师/视频/照片/人像/更多)+实况
-    // + iOS 26 Liquid Glass（快门环下模式条/圆角相册/悬浮玻璃按钮）
+
+    // r91 相机 UI：Dazz 复古胶片机——三区布局(大取景+右侧竖排控制列+左缘拨盘)+机身即滤镜(8机身)+双重曝光+导入冲洗+时间戳（互联全保留）
     // 变焦=纯前端数码变焦（CSS transform + canvas 中心裁剪，不依赖硬件能力）
+
     // =====================================================================
 var plZoomWheel = $('plZoomWheel');
 var plZoomWheelSvg = $('plZoomWheelSvg');
@@ -2832,7 +2929,7 @@ var plZoomIndicator = $('plZoomIndicator');
     var plFilterCss = '';         // 应用到 video/画布 的 filter 值
     var plTimerSec = 0;        // 定时器 0=关 3/5/10
     var plAspect = 'full';     // 画幅 'full' | '16:9' | '4:3' | '1:1'
-    var plWatermark = false;   // 水印
+    var plWatermark = true;    // r91 Dazz 日期时间戳（默认开）
     var plCamMode = 'photo';   // 'photo' | 'video'
     var plRecorder = null;     // MediaRecorder
     var plRecChunks = [];
@@ -2917,7 +3014,7 @@ var plZoomIndicator = $('plZoomIndicator');
         plVideo.srcObject = stream;
         plVideo.play().catch(function () {});
         plShowCamActive();
-        plInitZoom(); // r89：参考小米相机——大焦段滚轮+白色快门+5模式条+顶部EV+实况照片（纯前端数码变焦）
+        plInitZoom(); // r91：变焦滚轮隐藏，双指捏合+焦距拨盘变焦（纯前端数码变焦）
         plUpdateAspect();
         var plWsLive = document.getElementById('phoneWorkspace');
         if (plWsLive) plWsLive.classList.add('cam-live');
@@ -2956,10 +3053,17 @@ var plZoomIndicator = $('plZoomIndicator');
       plTryCamera();
     }
 
+
     function plShowCamActive() {
       plCamPlaceholder.style.display = 'none';
       plCamTopBar.style.display = '';
       plCamBottomBar.style.display = '';
+      var plDialsEl = document.getElementById('plDials');
+      if (plDialsEl) plDialsEl.style.display = '';
+      if (plCamNameWrap) plCamNameWrap.style.display = '';
+      if (plFilmFx) plFilmFx.classList.add('show');
+      plDazzSyncDials();
+      plDazzSyncStamp();
       plFallbackCamBtn.style.display = 'none';
       plHostCamStatus.textContent = '📡 画面正在实时推送';
       plHostCamStatus.className = 'cam-status-overlay';
@@ -2970,6 +3074,7 @@ var plZoomIndicator = $('plZoomIndicator');
       }, 3000);
       plFitCameraUI();
     }
+
     function plFitCameraUI() {
       var vf = document.querySelector('.cam-viewfinder');
       if (!vf) return;
@@ -3006,6 +3111,13 @@ var plZoomIndicator = $('plZoomIndicator');
       if (plTimerMenu) plTimerMenu.style.display = 'none';
       if (plSettingsPanel) plSettingsPanel.style.display = 'none';
       if (plAspectMask) plAspectMask.style.display = 'none';
+
+      var plDialsHide = document.getElementById('plDials');
+      if (plDialsHide) plDialsHide.style.display = 'none';
+      if (plCamNameWrap) plCamNameWrap.style.display = 'none';
+      if (plFilmFx) plFilmFx.classList.remove('show');
+      if (plStampEl) plStampEl.classList.remove('show');
+
       if (plRecorder) plStopRecord(true);
       plResetCameraUI();
       plTorchOn = false;
@@ -3020,10 +3132,15 @@ var plZoomIndicator = $('plZoomIndicator');
       plUpdateZoomWheel();
       if (plVideo) plVideo.style.transform = '';
       if (plVideo) plVideo.style.transform = '';
+
       plEv = 0;
-      plActiveFilter = 'none';
-      plFilterCss = '';
-      if (plVideo) plVideo.style.filter = '';
+      plDazzEvSoft = 0; plDazzEvIdx = 3;
+      plDazzWb = 'A';
+      plDazzNight = false;
+      var plNightEl2 = document.getElementById('plNightBtn');
+      if (plNightEl2) plNightEl2.classList.remove('on');
+      plApplyDazzCam(plDazzCamIdx, true);
+
       plAspect = 'full';
       if (plAspectMask) plAspectMask.style.display = 'none';
       plTimerSec = 0;
@@ -3129,13 +3246,16 @@ var plZoomIndicator = $('plZoomIndicator');
       plFirePhoto();
     });
 
+
     function plFirePhoto() {
+      if (plDexpOn) { plDexpCapture(); return; }  // r91 Dazz：双重曝光流程
       plFlashOverlay.classList.remove('fire');
       void plFlashOverlay.offsetWidth;
       plFlashOverlay.classList.add('fire');
       if (navigator.vibrate) navigator.vibrate(30);
       plCapturePhoto();
     }
+
     // 实况照片（r86）：静态照 + 自动录 3 秒动态（Live Photo）
     function plFireLivePhoto() {
       if (plRecorder) return;
@@ -3440,7 +3560,7 @@ var plZoomIndicator = $('plZoomIndicator');
     function plWheelEnd() { plWheelState.on = false; }
     function plInitZoomWheel() {
       plBuildZoomWheel();
-      if (plZoomWheel) plZoomWheel.style.display = '';
+      if (plZoomWheel) plZoomWheel.style.display = 'none'; // r91：Dazz 布局隐藏滚轮（捏合+焦距拨盘仍可变焦）
       if (plZoomIndicator) { plZoomIndicator.style.display = 'none'; plZoomIndicator.textContent = (plZoom >= 10 ? String(plZoom) : plZoom.toFixed(1)) + 'x'; }
       if (plEvBadge) { plEvBadge.style.display = ''; plEvBadge.textContent = 'EV 0.0'; }
       plUpdateZoomWheel();
@@ -3487,40 +3607,370 @@ var plZoomIndicator = $('plZoomIndicator');
       setTimeout(function () { plHostCamStatus.style.opacity = '0'; }, 900);
     }
 
+
     // =====================================================================
-    // 滤镜 / 定时器 / 设置 / 画幅 / 模式（对标 OPPO + iOS 26）
+    // r91 Dazz 胶片机身引擎：机身=滤镜配方（色彩+颗粒+漏光+暗角+时间戳+画框）
+    // 预览=video CSS filter + 特效层；成片=canvas 后处理；推帧自带色彩与时间戳
     // =====================================================================
-    var plFilters = [
-      { name: '原彩', css: 'none' },
-      { name: '鲜明', css: 'saturate(1.45) contrast(1.06)' },
-      { name: '暖阳', css: 'sepia(0.28) saturate(1.25) brightness(1.06)' },
-      { name: '冷调', css: 'hue-rotate(175deg) saturate(1.05) brightness(1.04)' },
-      { name: '胶片', css: 'contrast(1.08) sepia(0.22) brightness(0.96)' },
-      { name: '黑白', css: 'grayscale(1) contrast(1.05)' }
+    var plDazzCams = [
+      { name: 'CLASSIC U', group: '复古 135', desc: '经典暖调', css: 'contrast(1.06) sepia(0.14) saturate(1.08) brightness(1.02)', grain: 0.7, leak: 0.35, vig: 0.8, stamp: true, scan: false, frame: 'none' },
+      { name: 'CPM 35', group: '复古 135', desc: '浓郁胶片', css: 'contrast(1.12) saturate(1.32) sepia(0.1)', grain: 0.55, leak: 0.3, vig: 0.7, stamp: true, scan: false, frame: 'none' },
+      { name: 'FXN R', group: '复古 135', desc: '青绿日系', css: 'contrast(1.04) saturate(1.12) hue-rotate(-6deg) brightness(1.05)', grain: 0.45, leak: 0.2, vig: 0.5, stamp: false, scan: false, frame: 'none' },
+      { name: 'D HALF', group: '半格', desc: '清新淡彩', css: 'contrast(0.95) saturate(0.92) brightness(1.07)', grain: 0.35, leak: 0.15, vig: 0.4, stamp: true, scan: false, frame: 'none' },
+      { name: 'INSTA C', group: '即时成像', desc: '拍立得白框', css: 'contrast(0.95) saturate(1.12) sepia(0.08) brightness(1.05)', grain: 0.4, leak: 0.25, vig: 0.45, stamp: true, scan: false, frame: 'instax' },
+      { name: 'KD 400', group: '复古 120', desc: '柯达暖黄', css: 'sepia(0.22) saturate(1.2) contrast(1.05) brightness(1.03)', grain: 0.6, leak: 0.4, vig: 0.75, stamp: true, scan: false, frame: 'none' },
+      { name: 'CCD 03', group: '数码', desc: 'CCD 噪点', css: 'contrast(0.98) saturate(0.88) brightness(1.08)', grain: 0.5, leak: 0.1, vig: 0.3, stamp: true, scan: false, frame: 'none' },
+      { name: 'VHS 8', group: '视频机', desc: '录像带扫描线', css: 'contrast(1.1) saturate(1.18) hue-rotate(4deg)', grain: 0.85, leak: 0.3, vig: 0.6, stamp: false, scan: true, frame: 'none' }
     ];
-    function plBuildFilters() {
-      if (!plFilterPanel) return;
-      plFilterPanel.innerHTML = '';
-      for (var i = 0; i < plFilters.length; i++) {
-        (function (f, idx) {
-          var it = document.createElement('button');
-          it.type = 'button';
-          it.className = 'cam-filter-item' + (idx === 0 ? ' on' : '');
-          it.innerHTML = '<span class="cam-filter-orb" style="' + (f.css !== 'none' ? 'filter:' + f.css + ';' : '') + 'background:linear-gradient(135deg,#8a4b2f 0%,#3a6b8a 100%);"></span><span class="cam-filter-name">' + f.name + '</span>';
-          it.addEventListener('click', function () { plSetFilter(f.css, idx); });
-          plFilterPanel.appendChild(it);
-        })(plFilters[i], i);
+    var plDazzCamIdx = 0;
+    var plDazzNight = false;
+    var plDazzWb = 'A';
+    var plDazzEvSoft = 0;
+    var plDazzEvIdx = 3;
+    var plDazzEvSteps = [-1.5, -1, -0.5, 0, 0.5, 1, 1.5];
+    var plDexpOn = false, plDexpBase = null;
+    var plImportFile = null;
+    var plFilmFx = document.getElementById('plFilmFx');
+    var plStampEl = document.getElementById('plStamp');
+    var plCamNameEl = document.getElementById('plCamName');
+    var plCamNameWrap = document.getElementById('plCamNameWrap');
+    var plWbLbl = document.getElementById('plWbLbl');
+    var plFocalLbl = document.getElementById('plFocalLbl');
+    function plDazzStampText() {
+      var now = new Date();
+      function p2(n) { return String(n).padStart(2, '0'); }
+      return "'" + String(now.getFullYear()).slice(2) + ' ' + p2(now.getMonth() + 1) + ' ' + p2(now.getDate());
+    }
+    function plDrawDazzStamp(ctx, x, y) {
+      var fs2 = Math.max(14, Math.round(x / 34));
+      ctx.font = '700 ' + fs2 + 'px "Courier New", ui-monospace, Menlo, monospace';
+      ctx.fillStyle = '#FF8A00';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(plDazzStampText(), x - Math.round(x * 0.035), y - Math.round(y * 0.05));
+    }
+    var plNoisePat = null;
+    function plNoisePattern(ctx) {
+      if (plNoisePat) return plNoisePat;
+      var n = document.createElement('canvas'); n.width = n.height = 96;
+      var nx = n.getContext('2d');
+      var id = nx.createImageData(96, 96);
+      for (var i = 0; i < id.data.length; i += 4) {
+        var v = 104 + Math.floor(Math.random() * 48);
+        id.data[i] = v; id.data[i + 1] = v; id.data[i + 2] = v; id.data[i + 3] = 255;
+      }
+      nx.putImageData(id, 0, 0);
+      plNoisePat = ctx.createPattern(n, 'repeat');
+      return plNoisePat;
+    }
+    function plFilmPost(ctx, x, y, w, h, cam) {
+      if (cam.leak > 0 && Math.random() < Math.max(0.28, cam.leak)) {
+        var topHot = Math.random() < 0.5;
+        var cxp = topHot ? x + w * 0.88 : x + w * 0.12;
+        var cyp = topHot ? y + h * 0.1 : y + h * 0.9;
+        var g = ctx.createRadialGradient(cxp, cyp, 0, cxp, cyp, Math.max(w, h) * 0.72);
+        g.addColorStop(0, 'rgba(255,152,60,' + (0.5 * cam.leak).toFixed(3) + ')');
+        g.addColorStop(0.55, 'rgba(255,120,70,' + (0.2 * cam.leak).toFixed(3) + ')');
+        g.addColorStop(1, 'rgba(255,120,70,0)');
+        ctx.save(); ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = g; ctx.fillRect(x, y, w, h); ctx.restore();
+      }
+      if (cam.vig > 0) {
+        var vg = ctx.createRadialGradient(x + w / 2, y + h / 2, Math.min(w, h) * 0.42, x + w / 2, y + h / 2, Math.max(w, h) * 0.74);
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(1, 'rgba(0,0,0,' + (0.42 * cam.vig).toFixed(3) + ')');
+        ctx.fillStyle = vg; ctx.fillRect(x, y, w, h);
+      }
+      if (cam.grain > 0) {
+        var pat = plNoisePattern(ctx);
+        if (pat) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'overlay';
+          ctx.globalAlpha = Math.min(0.3, 0.16 * cam.grain + 0.05);
+          ctx.translate(x, y);
+          ctx.fillStyle = pat; ctx.fillRect(0, 0, w, h);
+          ctx.restore();
+        }
+      }
+      if (cam.scan) {
+        ctx.save(); ctx.globalAlpha = 0.15; ctx.fillStyle = '#000';
+        for (var sy2 = y + 2; sy2 < y + h; sy2 += 3) ctx.fillRect(x, sy2, w, 1);
+        ctx.restore();
       }
     }
-    function plSetFilter(css, idx) {
-      plActiveFilter = css === 'none' ? 'none' : css;
-      plFilterCss = css === 'none' ? '' : css;
-      plVideo.style.filter = plFilterCss;
-      var items = plFilterPanel.querySelectorAll('.cam-filter-item');
-      for (var i = 0; i < items.length; i++) items[i].classList.toggle('on', i === idx);
-      if (plFilterBtn) plFilterBtn.classList.toggle('on', idx > 0);
-      plShowCamToast('滤镜：' + plFilters[idx].name);
+    function plComposeDazzFilter() {
+      var cam = plDazzCams[plDazzCamIdx] || plDazzCams[0];
+      var parts = [];
+      if (cam.css) parts.push(cam.css);
+      if (plDazzNight) parts.push('brightness(1.22) contrast(1.04)');
+      if (plDazzWb === 'warm') parts.push('sepia(0.12) saturate(1.06)');
+      else if (plDazzWb === 'cool') parts.push('hue-rotate(12deg) saturate(1.02) brightness(1.02)');
+      if (plDazzEvSoft) parts.push('brightness(' + (1 + plDazzEvSoft * 0.16).toFixed(3) + ')');
+      plFilterCss = parts.join(' ');
+      plActiveFilter = plFilterCss || 'none';
+      if (plVideo) plVideo.style.filter = plFilterCss;
     }
+    function plDazzSyncStamp() {
+      if (!plStampEl) return;
+      var cam = plDazzCams[plDazzCamIdx] || plDazzCams[0];
+      plStampEl.textContent = plDazzStampText();
+      plStampEl.classList.toggle('show', !!cam.stamp && plWatermark && !!plStream);
+    }
+    function plDazzSyncDials() {
+      if (plWbLbl) plWbLbl.textContent = plDazzWb === 'warm' ? '暖' : (plDazzWb === 'cool' ? '冷' : 'A');
+      if (plFocalLbl) plFocalLbl.textContent = plFocalAt(Math.max(1, plZoom)) + '';
+      if (plEvBadge) {
+        var ev = plDazzEvSoft;
+        plEvBadge.style.display = '';
+        plEvBadge.textContent = 'EV ' + (ev > 0 ? '+' : '') + ev;
+      }
+    }
+    function plApplyDazzCam(idx, silent) {
+      plDazzCamIdx = Math.max(0, Math.min(plDazzCams.length - 1, idx));
+      var cam = plDazzCams[plDazzCamIdx];
+      plComposeDazzFilter();
+      if (plFilmFx) {
+        plFilmFx.classList.toggle('scan', !!cam.scan);
+        plFilmFx.style.setProperty('--fx-vig', String((cam.vig * 0.85).toFixed(2)));
+        plFilmFx.style.setProperty('--fx-leak', String((cam.leak * 0.8).toFixed(2)));
+        plFilmFx.style.setProperty('--fx-grain', String((cam.grain * 0.5 + (cam.scan ? 0.16 : 0)).toFixed(2)));
+      }
+      if (plCamNameEl) plCamNameEl.textContent = cam.name;
+      plDazzSyncDials();
+      plDazzSyncStamp();
+      var fpanel = document.getElementById('plFilterPanel');
+      if (fpanel) {
+        var cards = fpanel.querySelectorAll('.dazz-cam-card');
+        for (var i = 0; i < cards.length; i++) cards[i].classList.toggle('on', i === plDazzCamIdx);
+      }
+      var fbtn = document.getElementById('plFilterBtn');
+      if (fbtn) fbtn.classList.toggle('on', plDazzCamIdx > 0);
+      if (!silent) plShowCamToast('机身 ' + cam.name + ' · ' + cam.desc);
+    }
+    function plBuildFilters() {
+      var fpanel = document.getElementById('plFilterPanel');
+      if (!fpanel) return;
+      fpanel.innerHTML = '';
+      var groups = {}, order = [];
+      for (var i = 0; i < plDazzCams.length; i++) {
+        var g = plDazzCams[i].group;
+        if (!groups[g]) { groups[g] = []; order.push(g); }
+        groups[g].push(i);
+      }
+      for (var gi = 0; gi < order.length; gi++) {
+        var h = document.createElement('div');
+        h.className = 'dazz-drawer-title';
+        h.textContent = order[gi];
+        fpanel.appendChild(h);
+        var row = document.createElement('div');
+        row.className = 'dazz-drawer-row';
+        var idxs = groups[order[gi]];
+        for (var k = 0; k < idxs.length; k++) {
+          (function (ci) {
+            var camD = plDazzCams[ci];
+            var card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'dazz-cam-card' + (ci === plDazzCamIdx ? ' on' : '');
+            card.innerHTML = '<span class="dazz-cam-thumb" style="' + (camD.css ? 'filter:' + camD.css + ';' : '') + 'background:linear-gradient(135deg,#c98a5e 0%,#e8c39e 34%,#7f9e7a 66%,#3e4a5a 100%)"></span><span class="dazz-cam-nm">' + camD.name + '</span><span class="dazz-cam-ds">' + camD.desc + '</span>';
+            card.addEventListener('click', function () {
+              plApplyDazzCam(ci);
+              document.getElementById('plFilterPanel').style.display = 'none';
+            });
+            row.appendChild(card);
+          })(idxs[k]);
+        }
+        fpanel.appendChild(row);
+      }
+    }
+    // 成片落库（GPS + 待归类 + 回传控制端）——拍照/双重曝光/导入共用
+    function plFinishPhoto(fullUrl, thumb, w, h) {
+      var getLocation = new Promise(function (resolve, reject) {
+        if (navigator.geolocation) navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, enableHighAccuracy: true });
+        else reject(new Error('无定位能力'));
+      });
+      getLocation.then(function (pos) {
+        plWritePending(pos.coords.longitude, pos.coords.latitude, fullUrl, thumb, null);
+        plNotifyClient(thumb);
+      }).catch(function () {
+        plWritePending(120.3826 + (Math.random() - 0.5) * 0.003, 36.0671 + (Math.random() - 0.5) * 0.003, fullUrl, thumb, 'approx');
+        plNotifyClient(thumb);
+      });
+      var gimg = document.getElementById('plCamGalleryImg');
+      if (gimg) { try { gimg.src = thumb; } catch (e) {} }
+    }
+    // 左缘拨盘：曝光（软 EV）/色温（A/暖/冷）/焦距（28/35/50mm）
+    (function () {
+      var evBtn = document.getElementById('plEvDial');
+      if (evBtn) evBtn.addEventListener('click', function () {
+        plDazzEvIdx = (plDazzEvIdx + 1) % plDazzEvSteps.length;
+        plDazzEvSoft = plDazzEvSteps[plDazzEvIdx];
+        plComposeDazzFilter();
+        plDazzSyncDials();
+        plShowCamToast('曝光 ' + (plDazzEvSoft > 0 ? '+' : '') + plDazzEvSoft);
+      });
+      var wbBtn = document.getElementById('plWbDial');
+      if (wbBtn) wbBtn.addEventListener('click', function () {
+        plDazzWb = plDazzWb === 'A' ? 'warm' : (plDazzWb === 'warm' ? 'cool' : 'A');
+        plComposeDazzFilter();
+        plDazzSyncDials();
+        plShowCamToast('色温 ' + (plDazzWb === 'warm' ? '暖调' : (plDazzWb === 'cool' ? '冷调' : '自动')));
+      });
+      var foBtn = document.getElementById('plFocalDial');
+      if (foBtn) foBtn.addEventListener('click', function () {
+        var stops = [28, 35, 50];
+        var cur = plFocalAt(Math.max(1, plZoom));
+        var ni = 0;
+        for (var s = 0; s < stops.length; s++) { if (stops[s] <= cur) ni = s; }
+        ni = (ni + 1) % stops.length;
+        var mm = stops[ni];
+        plApplyZoom(mm / PL_FOCAL_BASE);
+        plDazzSyncDials();
+        plShowCamToast('焦距 ' + mm + 'mm');
+      });
+    })();
+    // 双重曝光：两拍 screen 合成
+    function plDexpSet(on) {
+      plDexpOn = on;
+      if (!on) plDexpBase = null;
+      var b = document.getElementById('plDexpBtn');
+      if (b) b.classList.toggle('on', on);
+    }
+    function plDexpLoadImg(url) {
+      return new Promise(function (res) {
+        var im = new Image();
+        im.onload = function () { res(im); };
+        im.onerror = function () { res(null); };
+        im.src = url;
+      });
+    }
+    function plDexpCapture() {
+      if (!plStream) return;
+      plGetStill().then(function (still) {
+        if (!still || !still.dataUrl) { plShowCamToast('取景失败，请重试'); return; }
+        plFlashOverlay.classList.remove('fire');
+        void plFlashOverlay.offsetWidth;
+        plFlashOverlay.classList.add('fire');
+        if (navigator.vibrate) navigator.vibrate(30);
+        plDexpLoadImg(still.dataUrl).then(function (im) {
+          if (!im) { plShowCamToast('取景失败，请重试'); return; }
+          if (!plDexpBase) {
+            plDexpBase = im;
+            plShowCamToast('双重曝光 1/2 · 再拍一张合成');
+            return;
+          }
+          var w = Math.max(im.naturalWidth, plDexpBase.naturalWidth);
+          var h = Math.max(im.naturalHeight, plDexpBase.naturalHeight);
+          var c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          var cx = c.getContext('2d');
+          cx.drawImage(plDexpBase, 0, 0, w, h);
+          cx.globalCompositeOperation = 'screen';
+          cx.globalAlpha = 0.55;
+          cx.drawImage(im, 0, 0, w, h);
+          cx.globalAlpha = 1;
+          cx.globalCompositeOperation = 'source-over';
+          plDexpSet(false);
+          var tc = document.createElement('canvas');
+          var tsc = Math.min(200 / w, 200 / h, 1);
+          tc.width = Math.max(1, Math.round(w * tsc));
+          tc.height = Math.max(1, Math.round(h * tsc));
+          tc.getContext('2d').drawImage(c, 0, 0, tc.width, tc.height);
+          var url = null, thumb = null;
+          try { url = c.toDataURL('image/jpeg', 0.85); } catch (e) {}
+          try { thumb = tc.toDataURL('image/jpeg', 0.6); } catch (e) {}
+          if (!url) { plShowCamToast('合成失败，请重试'); return; }
+          thumb = thumb || url;
+          plFinishPhoto(url, thumb, w, h);
+        });
+      });
+    }
+    (function () {
+      var dx = document.getElementById('plDexpBtn');
+      if (dx) dx.addEventListener('click', function () {
+        plDexpSet(!plDexpOn);
+        plShowCamToast(plDexpOn ? '双重曝光 · 开：连拍两张自动合成' : '双重曝光 · 关');
+      });
+    })();
+    // 导入已有照片 -> 当前机身冲洗（滤镜+颗粒+漏光+时间戳+画框）
+    function plImportProcess(im) {
+      var cam = plDazzCams[plDazzCamIdx] || plDazzCams[0];
+      var w = im.naturalWidth, h = im.naturalHeight;
+      var cap = 1600;
+      var sc = Math.min(cap / w, cap / h, 1);
+      var cw = Math.max(1, Math.round(w * sc)), ch = Math.max(1, Math.round(h * sc));
+      var fw = cw, fh = ch, ox = 0, oy = 0;
+      if (cam.frame === 'instax') {
+        var pm = Math.round(Math.min(cw, ch) * 0.07);
+        fw = cw + pm * 2; fh = ch + pm + Math.round(pm * 2.6);
+        ox = pm; oy = pm;
+      }
+      var c = document.createElement('canvas');
+      c.width = fw; c.height = fh;
+      var cx = c.getContext('2d');
+      cx.fillStyle = '#F6F3EC'; cx.fillRect(0, 0, fw, fh);
+      if (plFilterCss) cx.filter = plFilterCss;
+      cx.drawImage(im, ox, oy, cw, ch);
+      cx.filter = 'none';
+      plFilmPost(cx, ox, oy, cw, ch, cam);
+      if (plWatermark) plDrawDazzStamp(cx, ox + cw, oy + ch);
+      var tc = document.createElement('canvas');
+      var tsc = Math.min(200 / fw, 200 / fh, 1);
+      tc.width = Math.max(1, Math.round(fw * tsc));
+      tc.height = Math.max(1, Math.round(fh * tsc));
+      tc.getContext('2d').drawImage(c, 0, 0, tc.width, tc.height);
+      var url = null, thumb = null;
+      try { url = c.toDataURL('image/jpeg', 0.85); } catch (e) {}
+      try { thumb = tc.toDataURL('image/jpeg', 0.6); } catch (e) {}
+      if (!url) { plShowCamToast('导入处理失败'); return; }
+      thumb = thumb || url;
+      plFinishPhoto(url, thumb, fw, fh);
+      plShowCamToast('已按 ' + cam.name + ' 冲洗入库');
+    }
+    (function () {
+      var ib = document.getElementById('plImportBtn');
+      if (!ib) return;
+      ib.addEventListener('click', function () {
+        if (!plImportFile) {
+          plImportFile = document.createElement('input');
+          plImportFile.type = 'file';
+          plImportFile.accept = 'image/*';
+          plImportFile.style.display = 'none';
+          document.body.appendChild(plImportFile);
+          plImportFile.addEventListener('change', function () {
+            var f = plImportFile.files && plImportFile.files[0];
+            if (!f) return;
+            var rd = new FileReader();
+            rd.onload = function () {
+              plDexpLoadImg(rd.result).then(function (im) {
+                if (!im) { plShowCamToast('导入失败'); return; }
+                plImportProcess(im);
+              });
+            };
+            rd.readAsDataURL(f);
+          });
+        }
+        plImportFile.value = '';
+        plImportFile.click();
+      });
+    })();
+    // 底部机身名横线 -> 参数面板
+    if (plCamNameWrap) plCamNameWrap.addEventListener('click', function () {
+      var sdp = document.getElementById('plSettingsPanel');
+      var fdp = document.getElementById('plFilterPanel');
+      var tmd = document.getElementById('plTimerMenu');
+      var show = sdp && sdp.style.display === 'none';
+      if (sdp) sdp.style.display = show ? '' : 'none';
+      if (fdp) fdp.style.display = 'none';
+      if (tmd) tmd.style.display = 'none';
+    });
+    // 参数面板快捷行：照片 / 视频（互联模式切换入口）
+    (function () {
+      var pb = document.getElementById('plPhotoBtn');
+      if (pb) pb.addEventListener('click', function () { plSetMode('photo'); var sp = document.getElementById('plSettingsPanel'); if (sp) sp.style.display = 'none'; });
+      var vb = document.getElementById('plVideoBtn');
+      if (vb) vb.addEventListener('click', function () { plSetMode('video'); var sp = document.getElementById('plSettingsPanel'); if (sp) sp.style.display = 'none'; });
+    })();
+
     if (plFilterBtn) plFilterBtn.addEventListener('click', function () {
       var show = plFilterPanel.style.display === 'none';
       plFilterPanel.style.display = show ? '' : 'none';
@@ -3573,11 +4023,14 @@ var plZoomIndicator = $('plZoomIndicator');
       var plSetGrid = document.getElementById('plSetGrid');
       if (plSetGrid) plSetGrid.addEventListener('click', function () { plGridBtn.click(); });
       var plSetWm = document.getElementById('plSetWm');
+
       if (plSetWm) plSetWm.addEventListener('click', function () {
         plWatermark = !plWatermark;
         plSetWm.classList.toggle('on', plWatermark);
-        plShowCamToast('水印：' + (plWatermark ? '开' : '关'));
+        plDazzSyncStamp();
+        plShowCamToast('时间戳：' + (plWatermark ? '开' : '关'));
       });
+
       var plSetFlash = document.getElementById('plSetFlash');
       if (plSetFlash) plSetFlash.addEventListener('click', function () { plFlashBtn.click(); });
     }
@@ -3641,14 +4094,15 @@ var plZoomIndicator = $('plZoomIndicator');
         if (tm) tm.style.display = 'none';
         if (fp) fp.style.display = 'none';
       });
+
       var night = document.getElementById('plNightBtn');
       if (night) night.addEventListener('click', function () {
         var on = night.classList.toggle('on');
-        plActiveFilter = on ? 'night' : 'none';
-        plFilterCss = on ? 'brightness(1.22) contrast(1.04)' : '';
-        plVideo.style.filter = plFilterCss;
+        plDazzNight = on;
+        plComposeDazzFilter();
         plShowCamToast(on ? '夜景增强 · 开' : '夜景增强 · 关');
       });
+
     })();
     function plSetMode(m) {
       if (plCamMode === m) return;
@@ -3732,13 +4186,18 @@ var plZoomIndicator = $('plZoomIndicator');
       });
     }
 
+
     plBuildFilters();
+    plApplyDazzCam(plDazzCamIdx, true); // r91：默认机身 CLASSIC U
+
 
 
     // 帧推流：150ms 一帧（宽 1080 JPEG q0.75，画质优先；仅 host 且连接正常时推送）
+
     function plStartFramePush() {
       plStopFramePush();
       var canvas = document.createElement('canvas');
+      var cctx = canvas.getContext('2d');
       plFrameTimer = setInterval(function () {
         if (!plStream || !plWs || plWs.readyState !== 1 || plRole !== 'host') return;
         if (plScreenActive) return; // 屏控激活：帧源切换为屏幕（evalJS 注入），停用相机帧
@@ -3749,13 +4208,16 @@ var plZoomIndicator = $('plZoomIndicator');
         var scale = 1080 / sw;
         canvas.width = 1080;
         canvas.height = Math.max(1, Math.round(sh * scale));
-        canvas.getContext('2d').filter = plFilterCss || 'none';
-        canvas.getContext('2d').drawImage(plVideo, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+        cctx.filter = plFilterCss || 'none';
+        cctx.drawImage(plVideo, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+        cctx.filter = 'none';
+        if (plWatermark) plDrawDazzStamp(cctx, canvas.width, canvas.height);
         var dataUrl = null;
         try { dataUrl = canvas.toDataURL('image/jpeg', 0.75); } catch (e) {}
         if (dataUrl) plWs.send(JSON.stringify({ type: 'frame', data: dataUrl }));
       }, 150);
     }
+
     function plStopFramePush() {
       if (plFrameTimer) { clearInterval(plFrameTimer); plFrameTimer = null; }
     }
@@ -4415,7 +4877,7 @@ var plZoomIndicator = $('plZoomIndicator');
           var st = bd.bridgeState === 'ok' ? '桥OK' : (bd.bridgeState === 'missing' ? '桥缺失' : (bd.bridgeState === 'plus' ? '备用枚举' : '桥探测中'));
           tail = ' · ' + st + (bd.weexPost ? '·weex✓' : '') + (bd.uniPostMessage ? '·uni✓' : '');
         }
-        el.textContent = '联机传输 页r90 · 库' + lib +
+        el.textContent = '联机传输 页r91 · 库' + lib +
           ((typeof UsbTether !== 'undefined' && UsbTether.utsMode) ? ' · 原生桥' : '') + tail;
         var de = $('usbBridgeDiag');
         if (de && typeof UsbTether !== 'undefined' && UsbTether.bridgeDiag) {
@@ -4950,7 +5412,7 @@ var plZoomIndicator = $('plZoomIndicator');
       panel.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,6,3,0.94);display:flex;align-items:center;justify-content:center;padding:24px;';
       panel.innerHTML = '<div style="background:#1c0f08;border:1px solid rgba(212,165,116,0.4);border-radius:16px;padding:20px;max-width:540px;width:100%;">' +
         '<div style="font-size:15px;font-weight:600;color:#E89020;margin-bottom:2px;">📷 相机已连接</div>' +
-        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260822-r90 · 小米相机(大焦段滚轮+白色快门+5模式条)：EVFMode=1+输出到PC(0xD1B0=2)+0x9151完整序列，帧blob链解析；事件循环与LV共存，拍照导入恢复</div>' +
+        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260822-r91 · 小米相机(大焦段滚轮+白色快门+5模式条)：EVFMode=1+输出到PC(0xD1B0=2)+0x9151完整序列，帧blob链解析；事件循环与LV共存，拍照导入恢复</div>' +
         '<div style="font-size:12px;color:#F5DFC0;line-height:1.6;margin-bottom:10px;"><b>请在相机机身上按一次快门</b>，然后点下方蓝色按钮立即扫描检测（事件通道 0x4002/0xC181 也在自动监听）。<br>' +
         '<span style="color:#c9a06a;">r53：远程模式（0x9114=1）+ 设卡=CF 卡（0xD11C=1）。不做卡枚举。事件通道 0xC181 经 GetEvent 到达，中断端点 0x4002 双通道监听。按快门即收。</span></div>' +
         '<button id="wsBodyTestPressed" style="margin:6px 0 10px;width:100%;padding:10px;border:none;border-radius:10px;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">📸 我已在相机上按过快门（事件通道自动监听中）</button>' +
@@ -5305,7 +5767,7 @@ var plZoomIndicator = $('plZoomIndicator');
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260822-r90',               // r54 2026-08-21【工作台打通·全链路】：主连接路径+(startEvents+工作台事件循环)，webusb不再重定向到bodyTest—— → 5D2 一直「读卡忙」→ 机身快门锁死。证据链：r43/r44（等待循环=GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；r45 加 0x1007 轮询后 r46-r50 全锁；r50 恢复 GetEvent 仍锁 → 证明 GetEvent 不是变量（r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举；gphoto2 等待事件从不连续枚举卡、r38 wasm 补丁会话（非远程、不枚举）→ 快门可用，同机制。r51：① waitForObject 轮询默认关闭（{poll:true} 才开）→ 等待循环回到 r44 证明可行的形态（GetEvent 排空+保活）；② 传输层中断读取器瞬时错误延时重挂（不永久停，保 0x4002 通道）；③ 页面「我已按过快门」按钮=一次性 GetObjectHandles 扫描（瞬时枚举不锁快门）；④ 连接后一次性建立扫描基线。r50 的 GetEvent 排空结论保留（防事件堆积 Busy），但其「GetEvent 是锁快门根因」判断经 r51 真机复测推翻 // r50 2026-08-21【误诊记录，已被 r51 推翻】当时判定根因=SetEventMode 后从不 GetEvent 排空→Busy 锁快门；真机 r50 复测仍锁→该理论不成立，真根因=0x1007 轮询（见 r51） // r49 // r49 2026-08-21【r48 数据点后·锁快门嫌疑隔离】r48 截图：基线 GetObjectHandles 真机成功（0x2=1/0x10001=128/0x30000=1，128 张全数出）→ 检测通道活了；但机身快门仍按不下去，且王总说「一点击连接就弹报错」= 连接成功测试面板（非报错）。对比 gphoto2 非远程(SetEventMode)会话：它从不调 GetEvent(0x9116)，我们连接时却 drainEosEvents(4) 连发 4 次——GetEvent 是远程通道命令，非远程调用有锁快门嫌疑。r49：drainEosEvents 非远程跳过（setRemoteMode 维护 _remoteMode 状态）；页面连接流非远程不再排空；首屏日志明示「非远程已跳过 GetEvent 排空」。若仍锁 → 嫌疑转移：中断端点常驻读/2s 轮询，再与 wasm 逐字节对照。测试 58/58 绿 // r48 2026-08-21【r47真机实锤后·句柄枚举】r47 截图（角标可见）：串行化修复成功——0x1004 不再挂、相机秒答 3 存储（0x2/0x10001/0x30000）；但 GetNumObjects(0x1006) 一律回 PTP 0x201d（Invalid Parameter，EOS 不实现该命令；gphoto2 canon 驱动从不调 0x1006）→ 轮询从「计数+句柄」改为纯 GetObjectHandles(0x1007) 句柄差集（与 gphoto2 同款语义），基线=句柄集、检测=差集；快门按不下去=上一会话残留锁，需整机断电（电源开关 OFF→ON）复位 // r47 2026-08-21【r46真机实锤后·串行化修复】真机 r46 日志：初始化命令全秒回（含 0x911D），但 keepAlive(0x911D) fire-and-forget 与 0x1004 GetStorageIDs 同 bulk 管道并发 transact（违反本文件 L774「勿并发」注释与 gphoto2 串行纪律）→ 0x1004 被相机丢弃 → 20s 读超时 → 管道毒化 → 24s 内会话死。r47：① transact 全局 mutex 串行化（_txRun 链，fire-and-forget 也只排队）；② _pollEnsureBaseline 存储探测短超时 3s，失败即 _storageOk=false 关轮询兜底（防反复 20s 卡死饿死事件循环，仅靠事件通道），GetNumObjects/GetObjectHandles 短超时 2.5s；③ 慢命令追踪（>800ms 打 ⏱ 诊断）；④ 非远程轮询/保活加 _storageOk 闸；⑤ 远程 GetEvent 短超时 2s；⑥ 面板加「我已按过快门」确认按钮 // r46 2026-08-21【r45真机实锤后】waitForObject 非远程模式跳过 GetEvent(0x9116)（高频 GetEvent 挂起/异常→拖死循环→r45 轮询兜底轮不到→6分钟零检测+掉线）；GetEvent 仅远程模式；轮询/保活加诊断回调（基线/心跳/命中/降级/失败进日志）；mock 加 hangGetEvent 模式回归 // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
+      usbVer: '20260822-r91',               // r54 2026-08-21【工作台打通·全链路】：主连接路径+(startEvents+工作台事件循环)，webusb不再重定向到bodyTest—— → 5D2 一直「读卡忙」→ 机身快门锁死。证据链：r43/r44（等待循环=GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；r45 加 0x1007 轮询后 r46-r50 全锁；r50 恢复 GetEvent 仍锁 → 证明 GetEvent 不是变量（r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举；gphoto2 等待事件从不连续枚举卡、r38 wasm 补丁会话（非远程、不枚举）→ 快门可用，同机制。r51：① waitForObject 轮询默认关闭（{poll:true} 才开）→ 等待循环回到 r44 证明可行的形态（GetEvent 排空+保活）；② 传输层中断读取器瞬时错误延时重挂（不永久停，保 0x4002 通道）；③ 页面「我已按过快门」按钮=一次性 GetObjectHandles 扫描（瞬时枚举不锁快门）；④ 连接后一次性建立扫描基线。r50 的 GetEvent 排空结论保留（防事件堆积 Busy），但其「GetEvent 是锁快门根因」判断经 r51 真机复测推翻 // r50 2026-08-21【误诊记录，已被 r51 推翻】当时判定根因=SetEventMode 后从不 GetEvent 排空→Busy 锁快门；真机 r50 复测仍锁→该理论不成立，真根因=0x1007 轮询（见 r51） // r49 // r49 2026-08-21【r48 数据点后·锁快门嫌疑隔离】r48 截图：基线 GetObjectHandles 真机成功（0x2=1/0x10001=128/0x30000=1，128 张全数出）→ 检测通道活了；但机身快门仍按不下去，且王总说「一点击连接就弹报错」= 连接成功测试面板（非报错）。对比 gphoto2 非远程(SetEventMode)会话：它从不调 GetEvent(0x9116)，我们连接时却 drainEosEvents(4) 连发 4 次——GetEvent 是远程通道命令，非远程调用有锁快门嫌疑。r49：drainEosEvents 非远程跳过（setRemoteMode 维护 _remoteMode 状态）；页面连接流非远程不再排空；首屏日志明示「非远程已跳过 GetEvent 排空」。若仍锁 → 嫌疑转移：中断端点常驻读/2s 轮询，再与 wasm 逐字节对照。测试 58/58 绿 // r48 2026-08-21【r47真机实锤后·句柄枚举】r47 截图（角标可见）：串行化修复成功——0x1004 不再挂、相机秒答 3 存储（0x2/0x10001/0x30000）；但 GetNumObjects(0x1006) 一律回 PTP 0x201d（Invalid Parameter，EOS 不实现该命令；gphoto2 canon 驱动从不调 0x1006）→ 轮询从「计数+句柄」改为纯 GetObjectHandles(0x1007) 句柄差集（与 gphoto2 同款语义），基线=句柄集、检测=差集；快门按不下去=上一会话残留锁，需整机断电（电源开关 OFF→ON）复位 // r47 2026-08-21【r46真机实锤后·串行化修复】真机 r46 日志：初始化命令全秒回（含 0x911D），但 keepAlive(0x911D) fire-and-forget 与 0x1004 GetStorageIDs 同 bulk 管道并发 transact（违反本文件 L774「勿并发」注释与 gphoto2 串行纪律）→ 0x1004 被相机丢弃 → 20s 读超时 → 管道毒化 → 24s 内会话死。r47：① transact 全局 mutex 串行化（_txRun 链，fire-and-forget 也只排队）；② _pollEnsureBaseline 存储探测短超时 3s，失败即 _storageOk=false 关轮询兜底（防反复 20s 卡死饿死事件循环，仅靠事件通道），GetNumObjects/GetObjectHandles 短超时 2.5s；③ 慢命令追踪（>800ms 打 ⏱ 诊断）；④ 非远程轮询/保活加 _storageOk 闸；⑤ 远程 GetEvent 短超时 2s；⑥ 面板加「我已按过快门」确认按钮 // r46 2026-08-21【r45真机实锤后】waitForObject 非远程模式跳过 GetEvent(0x9116)（高频 GetEvent 挂起/异常→拖死循环→r45 轮询兜底轮不到→6分钟零检测+掉线）；GetEvent 仅远程模式；轮询/保活加诊断回调（基线/心跳/命中/降级/失败进日志）；mock 加 hangGetEvent 模式回归 // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
