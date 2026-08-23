@@ -147,28 +147,46 @@ export default {
 
     // ---------- App → web-view：evalJS ----------
     getWebview() {
+      // #ifdef APP-PLUS
       try {
-        // #ifdef APP-PLUS
+        // 策略1：当前页面 webview 自身（当 <web-view> 是根元素时，页面 webview 就是目标）
         const pages = getCurrentPages()
         const page = pages[pages.length - 1]
-        if (!page || !page.$getAppWebview) return null
-        const children = page.$getAppWebview().children()
-        if (!children || !children.length) return null
-        // 优先选带 evalJS 能力的 web-view 子视图（可能有其他原生子视图）
-        for (const c of children) {
-          if (c && typeof c.evalJS === 'function') return c
+        if (page && page.$getAppWebview) {
+          const appWv = (typeof page.$getAppWebview === 'function') ? page.$getAppWebview() : page.$getAppWebview
+          if (appWv && typeof appWv.evalJS === 'function') {
+            try { if (appWv.getURL && appWv.getURL().indexOf('connect-prototype') >= 0) return appWv } catch (e) {}
+          }
+          // 策略2：子视图（<web-view> 作为页面子元素时）
+          if (appWv && appWv.children) {
+            const children = appWv.children()
+            if (children && children.length) {
+              for (const c of children) {
+                if (c && typeof c.evalJS === 'function') return c
+              }
+              if (children[0] && typeof children[0].evalJS === 'function') return children[0]
+            }
+          }
         }
-        return children[0] || null
-        // #endif
-        // #ifndef APP-PLUS
-        return null
-        // #endif
-      } catch (e) {
-        return null
-      }
+        // 策略3：遍历所有 webview（find by URL 匹配联机页）
+        if (plus.webview && plus.webview.all) {
+          const all = plus.webview.all()
+          for (const wv of all) {
+            if (wv && typeof wv.evalJS === 'function') {
+              try { if (wv.getURL && wv.getURL().indexOf('connect-prototype') >= 0) return wv } catch (e) {}
+            }
+          }
+          // 策略4：任意带 evalJS 的 webview（最后兜底）
+          for (const wv of all) {
+            if (wv && typeof wv.evalJS === 'function') return wv
+          }
+        }
+      } catch (e) {}
+      // #endif
+      return null
     },
     evalWeb(js) {
-      const wv = this.getWebview()
+      const wv = this._usbWebview || this.getWebview()
       if (wv && wv.evalJS) {
         try { wv.evalJS(js) } catch (e) {}
       }
@@ -236,7 +254,17 @@ export default {
     },
 
     handleMessage(e) {
-      const msg = e && e.detail && e.detail.data && e.detail.data[0]
+      // 缓存 webview 引用（@message 事件携带目标 webview 的引用）
+      if (!this._usbWebview) {
+        try {
+          if (e && e.target && e.target.evalJS) {
+            this._usbWebview = e.target
+          }
+        } catch (e2) {}
+      }
+      // 兼容两种数据格式：{detail:{data:[...]}} 或 {detail:{data:{...}}}
+      const raw = e && e.detail && e.detail.data
+      const msg = Array.isArray(raw) ? raw[0] : raw
       if (!msg || !msg.type) return
       if (msg.type === 'memo_login') {
         memoApi.setAuth(msg.token, msg.user ? JSON.parse(msg.user) : null)
