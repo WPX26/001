@@ -1334,6 +1334,81 @@
 /* 兼容隐藏：模式条 + 变焦滚轮（互联逻辑依赖 DOM，不显示） */
 .cam-mode-bar { display: none !important; }
 .cam-zoom-wheel { display: none !important; }
+/* ===== r93：按王总第一张参考图重做拍摄页 —— 干净无顶栏/无左右竖列；大取景 + 中央色温曝光指示 + 蓝色预览提示 + 底部白快门横排 + 最底模式字 ===== */
+/* 隐藏：顶部 App 栏 / 左缘拨盘列 / 焦距叠加大字（第一张图均无；!important 覆盖 JS 的 display=''） */
+#plCamTopBar, #plDials, #plFocalOverlay { display: none !important; }
+
+/* 中央偏下：色温 + 曝光 两个小圆标（点按循环；对应第一张图 🌡50 / ☀-3） */
+#plCenterMeter {
+  position: absolute; left: 50%; top: 55%; transform: translateX(-50%); z-index: 6;
+  display: none; gap: 16rem;
+}
+#plCenterMeter.show { display: flex; }
+#plCenterMeter .meter-chip {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem;
+  width: 46rem; height: 46rem; border-radius: 50%;
+  background: rgba(0,0,0,0.32); border: 1rem solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  color: #fff; cursor: pointer; padding: 0;
+  transition: transform 0.12s, background 0.12s, color 0.12s;
+}
+#plCenterMeter .meter-chip:active { transform: scale(0.88); background: rgba(255,255,255,0.22); }
+#plCenterMeter .meter-chip svg { width: 16rem; height: 16rem; }
+#plCenterMeter .meter-chip b { font-size: 11rem; font-weight: 700; line-height: 1; letter-spacing: 0; }
+#plCenterMeter .meter-chip.on { color: #FFC860; border-color: rgba(255,200,96,0.55); background: rgba(255,200,96,0.2); }
+
+/* 底部快门栏：右侧竖列 → 底部横排（⚡左 / 大白快门中 / 相册+翻转+⋯右），对应第一张图 */
+#plCamBottomBar.dazz-col {
+  left: 0; right: 0; top: auto; bottom: calc(56rem + env(safe-area-inset-bottom, 0px));
+  transform: none; display: block; height: 100rem; gap: 0;
+}
+#plCamBottomBar .dazz-cbtn, #plCamBottomBar .cam-gallery-thumb { position: absolute; }
+#plCamBottomBar #plCamShutter { position: absolute; left: 50%; top: 8rem; margin-left: -42rem; width: 84rem; height: 84rem; }
+#plCamBottomBar #plCamShutter .cam-shutter-inner { width: 70rem; height: 70rem; }
+#plCamBottomBar #plFlashBtn { left: 84rem; top: 27rem; }
+#plCamBottomBar #plCamGallery { right: 84rem; top: 26rem; }
+#plCamBottomBar #plFlipCamBtn { right: 26rem; top: 27rem; }
+#plCamBottomBar #plMenuBtn { left: 26rem; top: 27rem; }
+/* 栏内隐藏：相机库/定时/双曝/导入（移入 ⋯ 参数面板） */
+#plCamBottomBar #plFilterBtn, #plCamBottomBar #plTimerBtn,
+#plCamBottomBar #plDexpBtn, #plCamBottomBar #plImportBtn { display: none; }
+
+/* 最底部：机身名 + 模式字（对应第一张图最底一行文字） */
+#plCamNameWrap.dazz-name {
+  bottom: calc(12rem + env(safe-area-inset-bottom, 0px));
+  flex-direction: row; align-items: center; gap: 14rem;
+}
+#plCamNameWrap #plCamName { font-size: 12rem; }
+#plCamNameWrap .dazz-name-bar { display: none; }
+.dazz-mode-chips { display: flex; gap: 4rem; }
+.dazz-mode-chip {
+  background: none; border: none; padding: 3rem 6rem; cursor: pointer;
+  font-size: 12rem; font-weight: 600; color: rgba(255,255,255,0.55);
+  text-shadow: 0 1rem 6rem rgba(0,0,0,0.6);
+}
+.dazz-mode-chip.on { color: #fff; }
+
+/* 蓝色预览提示（对应第一张图「长按此处预览上一张照片」蓝条）：移到快门栏上方、左对齐、蓝底 */
+#plPreviewDrawer.dazz-preview-drawer {
+  left: 14rem; right: auto; bottom: calc(166rem + env(safe-area-inset-bottom, 0px));
+  height: 40rem; padding: 0 14rem; border-radius: 12rem;
+  background: rgba(30,90,200,0.78); border: none;
+  justify-content: flex-start; gap: 8rem;
+}
+#plPreviewDrawer .dazz-preview-thumb { width: 26rem; height: 26rem; }
+#plPreviewDrawer .dazz-preview-label { color: rgba(255,255,255,0.95); font-size: 11rem; }
+
+/* 参数面板新增：功能入口行（相机库/定时/双曝/导入/夜景/焦距） */
+.cam-set-funcs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rem; margin-top: 4rem; }
+.cam-set-func {
+  display: flex; flex-direction: column; align-items: center; gap: 4rem;
+  padding: 10rem 4rem; border-radius: 12rem; cursor: pointer;
+  background: rgba(255,255,255,0.06); border: 1rem solid rgba(255,255,255,0.1);
+  color: #fff; font-size: 10rem;
+}
+.cam-set-func:active { background: rgba(255,255,255,0.16); }
+.cam-set-func svg { width: 18rem; height: 18rem; }
+.cam-set-func.on { color: #FFC860; border-color: rgba(255,200,96,0.55); }
 
 /* 底部机身名（Dazz：机身即滤镜；横线点击开参数面板） */
 .dazz-name {
@@ -2031,6 +2106,17 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                   </button>
                 </div>
+                <!-- r93 中央指示：色温 + 曝光（第一张参考图：取景器中央偏下 🌡50 / ☀-3，点按循环） -->
+                <div id="plCenterMeter">
+                  <button class="meter-chip" id="plMeterWb" type="button" title="色温 自动/暖/冷">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+                    <b id="plMeterWbVal">A</b>
+                  </button>
+                  <button class="meter-chip" id="plMeterEv" type="button" title="曝光补偿">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+                    <b id="plMeterEvVal">0.0</b>
+                  </button>
+                </div>
                 <!-- LIVE 推送指示（互联专属） -->
                 <div class="cam-live-hud" id="plLiveHud" style="display:none"><span class="cam-live-dot"></span><span class="cam-live-tag">LIVE</span><span id="plLiveHudInfo"></span></div>
                 <!-- 变焦指示器（兼容保留） -->
@@ -2066,6 +2152,9 @@
                     <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" id="plCamGalleryImg" alt="Gallery">
                     <div class="cam-gallery-badge" id="plCamGalleryBadge">0</div>
                   </div>
+                  <button class="dazz-cbtn" id="plMenuBtn" type="button" title="更多设置">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="12" cy="19" r="2.2"/></svg>
+                  </button>
                 </div>
                 <!-- 兼容隐藏：模式条 + 变焦滚轮（互联模式切换/变焦逻辑依赖 DOM，不显示） -->
                 <div class="cam-mode-bar" id="plModeBar" style="display:none">
@@ -2085,7 +2174,11 @@
                 <!-- 底部机身名（Dazz：机身即滤镜，横线点击开参数面板） -->
                 <div class="dazz-name" id="plCamNameWrap" style="display:none">
                   <span id="plCamName">CLASSIC U</span>
-                  <i class="dazz-name-bar" title="机身参数"></i>
+                  <span class="dazz-mode-chips">
+                    <button class="dazz-mode-chip" id="plModeChipVideo" type="button">视频</button>
+                    <button class="dazz-mode-chip on" id="plModeChipPhoto" type="button">照片</button>
+                    <button class="dazz-mode-chip" id="plModeChipLive" type="button">实况</button>
+                  </span>
                 </div>
                 <!-- 相机库抽屉（Dazz：机身即滤镜，分组卡片） -->
                 <div class="dazz-drawer" id="plFilterPanel" style="display:none"></div>
@@ -2124,6 +2217,15 @@
                   </div>
                   <div class="cam-set-row"><span class="cam-set-label">时间戳</span><span class="cam-set-val on" id="plSetWm">开</span></div>
                   <div class="cam-set-row"><span class="cam-set-label">闪光灯</span><span class="cam-set-val" id="plSetFlash">关</span></div>
+                  <div class="cam-set-row"><span class="cam-set-label">功能</span></div>
+                  <div class="cam-set-funcs">
+                    <button class="cam-set-func" id="plFuncFilter" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span>相机库</span></button>
+                    <button class="cam-set-func" id="plFuncTimer" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="13" x2="15" y2="15"/><line x1="9" y1="2" x2="15" y2="2"/></svg><span>定时</span></button>
+                    <button class="cam-set-func" id="plFuncDexp" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2"/><rect x="9" y="9" width="12" height="12" rx="2"/></svg><span>双曝</span></button>
+                    <button class="cam-set-func" id="plFuncImport" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>导入</span></button>
+                    <button class="cam-set-func" id="plFuncNight" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>夜景</span></button>
+                    <button class="cam-set-func" id="plFuncFocal" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg><span>焦距</span></button>
+                  </div>
                 </div>
                 <!-- 未开相机占位 -->
                 <div class="cam-placeholder" id="plCamPlaceholder">
@@ -2135,7 +2237,7 @@
                   <button class="pair-btn ghost pl-fallback-cam" id="plFallbackCamBtn" style="display:none;margin-top:1.6rem">📱 使用系统相机拍照</button>
                 </div>
                 <!-- 手势提示 -->
-                <div class="cam-gesture-hint" id="plGestureHint">左侧拨盘：曝光/色温/焦距 · 双指捏合变焦 · 点按对焦 · 上滑调曝光</div>
+                <div class="cam-gesture-hint" id="plGestureHint">点按对焦 · 双指捏合变焦 · 中央圆标调色温/曝光</div>
                 <!-- 连接状态 -->
                 <div class="cam-status-overlay" id="plHostCamStatus">等待控制端加入…</div>
                 <!-- 轻提示 -->
@@ -2225,7 +2327,7 @@
         <div class="pair-input-mask" id="usbCamMask">
           <div class="pair-input-card">
             <div class="pair-input-title">USB 连接相机</div>
-            <div style="font-size:10px;color:rgba(245,223,192,0.45);margin-top:-3px;margin-bottom:6px;text-align:center;" id="usbLibVer">联机传输 页r92 · 库检测中…</div>
+            <div style="font-size:10px;color:rgba(245,223,192,0.45);margin-top:-3px;margin-bottom:6px;text-align:center;" id="usbLibVer">联机传输 页r93 · 库检测中…</div>
             <div style="font-size:9px;color:rgba(245,223,192,0.3);margin:-6px 0 6px;text-align:center;font-family:monospace;word-break:break-all;" id="usbBridgeDiag"></div>
             <div class="pair-input-desc" id="usbCamDesc">用 OTG 线连接相机</div>
             <div class="usb-cam-list" id="usbCamList"></div>
@@ -2294,7 +2396,7 @@
 <!-- r18：WebUSB 传输层（Chrome/Edge 桌面 + Android Chrome 直连；App web-view 内自动不生效，仍走 plus 版） -->
 <script src="browser-usb-transport.js?v=20260821-r79"></script>
   <!-- r69：UTS 原生 USB 桥（App web-view 内覆盖 UsbTether 走原生 USB Host；非 App 环境自动不生效，WebUSB 版继续用） -->
-  <script src="bridge-transport.js?v=20260822-r92"></script>
+  <script src="bridge-transport.js?v=20260822-r93"></script>
 
 <script>
   var db = new Dexie('memoPhotos');
@@ -3182,6 +3284,7 @@ var plZoomIndicator = $('plZoomIndicator');
       if (dd && document.getElementById('plPreviewThumb') && document.getElementById('plPreviewThumb').src && document.getElementById('plPreviewThumb').src.indexOf('base64,R0lGOD') === -1) dd.classList.add('show');
       plInitEvSlider();
       plInitPreviewDrawer();
+      var cm = document.getElementById('plCenterMeter'); if (cm) cm.classList.add('show');
       plHostCamStatus.textContent = '📡 画面正在实时推送';
       plHostCamStatus.className = 'cam-status-overlay';
       setTimeout(function () {
@@ -3237,6 +3340,7 @@ var plZoomIndicator = $('plZoomIndicator');
 
       var fo2 = document.getElementById('plFocalOverlay'); if (fo2) fo2.classList.remove('show');
       var dd2 = document.getElementById('plPreviewDrawer'); if (dd2) dd2.classList.remove('show');
+      var cm2 = document.getElementById('plCenterMeter'); if (cm2) cm2.classList.remove('show');
       var pp2 = document.getElementById('plPreviewPopup'); if (pp2) pp2.classList.remove('show');
       var rt2 = document.getElementById('plRecTimer'); if (rt2) rt2.classList.remove('on');
       if (plRecorder) plStopRecord(true);
@@ -3852,6 +3956,11 @@ var plZoomIndicator = $('plZoomIndicator');
       if (fo) { fo.textContent = plFocalAt(Math.max(1, plZoom)); fo.classList.toggle('show', !!plStream); }
       // r92：曝光滑杆同步
       plSyncEvSlider();
+      // r93：中央指示同步（色温/曝光）
+      var mwv = document.getElementById('plMeterWbVal'); if (mwv) mwv.textContent = plDazzWb === 'warm' ? '暖' : (plDazzWb === 'cool' ? '冷' : 'A');
+      var mwb = document.getElementById('plMeterWb'); if (mwb) mwb.classList.toggle('on', plDazzWb !== 'A');
+      var mevv = document.getElementById('plMeterEvVal'); if (mevv) mevv.textContent = (plDazzEvSoft > 0 ? '+' : '') + plDazzEvSoft.toFixed(1);
+      var meb = document.getElementById('plMeterEv'); if (meb) meb.classList.toggle('on', plDazzEvSoft !== 0);
     }
     function plApplyDazzCam(idx, silent) {
       plDazzCamIdx = Math.max(0, Math.min(plDazzCams.length - 1, idx));
@@ -4007,6 +4116,23 @@ var plZoomIndicator = $('plZoomIndicator');
         plApplyZoom(mm / PL_FOCAL_BASE);
         plDazzSyncDials();
         plShowCamToast('焦距 ' + mm + 'mm');
+      });
+      // r93 中央指示：色温圆标（点按循环 自动/暖/冷）
+      var meterWb = document.getElementById('plMeterWb');
+      if (meterWb) meterWb.addEventListener('click', function () {
+        plDazzWb = plDazzWb === 'A' ? 'warm' : (plDazzWb === 'warm' ? 'cool' : 'A');
+        plComposeDazzFilter();
+        plDazzSyncDials();
+        plShowCamToast('色温 ' + (plDazzWb === 'warm' ? '暖调' : (plDazzWb === 'cool' ? '冷调' : '自动')));
+      });
+      // r93 中央指示：曝光圆标（点按循环档位 -1.5…+1.5）
+      var meterEv = document.getElementById('plMeterEv');
+      if (meterEv) meterEv.addEventListener('click', function () {
+        plDazzEvIdx = (plDazzEvIdx + 1) % plDazzEvSteps.length;
+        plDazzEvSoft = plDazzEvSteps[plDazzEvIdx];
+        plComposeDazzFilter();
+        plDazzSyncDials();
+        plShowCamToast('曝光 ' + (plDazzEvSoft > 0 ? '+' : '') + plDazzEvSoft.toFixed(1));
       });
 
     // r92 预览抽屉：长按弹出大图
@@ -4234,13 +4360,14 @@ var plZoomIndicator = $('plZoomIndicator');
       });
     })();
     // 底部机身名横线 -> 参数面板
+    // r93：点机身名 -> 开机身库（Dazz：机身即滤镜；设置改由 ⋯ 进）
     if (plCamNameWrap) plCamNameWrap.addEventListener('click', function () {
-      var sdp = document.getElementById('plSettingsPanel');
       var fdp = document.getElementById('plFilterPanel');
+      var sdp = document.getElementById('plSettingsPanel');
       var tmd = document.getElementById('plTimerMenu');
-      var show = sdp && sdp.style.display === 'none';
-      if (sdp) sdp.style.display = show ? '' : 'none';
-      if (fdp) fdp.style.display = 'none';
+      var show = fdp && fdp.style.display === 'none';
+      if (fdp) fdp.style.display = show ? '' : 'none';
+      if (sdp) sdp.style.display = 'none';
       if (tmd) tmd.style.display = 'none';
     });
     // 参数面板快捷行：照片 / 视频（互联模式切换入口）
@@ -4287,6 +4414,39 @@ var plZoomIndicator = $('plZoomIndicator');
       plFilterPanel.style.display = 'none';
       plTimerMenu.style.display = 'none';
     });
+    // r93：⋯ 菜单按钮 -> 参数面板（顶栏已隐藏，此为设置主入口）
+    var plMenuBtn = document.getElementById('plMenuBtn');
+    if (plMenuBtn) plMenuBtn.addEventListener('click', function () {
+      var sp = document.getElementById('plSettingsPanel');
+      var show = sp && sp.style.display === 'none';
+      if (sp) sp.style.display = show ? '' : 'none';
+      var fp = document.getElementById('plFilterPanel'); if (fp) fp.style.display = 'none';
+      var tm = document.getElementById('plTimerMenu'); if (tm) tm.style.display = 'none';
+    });
+    // r93：参数面板功能入口代理（转发到被隐藏的原按钮，复用原逻辑）
+    function plBindProxy(proxyId, origId, closeSettings) {
+      var pb = document.getElementById(proxyId), ob = document.getElementById(origId);
+      if (!pb || !ob) return;
+      pb.addEventListener('click', function () {
+        ob.click();
+        pb.classList.toggle('on', ob.classList.contains('on'));
+        if (closeSettings) { var sp2 = document.getElementById('plSettingsPanel'); if (sp2) sp2.style.display = 'none'; }
+      });
+    }
+    plBindProxy('plFuncFilter', 'plFilterBtn', false);
+    plBindProxy('plFuncTimer', 'plTimerBtn', false);
+    plBindProxy('plFuncDexp', 'plDexpBtn', true);
+    plBindProxy('plFuncImport', 'plImportBtn', true);
+    plBindProxy('plFuncNight', 'plNightBtn', true);
+    plBindProxy('plFuncFocal', 'plFocalDial', true);
+    // r93：最底模式字（视频/照片/实况），stopPropagation 防触发机身名开库
+    (function () {
+      var chips = { video: 'plModeChipVideo', photo: 'plModeChipPhoto', live: 'plModeChipLive' };
+      Object.keys(chips).forEach(function (m) {
+        var c = document.getElementById(chips[m]);
+        if (c) c.addEventListener('click', function (e) { e.stopPropagation(); plSetMode(m); });
+      });
+    })();
     // 画幅比例（4:3 / 1:1 / 16:9 / 全屏）
     if (plSettingsPanel) {
       var plAspectBtns = plSettingsPanel.querySelectorAll('.cam-set-aspect');
@@ -4391,6 +4551,8 @@ var plZoomIndicator = $('plZoomIndicator');
       plModePhoto.classList.toggle('on', m === 'photo');
       plModeVideo.classList.toggle('on', m === 'video');
       if (plModeLive) plModeLive.classList.toggle('on', m === 'live');
+      var plModeChips = { video: 'plModeChipVideo', photo: 'plModeChipPhoto', live: 'plModeChipLive' };
+      for (var mk in plModeChips) { var mcEl = document.getElementById(plModeChips[mk]); if (mcEl) mcEl.classList.toggle('on', mk === m); }
       var shutter = document.getElementById('plCamShutter');
       if (shutter) shutter.classList.toggle('rec', m === 'video');
       plShutterRec.classList.toggle('rec', m === 'video');
@@ -5157,7 +5319,7 @@ var plZoomIndicator = $('plZoomIndicator');
           var st = bd.bridgeState === 'ok' ? '桥OK' : (bd.bridgeState === 'missing' ? '桥缺失' : (bd.bridgeState === 'plus' ? '备用枚举' : '桥探测中'));
           tail = ' · ' + st + (bd.weexPost ? '·weex✓' : '') + (bd.uniPostMessage ? '·uni✓' : '');
         }
-        el.textContent = '联机传输 页r92 · 库' + lib +
+        el.textContent = '联机传输 页r93 · 库' + lib +
           ((typeof UsbTether !== 'undefined' && UsbTether.utsMode) ? ' · 原生桥' : '') + tail;
         var de = $('usbBridgeDiag');
         if (de && typeof UsbTether !== 'undefined' && UsbTether.bridgeDiag) {
@@ -5692,7 +5854,7 @@ var plZoomIndicator = $('plZoomIndicator');
       panel.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(10,6,3,0.94);display:flex;align-items:center;justify-content:center;padding:24px;';
       panel.innerHTML = '<div style="background:#1c0f08;border:1px solid rgba(212,165,116,0.4);border-radius:16px;padding:20px;max-width:540px;width:100%;">' +
         '<div style="font-size:15px;font-weight:600;color:#E89020;margin-bottom:2px;">📷 相机已连接</div>' +
-        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260822-r92 · 小米相机(大焦段滚轮+白色快门+5模式条)：EVFMode=1+输出到PC(0xD1B0=2)+0x9151完整序列，帧blob链解析；事件循环与LV共存，拍照导入恢复</div>' +
+        '<div style="font-size:10px;color:#8fd18f;text-align:right;margin-bottom:4px;">联机栈 v20260822-r93 · 小米相机(大焦段滚轮+白色快门+5模式条)：EVFMode=1+输出到PC(0xD1B0=2)+0x9151完整序列，帧blob链解析；事件循环与LV共存，拍照导入恢复</div>' +
         '<div style="font-size:12px;color:#F5DFC0;line-height:1.6;margin-bottom:10px;"><b>请在相机机身上按一次快门</b>，然后点下方蓝色按钮立即扫描检测（事件通道 0x4002/0xC181 也在自动监听）。<br>' +
         '<span style="color:#c9a06a;">r53：远程模式（0x9114=1）+ 设卡=CF 卡（0xD11C=1）。不做卡枚举。事件通道 0xC181 经 GetEvent 到达，中断端点 0x4002 双通道监听。按快门即收。</span></div>' +
         '<button id="wsBodyTestPressed" style="margin:6px 0 10px;width:100%;padding:10px;border:none;border-radius:10px;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">📸 我已在相机上按过快门（事件通道自动监听中）</button>' +
@@ -6047,7 +6209,7 @@ var plZoomIndicator = $('plZoomIndicator');
     var q = new URLSearchParams(window.location.search);
     var mask = document.getElementById('usbCamMask');
     var diag = {
-      usbVer: '20260822-r92',               // r54 2026-08-21【工作台打通·全链路】：主连接路径+(startEvents+工作台事件循环)，webusb不再重定向到bodyTest—— → 5D2 一直「读卡忙」→ 机身快门锁死。证据链：r43/r44（等待循环=GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；r45 加 0x1007 轮询后 r46-r50 全锁；r50 恢复 GetEvent 仍锁 → 证明 GetEvent 不是变量（r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举；gphoto2 等待事件从不连续枚举卡、r38 wasm 补丁会话（非远程、不枚举）→ 快门可用，同机制。r51：① waitForObject 轮询默认关闭（{poll:true} 才开）→ 等待循环回到 r44 证明可行的形态（GetEvent 排空+保活）；② 传输层中断读取器瞬时错误延时重挂（不永久停，保 0x4002 通道）；③ 页面「我已按过快门」按钮=一次性 GetObjectHandles 扫描（瞬时枚举不锁快门）；④ 连接后一次性建立扫描基线。r50 的 GetEvent 排空结论保留（防事件堆积 Busy），但其「GetEvent 是锁快门根因」判断经 r51 真机复测推翻 // r50 2026-08-21【误诊记录，已被 r51 推翻】当时判定根因=SetEventMode 后从不 GetEvent 排空→Busy 锁快门；真机 r50 复测仍锁→该理论不成立，真根因=0x1007 轮询（见 r51） // r49 // r49 2026-08-21【r48 数据点后·锁快门嫌疑隔离】r48 截图：基线 GetObjectHandles 真机成功（0x2=1/0x10001=128/0x30000=1，128 张全数出）→ 检测通道活了；但机身快门仍按不下去，且王总说「一点击连接就弹报错」= 连接成功测试面板（非报错）。对比 gphoto2 非远程(SetEventMode)会话：它从不调 GetEvent(0x9116)，我们连接时却 drainEosEvents(4) 连发 4 次——GetEvent 是远程通道命令，非远程调用有锁快门嫌疑。r49：drainEosEvents 非远程跳过（setRemoteMode 维护 _remoteMode 状态）；页面连接流非远程不再排空；首屏日志明示「非远程已跳过 GetEvent 排空」。若仍锁 → 嫌疑转移：中断端点常驻读/2s 轮询，再与 wasm 逐字节对照。测试 58/58 绿 // r48 2026-08-21【r47真机实锤后·句柄枚举】r47 截图（角标可见）：串行化修复成功——0x1004 不再挂、相机秒答 3 存储（0x2/0x10001/0x30000）；但 GetNumObjects(0x1006) 一律回 PTP 0x201d（Invalid Parameter，EOS 不实现该命令；gphoto2 canon 驱动从不调 0x1006）→ 轮询从「计数+句柄」改为纯 GetObjectHandles(0x1007) 句柄差集（与 gphoto2 同款语义），基线=句柄集、检测=差集；快门按不下去=上一会话残留锁，需整机断电（电源开关 OFF→ON）复位 // r47 2026-08-21【r46真机实锤后·串行化修复】真机 r46 日志：初始化命令全秒回（含 0x911D），但 keepAlive(0x911D) fire-and-forget 与 0x1004 GetStorageIDs 同 bulk 管道并发 transact（违反本文件 L774「勿并发」注释与 gphoto2 串行纪律）→ 0x1004 被相机丢弃 → 20s 读超时 → 管道毒化 → 24s 内会话死。r47：① transact 全局 mutex 串行化（_txRun 链，fire-and-forget 也只排队）；② _pollEnsureBaseline 存储探测短超时 3s，失败即 _storageOk=false 关轮询兜底（防反复 20s 卡死饿死事件循环，仅靠事件通道），GetNumObjects/GetObjectHandles 短超时 2.5s；③ 慢命令追踪（>800ms 打 ⏱ 诊断）；④ 非远程轮询/保活加 _storageOk 闸；⑤ 远程 GetEvent 短超时 2s；⑥ 面板加「我已按过快门」确认按钮 // r46 2026-08-21【r45真机实锤后】waitForObject 非远程模式跳过 GetEvent(0x9116)（高频 GetEvent 挂起/异常→拖死循环→r45 轮询兜底轮不到→6分钟零检测+掉线）；GetEvent 仅远程模式；轮询/保活加诊断回调（基线/心跳/命中/降级/失败进日志）；mock 加 hangGetEvent 模式回归 // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
+      usbVer: '20260822-r93',               // r54 2026-08-21【工作台打通·全链路】：主连接路径+(startEvents+工作台事件循环)，webusb不再重定向到bodyTest—— → 5D2 一直「读卡忙」→ 机身快门锁死。证据链：r43/r44（等待循环=GetEvent 250ms + 保活，零卡枚举）→ 快门可用、照片进卡；r45 加 0x1007 轮询后 r46-r50 全锁；r50 恢复 GetEvent 仍锁 → 证明 GetEvent 不是变量（r44 里 GetEvent 就在、快门正常），唯一与锁同步的命令就是 0x1007 卡枚举；gphoto2 等待事件从不连续枚举卡、r38 wasm 补丁会话（非远程、不枚举）→ 快门可用，同机制。r51：① waitForObject 轮询默认关闭（{poll:true} 才开）→ 等待循环回到 r44 证明可行的形态（GetEvent 排空+保活）；② 传输层中断读取器瞬时错误延时重挂（不永久停，保 0x4002 通道）；③ 页面「我已按过快门」按钮=一次性 GetObjectHandles 扫描（瞬时枚举不锁快门）；④ 连接后一次性建立扫描基线。r50 的 GetEvent 排空结论保留（防事件堆积 Busy），但其「GetEvent 是锁快门根因」判断经 r51 真机复测推翻 // r50 2026-08-21【误诊记录，已被 r51 推翻】当时判定根因=SetEventMode 后从不 GetEvent 排空→Busy 锁快门；真机 r50 复测仍锁→该理论不成立，真根因=0x1007 轮询（见 r51） // r49 // r49 2026-08-21【r48 数据点后·锁快门嫌疑隔离】r48 截图：基线 GetObjectHandles 真机成功（0x2=1/0x10001=128/0x30000=1，128 张全数出）→ 检测通道活了；但机身快门仍按不下去，且王总说「一点击连接就弹报错」= 连接成功测试面板（非报错）。对比 gphoto2 非远程(SetEventMode)会话：它从不调 GetEvent(0x9116)，我们连接时却 drainEosEvents(4) 连发 4 次——GetEvent 是远程通道命令，非远程调用有锁快门嫌疑。r49：drainEosEvents 非远程跳过（setRemoteMode 维护 _remoteMode 状态）；页面连接流非远程不再排空；首屏日志明示「非远程已跳过 GetEvent 排空」。若仍锁 → 嫌疑转移：中断端点常驻读/2s 轮询，再与 wasm 逐字节对照。测试 58/58 绿 // r48 2026-08-21【r47真机实锤后·句柄枚举】r47 截图（角标可见）：串行化修复成功——0x1004 不再挂、相机秒答 3 存储（0x2/0x10001/0x30000）；但 GetNumObjects(0x1006) 一律回 PTP 0x201d（Invalid Parameter，EOS 不实现该命令；gphoto2 canon 驱动从不调 0x1006）→ 轮询从「计数+句柄」改为纯 GetObjectHandles(0x1007) 句柄差集（与 gphoto2 同款语义），基线=句柄集、检测=差集；快门按不下去=上一会话残留锁，需整机断电（电源开关 OFF→ON）复位 // r47 2026-08-21【r46真机实锤后·串行化修复】真机 r46 日志：初始化命令全秒回（含 0x911D），但 keepAlive(0x911D) fire-and-forget 与 0x1004 GetStorageIDs 同 bulk 管道并发 transact（违反本文件 L774「勿并发」注释与 gphoto2 串行纪律）→ 0x1004 被相机丢弃 → 20s 读超时 → 管道毒化 → 24s 内会话死。r47：① transact 全局 mutex 串行化（_txRun 链，fire-and-forget 也只排队）；② _pollEnsureBaseline 存储探测短超时 3s，失败即 _storageOk=false 关轮询兜底（防反复 20s 卡死饿死事件循环，仅靠事件通道），GetNumObjects/GetObjectHandles 短超时 2.5s；③ 慢命令追踪（>800ms 打 ⏱ 诊断）；④ 非远程轮询/保活加 _storageOk 闸；⑤ 远程 GetEvent 短超时 2s；⑥ 面板加「我已按过快门」确认按钮 // r46 2026-08-21【r45真机实锤后】waitForObject 非远程模式跳过 GetEvent(0x9116)（高频 GetEvent 挂起/异常→拖死循环→r45 轮询兜底轮不到→6分钟零检测+掉线）；GetEvent 仅远程模式；轮询/保活加诊断回调（基线/心跳/命中/降级/失败进日志）；mock 加 hangGetEvent 模式回归 // r45 2026-08-21【兜底】中断端点/GetEvent 都不产生事件时（r44 真机两次验收失败），waitForObject 内置 GetNumObjects(0x1006)+GetObjectHandles(0x1007) 轮询检测新照片——计数增长→枚举句柄差异，事件无关 best-effort；修复并发 transact 抢包（顺序遍历）；r44 2026-08-20【主导根因修复】事件通道：自研栈从不读中断端点——5D2 非远程模式拍卡后把 ObjectAdded(0x4002) 发到中断IN端点（其 Events Supported 声明即标准 PTP 事件集，非 0xC181），只轮询 GetEvent(0x9116) 等 0xC181 是「照片已存卡、6 分钟无事件」的主导根因。r44：传输层枚举并常驻读中断端点（单条常驻 transferIn 不遗弃，FIFO 防丢包）；协议层 startEvents/stopEvents + parseInterruptEvents + waitForObject 双通道（中断 0x4002 / GetEvent 0xC181）+ _resolveStdObject（缺 storageId 用 GetObjectInfo 0x1008 补齐，兜底 0x00010001）；页面连接后 startEvents、断开 stopEvents、轮询掉线明示拔插；keepAlive 失败不再吞（显示在日志）+ 0x911D 被拒自动降级 0x1004 保活（防非远程模式 6 分钟掉线）               // r43 2026-08-20【根因修复】传输层 new Uint8Array(DataView) 静默返回空数组               // r41 2026-08-20 按王总要求改单一流程：连接器去两个模式/去绿色按钮——点相机直接自研栈「普通会话+自动导入」（拔插确认→openSession→setEventMode→drainEosEvents→等ObjectAdded→getObject→进左下角相册）；wasm 旧路径降级为底部备用链接「旧版实时取景模式」；传输层还原 r24 验证过的 release容错→claim 序列（r29 疑毒化管道移除后自研栈从未连成）；修 r40 诊断 bug（换接口路径释放前存 diagInfo 快照，外层 catch 才有超时点/已写/已读/候选）；步骤级 bodyStage（claim/clearPipe/openSession）；r40 2026-08-20 自研栈「机身快门·自动导入」首测 openSession 超时（端点 class=? 疑选错接口）→ 传输层收集全部候选接口（class6 优先）+ 页面逐个换接口自动重试（不用拔插）；失败诊断带超时点/已写已读字节/候选列表，一眼区分假死 vs 选错接口；r39 2026-08-20 王总实测：r38 补丁版机身快门已能按动（张数变化=照片写入卡），但左下角相册未导入——根因：web-gphoto2 引擎无下载 API（consumeEvents 仅返回 bool），相册导入只连在屏幕快门（captureImageAsFile 拍照+下载一体）。r39 重新启用连接器「机身快门·自动导入」按钮（自研栈普通会话：openSession→setEventMode→drainEosEvents→等 0xC181 ObjectAdded→getObject→handleShotJpeg 进左下角相册；免编译、纯 JS）；r38 2026-08-20 攻坚：libapi.wasm 二进制补丁 5 处 SetRemoteMode(0x9114)→SetEventMode(0x9115)（camera_init 两分支 / camera_prepare_canon_eos_capture 两分支 / camera_exit）——会话不再进佳能远程模式、机身快门解锁；工作台加「远程模式开关」诊断（setConfigValue('remotemode') 同一会话验证切换假设）；r37 2026-08-20 王总：研究素材（Cascable确认5D2联机可用机身快门；gphoto2驱动源码实锤远程模式锁机身）→工作台加「机身快门测试」（web-gphoto2零编译：consumeEvents监听60s；王总确认实时取景下按快门是标配→无需退出LV）；取景器按王总设计：光学取景模式时黑色+提示（不残留帧）；并移除连接器老r36按钮（自研路径Chrome从未连成、超时误导王总）；r36 2026-08-20 王总：①实时取景去延迟——去掉固定 200ms 间隔改紧连续轮询（同 web-gphoto2 demo）②新增「联机实测」——普通会话（不进远程模式）测机身快门+事件自动导入（路线乙可行性）；r35：实时取景 capturePreviewAsBlob 轮询（需开机身 Live View）；r33：scan 弹窗修复——列表无佳能时强制弹「仅佳能 VID」授权框；r32：工作台底部只留左下角相框；r31：webusbMode 集成 web-gphoto2 WASM 引擎
       os: (window.plus && plus.os) ? (plus.os.name + ' ' + (plus.os.version || '')) : '无plus',
       plusAndroidKeys: (window.plus && plus.android) ? Object.keys(plus.android).join(',') : '无', // 桥暴露的方法清单（排查第 11 轮）
       mainBlockRan: !!window.db,            // 主 JS 块是否执行到 Dexie 初始化（var db 挂 window）
