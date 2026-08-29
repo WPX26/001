@@ -104,6 +104,7 @@
   .leaflet-tile { image-rendering: -webkit-optimize-contrast; image-rendering: optimize-contrast; }
   /* 400% 预载层：透明瓦片仅作缓存预热，穿透点击且不可见 */
 .prefetch-tiles { pointer-events: none !important; opacity: 0 !important; }
+.map-prefetch-badge { position: absolute; left: 10rem; bottom: 150rem; z-index: 5; pointer-events: none; background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.85); font-size: 10rem; line-height: 1; padding: 3rem 7rem; border-radius: 10rem; }
 /* 暗色地图模式：天地图瓦片反相（invert+hue-rotate），深色底图与深色 UI 风格统一；仅瓦片层，标记点不受影响 */
   .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.88) contrast(0.88) saturate(0.65); }
 
@@ -9700,15 +9701,26 @@
       // 400% 预载层（王总 2026-08 要求）：zoomOffset -1 使每张瓦片覆盖当前视野 4 倍面积，
       // 透明且不拦截交互；地图平移/缩放时自动跟随加载。缩小地图时目标档位瓦片已在
       // 浏览器缓存中，避免出现大片未加载空白，提升缩放流畅度。
-      var PREFETCH_OPTS = Object.assign({}, TILE_OPTS, {
-        zoomOffset: -1,
-        opacity: 0,
-        interactive: false,
-        className: 'prefetch-tiles',
-        keepBuffer: 6,
-        updateWhenIdle: true
+      // v2：三层预载（zoomOffset -1/-2/-3 = 每张瓦片覆盖 400%/1600%/6400% 面积），
+      // 覆盖细化控件一次跨多档缩小；瓦片 URL 与主层一致（同子域轮换），可直接命中浏览器缓存。
+      var PREFETCH_DEPTHS = [-1, -2, -3];
+      PREFETCH_DEPTHS.forEach(function (off) {
+        L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
+          zoomOffset: off,
+          opacity: 0,
+          interactive: false,
+          className: 'prefetch-tiles',
+          keepBuffer: 6,
+          updateWhenIdle: true,
+          minZoom: 6
+        })).addTo(map);
       });
-      var prefetchLayer = L.tileLayer(TDT_URL, PREFETCH_OPTS).addTo(map);
+      // 临时版本角标（验证 App 是否加载到新版用，验完可撤）
+      var __pv = document.createElement('div');
+      __pv.className = 'map-prefetch-badge';
+      __pv.textContent = '预载v2';
+      var __pvHost = document.getElementById('amapContainer');
+      if (__pvHost) __pvHost.appendChild(__pv);
 
       // 缩放 → 同步细化程度
       // mapReady 延迟启用，避免地图初始化期间的缩放抖动影响细化程度
