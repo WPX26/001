@@ -102,7 +102,9 @@
   .leaflet-container { background: #E8EEE8; }
   /* Retina 2x 瓦片按 512rem 显示时插值锐化（Chromium 优化对比度，文字边缘更实） */
   .leaflet-tile { image-rendering: -webkit-optimize-contrast; image-rendering: optimize-contrast; }
-  /* 暗色地图模式：天地图瓦片反相（invert+hue-rotate），深色底图与深色 UI 风格统一；仅瓦片层，标记点不受影响 */
+  /* 400% 预载层：透明瓦片仅作缓存预热，穿透点击且不可见 */
+.prefetch-tiles { pointer-events: none !important; opacity: 0 !important; }
+/* 暗色地图模式：天地图瓦片反相（invert+hue-rotate），深色底图与深色 UI 风格统一；仅瓦片层，标记点不受影响 */
   .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.88) contrast(0.88) saturate(0.65); }
 
   /* 地图标记点 */
@@ -9691,9 +9693,22 @@
       // （手机、Windows 125%+ 缩放）会把层 maxZoom 钳到 17 并请求 z19（z19 为空白占位图），
       // 导致最大级白屏/灰屏。故用官方默认 256px 瓦片直连请求。
       // （2026-08-13 曾去掉自定义手动行列换算改官方默认路径，官方默认路径本身无错，本改动不回归）
-      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, maxNativeZoom: 18, updateWhenZooming: false };
+      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, maxNativeZoom: 18, updateWhenZooming: false, keepBuffer: 4 };
       new ResilientTileLayer(TDT_URL, TILE_OPTS).addTo(map);
       new ResilientTileLayer(TDT_LABEL, TILE_OPTS).addTo(map);
+
+      // 400% 预载层（王总 2026-08 要求）：zoomOffset -1 使每张瓦片覆盖当前视野 4 倍面积，
+      // 透明且不拦截交互；地图平移/缩放时自动跟随加载。缩小地图时目标档位瓦片已在
+      // 浏览器缓存中，避免出现大片未加载空白，提升缩放流畅度。
+      var PREFETCH_OPTS = Object.assign({}, TILE_OPTS, {
+        zoomOffset: -1,
+        opacity: 0,
+        interactive: false,
+        className: 'prefetch-tiles',
+        keepBuffer: 6,
+        updateWhenIdle: true
+      });
+      var prefetchLayer = L.tileLayer(TDT_URL, PREFETCH_OPTS).addTo(map);
 
       // 缩放 → 同步细化程度
       // mapReady 延迟启用，避免地图初始化期间的缩放抖动影响细化程度
