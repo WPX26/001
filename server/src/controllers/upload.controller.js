@@ -47,6 +47,18 @@ export const uploadFile = asyncHandler(async (req, res) => {
   if (!file) throw new AppError(ERR.VALIDATE, '缺少文件（字段名 file）', 400);
 
   const scene = req.body.scene || 'chat';
+
+  // chat 场景收紧：私信图片仅 JPG/PNG/WebP ≤10MB（与前端拦截同口径）
+  if (scene === 'chat') {
+    const CHAT_OK = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!CHAT_OK.includes(file.mimetype)) {
+      throw new AppError(ERR.VALIDATE, '聊天图片仅支持 JPG/PNG/WebP', 400);
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      throw new AppError(ERR.VALIDATE, '聊天图片不能超过 10MB', 400);
+    }
+  }
+
   const relativePath = `/uploads/${scene}/${file.filename}`;
   ok(res, {
     url: `${env.LOCAL_BASE_URL}${relativePath}`,

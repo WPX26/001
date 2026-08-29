@@ -39,7 +39,7 @@ function conversationDTO(c, userMap) {
   const meId = String(c.meId);
   const peerId = String(c.participants.find((p) => String(p) !== meId) || '');
   const peer = peerId ? userMap.get(peerId) : null;
-  // 快照预览文案：text 原文 / image / coord 占位
+  // 快照预览文案：text 原文 / image / coord 占位；imageUrl 单列供列表缩略图
   const lm = c.lastMessage || {};
   const lastText =
     lm.type === 'image' ? '[图片]' : lm.type === 'coord' ? '[位置]' : lm.content || '';
@@ -49,6 +49,7 @@ function conversationDTO(c, userMap) {
     peerName: peer?.nickname || '',
     peerAvatar: peer?.avatar || '',
     lastMessage: lastText,
+    lastImageUrl: lm.imageUrl || '',
     lastTime: c.lastMessageAt || c.updatedAt || c.createdAt,
     unreadCount: (c.unreadCounts && c.unreadCounts[meId]) || 0,
   };
