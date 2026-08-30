@@ -5752,23 +5752,19 @@
         showToast('⚠️ 定位失败，请检查定位权限');
       }
     }
+    // v3：先快后准——第一轮走网络定位（通常 1-3 秒出结果），先跳转；
+    // 精度不足（>30 米）再后台补一轮高精度校准：只挪蓝点，不再阻塞视野/提示。
     navigator.geolocation.getCurrentPosition(function (pos) {
-      // 第一轮精度不足（>20 米）时，静默追加高精度确认；取两轮中 accuracy 更小者
-      if (pos.coords.accuracy > 20) {
+      applyPosition(pos.coords.latitude, pos.coords.longitude);
+      if (pos.coords.accuracy > 30) {
         navigator.geolocation.getCurrentPosition(function (pos2) {
           if (pos2.coords.accuracy < pos.coords.accuracy) {
-            applyPosition(pos2.coords.latitude, pos2.coords.longitude);
-          } else {
-            applyPosition(pos.coords.latitude, pos.coords.longitude);
+            lastKnownLocation = { lng: pos2.coords.longitude, lat: pos2.coords.latitude, time: Date.now() };
+            updateUserLocationMarker(pos2.coords.latitude, pos2.coords.longitude);
           }
-        }, function () {
-          // 第二轮失败：用第一轮结果兜底
-          applyPosition(pos.coords.latitude, pos.coords.longitude);
-        }, { timeout: 5000, enableHighAccuracy: true, maximumAge: 0 });
-      } else {
-        applyPosition(pos.coords.latitude, pos.coords.longitude);
+        }, function () {}, { timeout: 8000, enableHighAccuracy: true, maximumAge: 0 });
       }
-    }, onLocateError, { timeout: 8000, enableHighAccuracy: true, maximumAge: 0 });
+    }, onLocateError, { timeout: 4000, enableHighAccuracy: false, maximumAge: 15000 });
   }
   document.getElementById('locateBtn').addEventListener('click', () => { locateToCurrent(true); });
 
@@ -9715,10 +9711,43 @@
           minZoom: 6
         })).addTo(map);
       });
+      // v3：钉级宽区预载——细化控件可一次跨 5 档（如 15→10），缩小后视野面积放大上千倍，
+      // 相邻级预载盖不住。此层把网格坐标降采样到固定粗档（z=8/10/11）请求瓦片：
+      // 同模板同子域轮换，跳到城市级/省级时主层请求的 URL 与缓存完全一致，秒出图。
+      var WidePrefetchLayer = L.GridLayer.extend({
+        initialize: function (urlTemplate, fixedZoom) {
+          this._tpl = urlTemplate;
+          this._fz = fixedZoom;
+          L.GridLayer.prototype.initialize.call(this, {
+            tileSize: 256, updateWhenIdle: true, keepBuffer: 0,
+            className: 'prefetch-tiles wide-prefetch'
+          });
+        },
+        onAdd: function (m) {
+          L.GridLayer.prototype.onAdd.call(this, m);
+          this._container.style.opacity = '0';      // 只进缓存不显示
+          this._container.style.pointerEvents = 'none'; // 不拦截交互
+        },
+        createTile: function (coords) {
+          var scale = Math.pow(2, this._fz - coords.z);
+          var fx = Math.floor(coords.x * scale);
+          var fy = Math.floor(coords.y * scale);
+          var len = this.options.subdomains.length;
+          var sub = this.options.subdomains[(((fx + fy) % len) + len) % len]; // 与主层同规则轮换
+          var img = document.createElement('img');
+          img.alt = '';
+          img.setAttribute('role', 'presentation');
+          img.src = L.Util.template(this._tpl, Object.assign({}, this.options, { s: sub, x: fx, y: fy, z: this._fz }));
+          return img;
+        }
+      });
+      [8, 10, 11].forEach(function (fz) {
+        new WidePrefetchLayer(TDT_URL, fz).addTo(map);
+      });
       // 临时版本角标（验证 App 是否加载到新版用，验完可撤）
       var __pv = document.createElement('div');
       __pv.className = 'map-prefetch-badge';
-      __pv.textContent = '预载v2';
+      __pv.textContent = '预载v3';
       var __pvHost = document.getElementById('amapContainer');
       if (__pvHost) __pvHost.appendChild(__pv);
 
