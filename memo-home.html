@@ -5752,8 +5752,10 @@
         showToast('⚠️ 定位失败，请检查定位权限');
       }
     }
-    // v3：先快后准——第一轮走网络定位（通常 1-3 秒出结果），先跳转；
-    // 精度不足（>30 米）再后台补一轮高精度校准：只挪蓝点，不再阻塞视野/提示。
+    // v4：即时反馈 + 高精度首发——webview 下网络定位（enableHighAccuracy:false）
+    // 常不可用，首发仍走高精度但超时收紧到 6 秒；按下先给提示，成功即跳转；
+    // 精度不足（>30 米）再后台补一轮校准：只挪蓝点，不再阻塞。
+    if (manual) showToast('📍 正在定位…');
     navigator.geolocation.getCurrentPosition(function (pos) {
       applyPosition(pos.coords.latitude, pos.coords.longitude);
       if (pos.coords.accuracy > 30) {
@@ -5764,7 +5766,7 @@
           }
         }, function () {}, { timeout: 8000, enableHighAccuracy: true, maximumAge: 0 });
       }
-    }, onLocateError, { timeout: 4000, enableHighAccuracy: false, maximumAge: 15000 });
+    }, onLocateError, { timeout: 6000, enableHighAccuracy: true, maximumAge: 10000 });
   }
   document.getElementById('locateBtn').addEventListener('click', () => { locateToCurrent(true); });
 
@@ -9711,16 +9713,39 @@
           minZoom: 6
         })).addTo(map);
       });
-      // v3：钉级宽区预载——细化控件可一次跨 5 档（如 15→10），缩小后视野面积放大上千倍，
-      // 相邻级预载盖不住。此层把网格坐标降采样到固定粗档（z=8/10/11）请求瓦片：
-      // 同模板同子域轮换，跳到城市级/省级时主层请求的 URL 与缓存完全一致，秒出图。
+      // 临时版本角标（验证 App 是否加载到新版用，验完可撤）——先建角标再做预载，
+      // 保证预载层任何异常都不会吞掉版本标识（v3 教训）。
+      var __pv = document.createElement('div');
+      __pv.className = 'map-prefetch-badge';
+      __pv.textContent = '预载v4';
+      var __pvHost = document.getElementById('amapContainer');
+      if (__pvHost) __pvHost.appendChild(__pv);
+
+      // v2：相邻级预载（zoomOffset -1..-6）：缩小 1-6 档的目标级瓦片随图自动进缓存。
+      var PREFETCH_DEPTHS = [-1, -2, -3, -4, -5, -6];
+      PREFETCH_DEPTHS.forEach(function (off) {
+        L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
+          zoomOffset: off,
+          opacity: 0,
+          interactive: false,
+          className: 'prefetch-tiles',
+          keepBuffer: off >= -3 ? 4 : 2,
+          updateWhenIdle: true,
+          minZoom: 6
+        })).addTo(map);
+      });
+
+      // v4：钉级宽区预载——修复 v3 的致命 bug（GridLayer 选项缺 subdomains，
+      // createTile 抛 TypeError 被 initLeafletMap 的 catch 吞掉后 map=null，
+      // 导致定位无响应且预载全没生效）。本层把网格坐标降采样到固定粗档请求瓦片。
       var WidePrefetchLayer = L.GridLayer.extend({
         initialize: function (urlTemplate, fixedZoom) {
           this._tpl = urlTemplate;
           this._fz = fixedZoom;
           L.GridLayer.prototype.initialize.call(this, {
             tileSize: 256, updateWhenIdle: true, keepBuffer: 0,
-            className: 'prefetch-tiles wide-prefetch'
+            className: 'prefetch-tiles wide-prefetch',
+            subdomains: TILE_OPTS.subdomains
           });
         },
         onAdd: function (m) {
@@ -9732,8 +9757,8 @@
           var scale = Math.pow(2, this._fz - coords.z);
           var fx = Math.floor(coords.x * scale);
           var fy = Math.floor(coords.y * scale);
-          var len = this.options.subdomains.length;
-          var sub = this.options.subdomains[(((fx + fy) % len) + len) % len]; // 与主层同规则轮换
+          var subs = this.options.subdomains || ['0'];
+          var sub = subs[(((fx + fy) % subs.length) + subs.length) % subs.length];
           var img = document.createElement('img');
           img.alt = '';
           img.setAttribute('role', 'presentation');
@@ -9741,15 +9766,53 @@
           return img;
         }
       });
-      [8, 10, 11].forEach(function (fz) {
+      [9, 10, 11, 12].forEach(function (fz) {
         new WidePrefetchLayer(TDT_URL, fz).addTo(map);
       });
-      // 临时版本角标（验证 App 是否加载到新版用，验完可撤）
-      var __pv = document.createElement('div');
-      __pv.className = 'map-prefetch-badge';
-      __pv.textContent = '预载v3';
-      var __pvHost = document.getElementById('amapContainer');
-      if (__pvHost) __pvHost.appendChild(__pv);
+
+      // v4：宽域直接预取——「视野锚定」预载盖不住跨档缩小（视野面积放大上千倍）。
+      // 绕当前中心把 z9-z12 数十公里半径的瓦片用 Image() 直拉进浏览器缓存
+      // （天地图 max-age 5 天）；中心移动超约 1 公里或换档才触发，URL 去重防重复。
+      var __pfSeen = {};
+      var __pfLastKey = '';
+      function prefetchWideArea() {
+        if (!map || !map.getCenter) return;
+        var c = map.getCenter();
+        var key = c.lat.toFixed(2) + ',' + c.lng.toFixed(2) + ',' + Math.round(map.getZoom() / 2);
+        if (key === __pfLastKey) return;
+        __pfLastKey = key;
+        function tx(lng, z) { return Math.floor((lng + 180) / 360 * Math.pow(2, z)); }
+        function ty(lat, z) {
+          var sn = Math.sin(lat * Math.PI / 180);
+          return Math.floor((0.5 - Math.log((1 + sn) / (1 - sn)) / (4 * Math.PI)) * Math.pow(2, z));
+        }
+        [
+          { z: 9,  rKm: 80, cap: 40 },
+          { z: 10, rKm: 40, cap: 60 },
+          { z: 11, rKm: 20, cap: 90 },
+          { z: 12, rKm: 10, cap: 120 }
+        ].forEach(function (rd) {
+          var cx = tx(c.lng, rd.z), cy = ty(c.lat, rd.z);
+          var kmPerTile = 40075 * Math.cos(c.lat * Math.PI / 180) / Math.pow(2, rd.z);
+          var nx = Math.min(10, Math.ceil(rd.rKm / (kmPerTile || 1)));
+          var cnt = 0;
+          for (var dx = -nx; dx <= nx && cnt < rd.cap; dx++) {
+            for (var dy = -nx; dy <= nx && cnt < rd.cap; dy++) {
+              var x = cx + dx, y = cy + dy;
+              if (y < 0 || y >= Math.pow(2, rd.z)) continue;
+              var subs = TILE_OPTS.subdomains;
+              var sub = subs[(((x + y) % subs.length) + subs.length) % subs.length];
+              var url = TDT_URL.replace('{s}', sub).replace('{z}', rd.z).replace('{x}', x).replace('{y}', y);
+              if (__pfSeen[url]) continue;
+              __pfSeen[url] = 1; cnt++;
+              var im = new Image();
+              im.src = url;
+            }
+          }
+        });
+      }
+      map.on('moveend', function () { setTimeout(prefetchWideArea, 400); });
+      setTimeout(prefetchWideArea, 1500);
 
       // 缩放 → 同步细化程度
       // mapReady 延迟启用，避免地图初始化期间的缩放抖动影响细化程度
