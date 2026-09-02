@@ -234,6 +234,22 @@
   .msg-avatar.follow { background: linear-gradient(135deg, #9B7B5A, #6B4423); }
   .msg-avatar.notice { background: linear-gradient(135deg, #F5B870, #E89020); }
 
+  .chat-unread-badge {
+    flex-shrink: 0;
+    align-self: center;
+    min-width: 22rem;
+    height: 22rem;
+    padding: 0 7rem;
+    border-radius: 11rem;
+    background: #E89020;
+    color: #fff;
+    font-size: 12rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .msg-content {
     flex: 1;
     min-width: 0;
@@ -694,6 +710,7 @@
           <!-- 分类标签 -->
           <div class="category-tabs" id="categoryTabs">
             <div class="category-tab active" data-cat="all">全部<span class="badge">2</span></div>
+            <div class="category-tab" data-cat="chat">私信</div>
             <div class="category-tab" data-cat="like">点赞<span class="badge">1</span></div>
             <div class="category-tab" data-cat="comment">评论</div>
             <div class="category-tab" data-cat="follow">关注</div>
@@ -1041,6 +1058,8 @@
   function renderMessages() {
     const list = document.getElementById('messageList');
     const source = getMessageSource();
+    if (currentCategory === 'chat') { renderConversationsInto(list); return; }
+
     let filtered = currentCategory === 'all'
       ? source
       : source.filter(m => m.category === currentCategory);
@@ -1126,7 +1145,9 @@
       const cat = tab.dataset.cat;
       const count = cat === 'all'
         ? unreadCount
-        : source.filter(m => m.unread && m.category === cat).length;
+        : (cat === 'chat'
+          ? conversations.reduce((s2, c2) => s2 + (c2.unreadCount || 0), 0)
+          : source.filter(m => m.unread && m.category === cat).length);
       const badge = tab.querySelector('.badge');
       if (count > 0) {
         if (badge) badge.textContent = count;
@@ -1320,6 +1341,97 @@
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
+  // ========== 真实会话列表（9.1 GET /chat/conversations；王总 2026-09-02 完善私信） ==========
+  // 私信 tab = 真实会话列表（对方头像/昵称/最后一条摘要/相对时间/未读数），点击直接打开对话；
+  // 未登录或接口失败保持空态，不影响其他 tab。WS 新消息与发送成功后防抖刷新。
+  var conversations = [];        // conversationDTO[]（后端 9.1）
+  var realConvMode = false;      // 会话列表是否已切换为真实数据
+  var convLoadTimer = null;      // 防抖刷新定时器
+
+  function loadConversations() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.get('/chat/conversations').then(function (data) {
+      conversations = (data && data.list) || [];
+      realConvMode = true;
+      if (currentCategory === 'chat') renderMessages();
+      updateBadges();
+    }).catch(function (e) {
+      console.warn('[conversations]', e && e.message);
+    });
+  }
+
+  function refreshConversationsSoon() {
+    clearTimeout(convLoadTimer);
+    convLoadTimer = setTimeout(loadConversations, 300);
+  }
+
+  // 渲染真实会话列表（复用 .message-item 现成样式，追加不改动）
+  function renderConversationsInto(list) {
+    if (!realConvMode || conversations.length === 0) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">💬</div><div class="empty-state-text">' + (realConvMode ? '暂无私信，去别人的主页打个招呼吧' : '登录后查看私信会话') + '</div></div>';
+      return;
+    }
+    list.innerHTML = conversations.map(function (c) {
+      const av = c.peerAvatar
+        ? '<img src="' + escapeHtml(c.peerAvatar) + '" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">'
+        : escapeHtml((c.peerName || '私').charAt(0));
+      const badge = c.unreadCount > 0
+        ? '<span class="chat-unread-badge">' + (c.unreadCount > 99 ? '99+' : c.unreadCount) + '</span>'
+        : '';
+      const thumb = c.lastImageUrl
+        ? '<div class="msg-thumb" style="background-image:url(\'' + escapeHtml(c.lastImageUrl) + '\');background-size:cover;background-position:center;"></div>'
+        : '';
+      return '<div class="message-item ' + (c.unreadCount > 0 ? 'unread' : '') + '" data-cid="' + escapeHtml(c.conversationId) + '">' +
+        '<div class="msg-avatar system">' + av + '</div>' +
+        '<div class="msg-content">' +
+          '<div class="msg-header"><span class="msg-name">' + escapeHtml(c.peerName || '私信') + '</span>' +
+          '<span class="msg-time">' + formatRelativeTime(c.lastTime) + '</span></div>' +
+          '<div class="msg-preview">' + escapeHtml(c.lastMessage || '开始聊天吧') + '</div>' +
+        '</div>' + badge + thumb + '</div>';
+    }).join('');
+    list.querySelectorAll('.message-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const conv = conversations.find(c => String(c.conversationId) === String(item.dataset.cid));
+        if (conv) openChatByConversation(conv);
+      });
+    });
+  }
+
+  /**
+   * 打开真实对话（会话对象 = conversationDTO）：统一入口，通知点击与列表点击共用。
+   * 打开面板 → 拉历史 → 标已读 → 本地未读清零 + 徽章刷新。
+   */
+  function openChatByConversation(conv) {
+    if (!conv || !conv.conversationId) return;
+    chatConvId = conv.conversationId;
+    chatPeerName.textContent = conv.peerName || '私信';
+    if (conv.peerAvatar) {
+      chatPeerAvatar.style.backgroundImage = "url('" + conv.peerAvatar + "')";
+    } else {
+      chatPeerAvatar.style.backgroundImage = '';
+      chatPeerAvatar.style.background = 'linear-gradient(135deg, #F0A040, #D4691C)';
+    }
+    chatBubbles = [];
+    renderChatMessages(chatBubbles);
+    chatPanel.classList.add('show');
+    ensureChatSocket();
+    setTimeout(() => chatInput.focus(), 320);
+    MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages?limit=50')
+      .then(function (data) {
+        chatBubbles = ((data && data.list) || []).slice().reverse().map(toBubble);
+        renderChatMessages(chatBubbles);
+      })
+      .catch(function (e) { console.warn('[chat history]', e && e.message); });
+    MemoAPI.put('/chat/conversations/' + encodeURIComponent(chatConvId) + '/read')
+      .catch(function (e) { console.warn('[conv read]', e && e.message); });
+    // 本地未读清零（乐观），徽章即时刷新
+    if (conv.unreadCount > 0) {
+      conv.unreadCount = 0;
+      updateBadges();
+      if (currentCategory === 'chat') renderMessages();
+    }
+  }
+
   // ========== 私信 WebSocket 实时（api.md 附录 A：/chat/ws，JWT query token + 30s 心跳） ==========
   // 已登录时页面级建立一条 WS：对方发来消息实时到达（new_message）；
   // 断线由 createChatSocket 指数退避自动重连，重连成功/打开会话时用 REST 拉历史兜底，
@@ -1357,11 +1469,14 @@
         renderChatMessages(chatBubbles);
         MemoAPI.put('/chat/conversations/' + encodeURIComponent(chatConvId) + '/read')
           .catch(function (e) { console.warn('[conv read]', e && e.message); });
+        // 会话列表摘要/时间跟进（正在聊也保持列表新鲜）
+        refreshConversationsSoon();
       }
       return;
     }
-    // 面板未打开/其他会话：刷新通知列表（chat 类型消息会出现在列表），未读数同步
+    // 面板未打开/其他会话：刷新通知列表 + 会话列表（未读数/摘要实时跟进）
     refreshChatNotifications();
+    refreshConversationsSoon();
   }
 
   // 重拉当前会话历史（重连成功兜底；服务端已持久化，直接替换，乐观发送的已入库消息也含在内）
@@ -1394,34 +1509,7 @@
     }
     MemoAPI.post('/chat/conversations', { peerId: msg.actorId }).then(function (conv) {
       if (!conv || !conv.conversationId) throw new Error('会话响应缺少 conversationId');
-      chatConvId = conv.conversationId;
-      // 打开面板（先清空并置空列表，历史异步填充）
-      chatPeerName.textContent = msg.name;
-      if (msg.avatarImg) {
-        chatPeerAvatar.style.backgroundImage = "url('" + msg.avatarImg + "')";
-      } else {
-        chatPeerAvatar.style.backgroundImage = '';
-        chatPeerAvatar.style.background = 'linear-gradient(135deg, #F0A040, #D4691C)';
-      }
-      chatBubbles = [];
-      renderChatMessages(chatBubbles);
-      chatPanel.classList.add('show');
-      ensureChatSocket();   // 实时推送连接（已建则复用；未登录/不支持时静默，REST 兜底）
-      setTimeout(() => chatInput.focus(), 320);
-      // 拉取历史（9.2，before 游标暂不用：原型会话量小）
-      MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages?limit=50')
-        .then(function (data) {
-          chatBubbles = ((data && data.list) || []).slice().reverse().map(toBubble);
-          renderChatMessages(chatBubbles);
-        })
-        .catch(function (e) {
-          console.warn('[chat history]', e && e.message);
-        });
-      // 会话标记已读（9.5；失败仅 console，不打扰）
-      MemoAPI.put('/chat/conversations/' + encodeURIComponent(chatConvId) + '/read')
-        .catch(function (e) {
-          console.warn('[conv read]', e && e.message);
-        });
+      openChatByConversation(conv);   // 统一入口（面板/历史/已读/徽章）
     }).catch(function (e) {
       // 会话创建失败（服务不可达/业务拒绝）→ 回退原占位行为，不打开面板
       console.warn('[chat open]', e && e.message);
@@ -1441,7 +1529,8 @@
     chatSend.disabled = true;
     MemoAPI.post('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages', { type: 'text', content: text })
       .then(function () {
-        // 成功：乐观气泡保留（内容与后端一致）
+        // 成功：乐观气泡保留（内容与后端一致）；会话列表摘要/时间跟进
+        refreshConversationsSoon();
       })
       .catch(function (e) {
         console.warn('[chat send]', e && e.message);
@@ -1530,10 +1619,26 @@
     if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
   });
 
-  // 初始化：先渲染本地消息（离线兜底），已登录时异步拉取真实通知覆盖 + 建立私信 WS 实时通道
+  // 初始化：先渲染本地消息（离线兜底），已登录时异步拉取真实通知/会话覆盖 + 建立私信 WS 实时通道
   renderMessages();
   loadRealNotifications();
+  loadConversations();
   ensureChatSocket();
+
+  // ?peer=<userId> 深链：他人主页[私信]/地图主页[私信]带参跳入 → 幂等建会话 → 直接开聊
+  (function handlePeerDeepLink() {
+    try {
+      var peer = new URLSearchParams(location.search).get('peer');
+      if (!peer) return;
+      if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) { showToast('请先登录后再发起私信'); return; }
+      MemoAPI.post('/chat/conversations', { peerId: peer })
+        .then(function (conv) { openChatByConversation(conv); })
+        .catch(function (e) {
+          console.warn('[peer deep link]', e && e.message);
+          showToast('⚠️ 无法打开会话：' + (e && e.message ? e.message : '请稍后重试'));
+        });
+    } catch (e) { /* URL 解析异常忽略 */ }
+  })();
 </script>
 <script>
 // ====== 物理返回键桥接（王总 2026-08-20 批准）：关闭聊天面板，与「软件返回」一致 ======

@@ -3361,6 +3361,47 @@
     transition: opacity 0.8s ease;
   }
 
+  /* ========== 坐标置顶（三赛道付费席，王总 2026-08 定稿）：升级按钮 + 购买弹窗 ========== */
+  .author-boost-btn {
+    display: inline-flex; align-items: center; gap: 4rem;
+    padding: 8rem 20rem; border-radius: 999rem;
+    background: linear-gradient(135deg, #5E35B1, #7E57C2);
+    color: #fff; font-size: 22rem; font-weight: 600; white-space: nowrap;
+    box-shadow: 0 4rem 12rem rgba(94, 53, 177, 0.35);
+  }
+  .author-boost-btn:active { opacity: 0.85; }
+  .author-boost-badge {
+    display: inline-flex; align-items: center; gap: 3rem;
+    padding: 5rem 14rem; border-radius: 999rem;
+    background: rgba(94, 53, 177, 0.12); color: #5E35B1;
+    font-size: 20rem; font-weight: 600; white-space: nowrap;
+  }
+  .boost-popup { position: fixed; inset: 0; z-index: 9500; display: none; flex-direction: column; background: rgba(0,0,0,0.5); }
+  .boost-popup.show { display: flex; }
+  .boost-popup-body {
+    margin-top: auto; width: 100%; border-radius: 0; background: #fff;
+    padding: 30rem 24rem calc(30rem + env(safe-area-inset-bottom));
+    box-sizing: border-box; animation: boostUp 0.25s ease;
+  }
+  @keyframes boostUp { from { transform: translateY(30%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .boost-popup-title { font-size: 32rem; font-weight: 700; color: #222; }
+  .boost-popup-sub { margin-top: 8rem; font-size: 22rem; color: #888; }
+  .boost-popup-price { margin-top: 18rem; font-size: 40rem; font-weight: 700; color: #E89020; }
+  .boost-popup-price small { font-size: 22rem; font-weight: 500; color: #999; margin-left: 8rem; }
+  .boost-gate-tip { margin-top: 12rem; font-size: 21rem; color: #C62828; line-height: 1.5; }
+  .boost-pay-qr { display: none; margin-top: 20rem; text-align: center; }
+  .boost-pay-qr img { width: 320rem; height: 320rem; object-fit: contain; border: 1rem solid #eee; }
+  .boost-order-no { margin-top: 12rem; font-size: 22rem; color: #333; }
+  .boost-order-no b { color: #E89020; font-size: 26rem; letter-spacing: 1rem; }
+  .boost-wait { margin-top: 10rem; font-size: 20rem; color: #888; }
+  .boost-popup-actions { display: flex; gap: 14rem; margin-top: 24rem; }
+  .boost-btn {
+    flex: 1; height: 84rem; border-radius: 999rem; border: none;
+    font-size: 28rem; font-weight: 600; display: flex; align-items: center; justify-content: center;
+  }
+  .boost-btn-ghost { background: #F2F2F2; color: #555; }
+  .boost-btn-primary { background: linear-gradient(135deg, #5E35B1, #7E57C2); color: #fff; box-shadow: 0 6rem 16rem rgba(94,53,177,0.35); }
+  .boost-btn-primary:disabled { opacity: 0.5; }
 </style>
 <!-- Leaflet + 天地图瓦片 -->
 <link rel="stylesheet" href="lib/leaflet/leaflet.css" />
@@ -3924,6 +3965,25 @@
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
               </svg>
               <span id="explorePopupCollectText">收藏坐标</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 坐标置顶购买弹窗（三赛道付费席；下单后显示收款码+订单号，半自动人工确认） -->
+        <div class="boost-popup" id="boostPopup">
+          <div class="boost-popup-body">
+            <div class="boost-popup-title" id="boostPopupTitle">坐标置顶</div>
+            <div class="boost-popup-sub" id="boostPopupSub"></div>
+            <div class="boost-popup-price">¥6<small>置顶 7 天</small></div>
+            <div class="boost-gate-tip" id="boostGateTip" style="display:none;"></div>
+            <div class="boost-pay-qr" id="boostPayQr">
+              <img id="boostQrImg" alt="收款码" />
+              <div class="boost-order-no">付款请备注订单号：<b id="boostOrderNo"></b></div>
+              <div class="boost-wait" id="boostWait">已通知商家，确认后置顶立即生效…</div>
+            </div>
+            <div class="boost-popup-actions">
+              <button class="boost-btn boost-btn-ghost" id="boostCancelBtn">关闭</button>
+              <button class="boost-btn boost-btn-primary" id="boostPayBtn">去付款</button>
             </div>
           </div>
         </div>
@@ -6760,6 +6820,13 @@
 
     const title = localUploadTargetMarker.dataset.title;
 
+    // 王总 2026-08 定稿：每人在同一坐标点最多发 20 张作品
+    const existingCount = Object.values(localUploadedPhotos[title] || {}).reduce((s, arr) => s + arr.length, 0);
+    if (existingCount + totalCount > 20) {
+      showToast('⚠️ 每人在同一坐标点最多发20张作品，还可再发' + Math.max(0, 20 - existingCount) + '张', 'warning', 2600);
+      return;
+    }
+
     // 保存上传的照片到本地数据（保留 blob URL，不释放）
     if (!localUploadedPhotos[title]) localUploadedPhotos[title] = {};
     Object.entries(localUploadPhotos).forEach(([hourKey, photos]) => {
@@ -7528,6 +7595,24 @@
     } catch (e) { return 'http://localhost:3000/api/v1'; }
   }
 
+  function memoApiPost(path, body) {
+    var token = '';
+    try { if (typeof MemoAPI !== 'undefined' && MemoAPI.getToken) token = MemoAPI.getToken(); } catch (e) {}
+    return fetch(memoApiBaseUrl() + path, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      mode: 'cors',
+      body: JSON.stringify(body || {})
+    }).then(function (res) {
+      return res.json();
+    }).then(function (json) {
+      if (json && json.code === 0) return json.data;
+      var err = new Error((json && json.message) || '请求失败');
+      err.business = true;
+      throw err;
+    });
+  }
+
   function memoApiGet(path) {
     var token = '';
     try { if (typeof MemoAPI !== 'undefined' && MemoAPI.getToken) token = MemoAPI.getToken(); } catch (e) {}
@@ -7654,6 +7739,7 @@
       photoCount: c.photoCount || photos.length,
       likeCount: c.likeCount || 0,
       thumbnails: c.thumbnails || [],
+      boostAuthors: c.boostAuthors || [],
       photos: photos
     };
   }
@@ -7957,6 +8043,86 @@
    * 显示探索弹窗（按作者分组，区别于灵感模式的时间分组）
    * @param {Object} coord - 坐标点数据
    */
+  // ========== 坐标置顶购买（三赛道付费席，王总 2026-08 定稿：¥6/7天，半自动人工确认） ==========
+  const boostPopupEl = document.getElementById('boostPopup');
+  const boostPopupTitleEl = document.getElementById('boostPopupTitle');
+  const boostPopupSubEl = document.getElementById('boostPopupSub');
+  const boostGateTipEl = document.getElementById('boostGateTip');
+  const boostPayQrEl = document.getElementById('boostPayQr');
+  const boostQrImgEl = document.getElementById('boostQrImg');
+  const boostOrderNoEl = document.getElementById('boostOrderNo');
+  const boostWaitEl = document.getElementById('boostWait');
+  const boostPayBtnEl = document.getElementById('boostPayBtn');
+  const boostCancelBtnEl = document.getElementById('boostCancelBtn');
+  let boostPollTimer = null;
+  let boostContext = null; // { coordKey }
+
+  function stopBoostPoll() { if (boostPollTimer) { clearInterval(boostPollTimer); boostPollTimer = null; } }
+
+  function openBoostPopup(coord) {
+    const myPhotos = (coord.photos || []).filter(p => p.author === '@我');
+    const myLikes = myPhotos.reduce((s, p) => s + (Number(p.likes) || 0), 0);
+    boostContext = { coordKey: coord.title };
+    boostPopupTitleEl.textContent = '「' + coord.title + '」置顶';
+    boostPopupSubEl.textContent = '置顶期间你的作品席位列最前；越早续买越靠前';
+    boostWaitEl.textContent = '已通知商家，确认后置顶立即生效…';
+    boostPayQrEl.style.display = 'none';
+    boostPayBtnEl.style.display = '';
+    if (myLikes >= 1) {
+      boostGateTipEl.style.display = 'none';
+      boostPayBtnEl.disabled = false;
+    } else {
+      boostGateTipEl.style.display = '';
+      boostGateTipEl.textContent = '作品需先获得至少1个赞，才能购买置顶';
+      boostPayBtnEl.disabled = true;
+    }
+    boostPopupEl.classList.add('show');
+  }
+
+  function closeBoostPopup() { stopBoostPoll(); boostPopupEl.classList.remove('show'); }
+
+  boostCancelBtnEl.addEventListener('click', closeBoostPopup);
+  boostPopupEl.addEventListener('click', (e) => { if (e.target === boostPopupEl) closeBoostPopup(); });
+
+  boostPayBtnEl.addEventListener('click', async () => {
+    if (!boostContext) return;
+    boostPayBtnEl.disabled = true;
+    try {
+      const d = await memoApiPost('/explore/boost/order', { coordKey: boostContext.coordKey });
+      boostQrImgEl.src = d.payeeQrCodeUrl;
+      boostOrderNoEl.textContent = d.orderNo;
+      boostPayQrEl.style.display = '';
+      boostPayBtnEl.style.display = 'none';
+      const startedAt = Date.now();
+      stopBoostPoll();
+      boostPollTimer = setInterval(async () => {
+        if (Date.now() - startedAt > 10 * 60 * 1000) { stopBoostPoll(); return; }
+        try {
+          const o = await memoApiGet('/explore/boost/order/' + d.orderId);
+          if (o && o.status === 'paid') {
+            stopBoostPoll();
+            // 生效写本地即时可见；远程注入由后端 boostAuthors 下次加载接管
+            try {
+              const key = 'explore_boost_' + boostContext.coordKey;
+              const arr = JSON.parse(localStorage.getItem(key) || '[]');
+              const untilSec = o.expireAt ? Math.floor(new Date(o.expireAt).getTime() / 1000) : Math.floor(Date.now() / 1000) + 7 * 86400;
+              arr.push({ author: '@我', start: Math.floor(Date.now() / 1000), until: untilSec });
+              localStorage.setItem(key, JSON.stringify(arr));
+            } catch (e) {}
+            boostWaitEl.textContent = '✓ 置顶已生效，作品已列最前';
+            setTimeout(() => {
+              closeBoostPopup();
+              if (currentExploreCoord) showExplorePopup(currentExploreCoord);
+            }, 1400);
+          }
+        } catch (e) {}
+      }, 3000);
+    } catch (e) {
+      boostPayBtnEl.disabled = false;
+      showToast('⚠️ ' + (e.message || '下单失败，请稍后重试'), 'warning', 2800);
+    }
+  });
+
   function showExplorePopup(coord) {
     closeAllOverlays();
     currentExploreCoord = coord;
@@ -7989,15 +8155,91 @@
     let followedUsers = [];
     try { followedUsers = JSON.parse(localStorage.getItem('followed_users') || '[]'); } catch (e) { followedUsers = []; }
 
-    // 渲染作者分组（已关注优先，然后按照片数倒序）
-    const sortedAuthors = Object.values(authorGroups).sort((a, b) => {
-      const aFollowed = followedUsers.includes(a.author);
-      const bFollowed = followedUsers.includes(b.author);
-      if (aFollowed && !bFollowed) return -1;
-      if (!aFollowed && bFollowed) return 1;
-      return b.photos.length - a.photos.length;
+    // ========== 三赛道个人席位排序（王总 2026-08 定稿） ==========
+    // 每 3 席一轮循环：付费(排位赛) → 高赞(总赞) → 最新(24h入组锁位)，空席由下一赛道补位；
+    // 已关注作者保持置顶（现状功能保留），其内部相对顺序遵循三赛道结果。
+    const __now = Math.floor(Date.now() / 1000);
+    const __coordKey = coord.id || coord.title;
+    function __photoTime(p) { return Number(p && (p.uploadTime || p.createdAt || p.timeSec)) || 0; }
+    // 作者统计：总赞 / 最近发布 / 本轮入组时间（24h 内最早一次发布——重发不刷新，即「锁位」）
+    function __authorStats(g) {
+      let likes = 0, newest = 0, entry = 0;
+      g.photos.forEach(p => {
+        const t = __photoTime(p);
+        likes += Number(p.likes) || 0;
+        if (t > newest) newest = t;
+        if (t && __now - t < 24 * 3600 && (!entry || t < entry)) entry = t;
+      });
+      return { likes, newest, entry };
+    }
+    const __all = Object.values(authorGroups);
+    const __st = {};
+    __all.forEach(g => { __st[g.author] = __authorStats(g); });
+    // 付费席队列：boost 记录 [{author, start, until}]，未过期的按购买先后排（排位赛：先买先占坑）
+    let __paidQ = [];
+    try {
+      const __boosts = JSON.parse(localStorage.getItem('explore_boost_' + __coordKey) || '[]');
+      const __local = __boosts.filter(b => Number(b.until) > __now).sort((a, b) => a.start - b.start).map(b => b.author);
+      // 远程席位（后端 ExploreBoost 注入，按确认时间序=排位赛「后买靠前」）优先，本地演示/未同步席位补充
+      const __remote = Array.isArray(coord.boostAuthors) ? coord.boostAuthors.filter(n => __st[n]) : [];
+      __paidQ = __remote.concat(__local.filter(a => __remote.indexOf(a) === -1)).filter(a => __st[a]);
+    } catch (e) { __paidQ = []; }
+    // 高赞席队列：总赞降序，平赞按最近发布降序
+    const __hotQ = __all.slice().sort((a, b) => {
+      const s = __st[b.author].likes - __st[a.author].likes;
+      return s !== 0 ? s : __st[b.author].newest - __st[a.author].newest;
+    }).map(g => g.author);
+    // 最新席队列：24h 内发过作品的作者，按入组时间倒序（后入组在上=新挤旧；重发不刷新=锁位）
+    // 霸榜惩罚：连续 72h 占最新席榜首 → 7 天内不得入最新席
+    let __crown = {};
+    try { __crown = JSON.parse(localStorage.getItem('explore_crown_' + __coordKey) || '{}'); } catch (e) { __crown = {}; }
+    const __newQ = __all
+      .filter(g => __st[g.author].entry && !(__crown[g.author] && Number(__crown[g.author].bannedUntil) > __now))
+      .sort((a, b) => __st[b.author].entry - __st[a.author].entry)
+      .map(g => g.author);
+    // 触发霸榜惩罚检查（针对当前最新席榜首）
+    if (__newQ.length) {
+      const __top = __newQ[0];
+      const __c = __crown[__top];
+      if (!__c || !Number(__c.since)) {
+        __crown[__top] = { since: __now };
+        try { localStorage.setItem('explore_crown_' + __coordKey, JSON.stringify(__crown)); } catch (e) {}
+      } else if (__now - Number(__c.since) > 72 * 3600) {
+        __crown[__top] = { bannedUntil: __now + 7 * 86400 };
+        try { localStorage.setItem('explore_crown_' + __coordKey, JSON.stringify(__crown)); } catch (e) {}
+      }
+    }
+    // 三席循环取人（paid → hot → new，每轮各取一名未用作者，队列空则跳过）
+    const __queues = { paid: __paidQ, hot: __hotQ, new: __newQ };
+    const __used = {};
+    const __ranked = [];
+    const __qi = { paid: 0, hot: 0, new: 0 };
+    const __maxLen = Math.max(__paidQ.length, __hotQ.length, __newQ.length);
+    ['paid', 'hot', 'new'].forEach(() => {
+      for (let r = 0; r < __maxLen; r++) {
+        ['paid', 'hot', 'new'].forEach(ln => {
+          const q = __queues[ln];
+          while (__qi[ln] < q.length) {
+            const a = q[__qi[ln]]; __qi[ln]++;
+            if (!__used[a]) { __used[a] = true; __ranked.push(a); break; }
+          }
+        });
+      }
     });
+    // 剩余作者（未入任何席位的：非 24h 内、被惩罚期等）按总赞排尾
+    __all.filter(g => !__used[g.author]).sort((a, b) => __st[b.author].likes - __st[a.author].likes)
+      .forEach(g => __ranked.push(g.author));
+    // 已关注作者整体置顶（保持三赛道相对顺序）
+    const __groupOf = {};
+    __all.forEach(g => { __groupOf[g.author] = g; });
+    const sortedAuthors = __ranked.map(a => __groupOf[a]).filter(Boolean)
+      .sort((a, b) => {
+        const af = followedUsers.includes(a.author), bf = followedUsers.includes(b.author);
+        return af === bf ? 0 : (af ? -1 : 1);
+      });
     let html = '';
+    // 自己是否已置顶中（三赛道付费席）
+    const __myBoostActive = __paidQ.indexOf('@我') !== -1;
 
     sortedAuthors.forEach((group, idx) => {
       const photos = group.photos;
@@ -8031,6 +8273,9 @@
               <div class="author-name">${group.author}</div>
               <div class="author-meta">${photos.length} 张作品 · 共获 ${photos.reduce((s,p) => s + p.likes, 0)} 赞</div>
             </div>
+            ${group.author === '@我' ? (__myBoostActive
+              ? '<span class="author-boost-badge">👑 置顶中</span>'
+              : '<span class="author-boost-btn" id="authorBoostBtn">🚀 升级置顶</span>') : ''}
             <div class="author-group-right">
               <span class="author-group-count">${photos.length}</span>
               <svg class="author-group-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -8046,6 +8291,10 @@
     });
 
     explorePopupGroups.innerHTML = html;
+
+    // 自己的升级按钮绑定（三赛道付费席）
+    const __boostBtn = document.getElementById('authorBoostBtn');
+    if (__boostBtn) __boostBtn.addEventListener('click', () => openBoostPopup(coord));
 
     // 默认收起（每个作者只露出一排完整照片），点击箭头展开/收起
     applyGroupsCollapsedDefault(explorePopupGroups);
@@ -9564,10 +9813,14 @@
     return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  // 私信按钮 → 打开聊天面板
+  // 私信按钮 → 优先深链消息页真实会话（?peer=）；无后端 id 时保留原面板（王总 2026-09-02 完善私信）
   userProfileMessageBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!currentProfileAuthor) return;
+    if (currentProfileAuthor._backendId) {
+      window.location.href = 'message-prototype.html?peer=' + encodeURIComponent(currentProfileAuthor._backendId);
+      return;
+    }
     openChatPanel({
       name: currentProfileAuthor.name,
       avatar: currentProfileAuthor.avatar

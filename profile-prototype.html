@@ -3530,10 +3530,11 @@
       });
   });
 
-  // 私信 → 消息页发起
+  // 私信 → 消息页发起（?peer= 深链直达会话；无 id 时退回普通跳转）
   document.getElementById('peerProfileMessageBtn').addEventListener('click', () => {
     showToast('前往消息页发起私信');
-    setTimeout(() => { window.location.href = 'message-prototype.html'; }, 600);
+    const pid = currentPeer && currentPeer.id ? encodeURIComponent(currentPeer.id) : '';
+    setTimeout(() => { window.location.href = 'message-prototype.html' + (pid ? '?peer=' + pid : ''); }, 600);
   });
 
   // 菜单入口
