@@ -12,12 +12,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import jwt from 'jsonwebtoken';
 import env, { UPLOAD_DIR } from '../config/env.js';
-import { ERR, BOOST_PLAN } from '../config/constants.js';
+import { ERR } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, paginated } from '../utils/pagination.js';
-import { MemberOrder, User, ExploreBoost } from '../models/index.js';
+import { MemberOrder, User } from '../models/index.js';
 import { activateMembership } from '../services/membership.service.js';
 
 /** 收款码图片对外相对路径（静态托管于 /uploads；容器内落盘即 /app/uploads/pay-qrcode.png） */
@@ -94,14 +94,6 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
   // 幂等：已确认过的直接返回（一致性兜底：会员未激活则补齐）
   if (order.status === 'paid') {
-    if (order.planId === BOOST_PLAN.planId) {
-      // 置顶订单已确认：幂等返回，不做会员激活
-      return ok(
-        res,
-        { orderId: order.orderId, status: order.status, paidAt: order.paidAt, confirmedAt: order.confirmedAt },
-        '该订单已确认'
-      );
-    }
     const user = await User.findById(order.userId);
     if (user && user.memberStatus !== 'active') await activateMembership(user);
     if (user && !order.expireAt) {
@@ -122,44 +114,6 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
   if (order.status !== 'pending_confirm') {
     throw new AppError(ERR.DUPLICATE, `当前状态（${order.status}）不可确认`, 409);
-  }
-
-  // 置顶订单分支：写/顺延席位（不动会员），订单落 paid
-  if (order.planId === BOOST_PLAN.planId) {
-    const now = new Date();
-    const existing = await ExploreBoost.findOne({ coordKey: order.coordKey, authorId: order.userId });
-    const baseMs = existing && existing.until > now ? existing.until.getTime() : now.getTime();
-    const until = new Date(baseMs + BOOST_PLAN.days * 86400000);
-    if (existing) {
-      existing.start = now;
-      existing.until = until;
-      existing.orderId = order.orderId;
-      await existing.save();
-    } else {
-      await ExploreBoost.create({
-        coordKey: order.coordKey,
-        authorId: order.userId,
-        orderId: order.orderId,
-        start: now,
-        until,
-      });
-    }
-    order.status = 'paid';
-    order.paidAt = now;
-    order.confirmedAt = now;
-    order.expireAt = until;
-    await order.save();
-    return ok(
-      res,
-      {
-        orderId: order.orderId,
-        status: order.status,
-        paidAt: order.paidAt,
-        confirmedAt: order.confirmedAt,
-        boostUntil: until,
-      },
-      '确认成功，置顶已生效'
-    );
   }
 
   const user = await User.findById(order.userId);

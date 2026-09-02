@@ -20,9 +20,7 @@ const memberOrderSchema = new Schema(
     planId: { type: String, required: true }, // 套餐 ID（plan_pro_monthly 月卡）
     planName: { type: String, default: '' },
     amount: { type: Number, required: true }, // 分（与支付平台对齐用整数分）
-    period: { type: String, enum: ['month', 'year', 'week'], default: 'month' },
-    // 置顶订单的坐标键（planId=boost_coord_7d 时必填；会员订单为空）
-    coordKey: { type: String, default: '', index: true },
+    period: { type: String, enum: ['month', 'year'], default: 'month' },
     paymentMethod: { type: String, enum: ['wechat', 'alipay', 'invite'], default: 'wechat' },
     status: {
       type: String,
