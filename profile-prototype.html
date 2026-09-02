@@ -2541,7 +2541,7 @@
             <!-- 套餐卡片 -->
             <div class="plan-card">
               <div class="plan-name">月度会员</div>
-              <div class="plan-desc">解锁全部高级功能，可升级为认证摄影师，享受工作 / 生活双模式切换</div>
+              <div class="plan-desc">解锁全部高级功能，可加冕为王，享受工作 / 生活双模式切换</div>
               <div class="plan-price">
                 <span class="plan-price-symbol">¥</span>
                 <span class="plan-price-num">6</span>
@@ -2589,9 +2589,9 @@
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
                 </svg>
               </div>
-              <div class="photographer-title" id="photographerTitle">升级为认证摄影师</div>
-              <div class="photographer-desc" id="photographerDesc">订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换</div>
-              <button class="photographer-btn" id="upgradePhotographerBtn" disabled>升级摄影师</button>
+              <div class="photographer-title" id="photographerTitle">加冕为王</div>
+              <div class="photographer-desc" id="photographerDesc">订阅会员后可加冕为王，解锁工作 / 生活模式切换</div>
+              <button class="photographer-btn" id="upgradePhotographerBtn" disabled>加冕为王</button>
             </div>
 
             <!-- 权益列表 -->
@@ -3838,16 +3838,16 @@
 
     if (isPhotographer) {
       photographerBlock.classList.add('active');
-      photographerTitle.textContent = '已升级认证摄影师';
+      photographerTitle.textContent = '已加冕为王';
       photographerDesc.textContent = '你已解锁工作 / 生活模式切换，可在我的主页顶部切换模式';
-      upgradePhotographerBtn.textContent = '已升级';
+      upgradePhotographerBtn.textContent = '已加冕';
     } else {
       photographerBlock.classList.remove('active');
-      photographerTitle.textContent = '升级为认证摄影师';
+      photographerTitle.textContent = '加冕为王';
       photographerDesc.textContent = isMember
-        ? '订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换'
-        : '请先订阅会员，再升级为认证摄影师';
-      upgradePhotographerBtn.textContent = '升级摄影师';
+        ? '订阅会员后可加冕为王，解锁工作 / 生活模式切换'
+        : '请先订阅会员，再行加冕';
+      upgradePhotographerBtn.textContent = '加冕为王';
     }
 
     // 我的主页头像区的摄影师徽章 & 模式切换栏
@@ -4614,7 +4614,7 @@
   // 从订阅支付页（photographer-payment.html）支付成功返回：提示已升级
   // 支付页已写入 localStorage 兜底，另拉取后端真实状态覆盖（后端确认后会员/摄影师已激活）
   if (location.search.indexOf('upgraded=1') !== -1) {
-    showToast('🎉 支付成功，你已升级为认证摄影师');
+    showToast('🎉 支付成功，你已加冕为王');
   }
   // 已登录时拉取真实会员/摄影师状态；未登录或接口失败自动回退 localStorage 逻辑（页面不崩）
   loadMemberStatus();

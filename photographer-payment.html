@@ -755,7 +755,7 @@
           <!-- 套餐卡片（照搬会员中心 plan-card） -->
           <div class="plan-card">
             <div class="plan-name">月度会员</div>
-            <div class="plan-desc">解锁全部高级功能，可升级为认证摄影师，享受工作 / 生活双模式切换</div>
+            <div class="plan-desc">解锁全部高级功能，可加冕为王，享受工作 / 生活双模式切换</div>
             <div class="plan-price">
               <span class="plan-price-symbol">¥</span>
               <span class="plan-price-num price-amount">6</span>
@@ -849,9 +849,9 @@
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
               </svg>
             </div>
-            <div class="photographer-title" id="photographerTitle">升级为认证摄影师</div>
-            <div class="photographer-desc" id="photographerDesc">订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换</div>
-            <button class="photographer-btn" id="upgradePhotographerBtn" disabled>升级摄影师</button>
+            <div class="photographer-title" id="photographerTitle">加冕为王</div>
+            <div class="photographer-desc" id="photographerDesc">订阅会员后可加冕为王，解锁工作 / 生活模式切换</div>
+            <button class="photographer-btn" id="upgradePhotographerBtn" disabled>加冕为王</button>
           </div>
 
           <!-- 会员权益（照搬会员中心） -->
@@ -987,7 +987,7 @@
   function mockPaySuccess() {
     setTimeout(function () {
       localStorage.setItem('profile_photographer', '1');
-      alert('✅ 支付成功！你已升级为认证摄影师');
+      alert('✅ 支付成功！你已加冕为王');
       window.location.href = 'profile-prototype.html?upgraded=1';
     }, 2000);
   }
@@ -1124,7 +1124,7 @@
     clearInterval(pollTimer);
     // 原型阶段：本地标记摄影师身份兜底（真实状态由后端 GET /member/status 下发，见 profile-prototype.html）
     localStorage.setItem('profile_photographer', '1');
-    alert('✅ 支付成功！你已升级为认证摄影师');
+    alert('✅ 支付成功！你已加冕为王');
     window.location.href = 'profile-prototype.html?upgraded=1';
   }
 
@@ -1455,16 +1455,16 @@
 
     if (isPhotographer) {
       photographerBlock.classList.add('active');
-      photographerTitle.textContent = '已升级认证摄影师';
+      photographerTitle.textContent = '已加冕为王';
       photographerDesc.textContent = '你已解锁工作 / 生活模式切换，可在我的主页顶部切换模式';
-      upgradePhotographerBtn.textContent = '已升级';
+      upgradePhotographerBtn.textContent = '已加冕';
     } else {
       photographerBlock.classList.remove('active');
-      photographerTitle.textContent = '升级为认证摄影师';
+      photographerTitle.textContent = '加冕为王';
       photographerDesc.textContent = isMember
-        ? '订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换'
-        : '请先订阅会员，再升级为认证摄影师';
-      upgradePhotographerBtn.textContent = '升级摄影师';
+        ? '订阅会员后可加冕为王，解锁工作 / 生活模式切换'
+        : '请先订阅会员，再行加冕';
+      upgradePhotographerBtn.textContent = '加冕为王';
     }
   }
 
