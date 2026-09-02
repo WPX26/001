@@ -1369,11 +1369,12 @@
     else if (m.type === 'coord') text = '[位置]';
     else text = m.content || '';
     return { id: m.id ? String(m.id) : null, mine: me && String(m.senderId) === String(me.id), text: text,
-             imageUrl: m.type === 'image' ? (m.imageUrl || '') : '', time: toHHMM(m.createdAt) };
+             imageUrl: m.type === 'image' ? (m.imageUrl || '') : '', time: toHHMM(m.createdAt),
+             createdAt: m.createdAt || null };
   }
 
   // 渲染气泡（沿用 memo-home：每 6 条插入一次 chat-time 分隔）
-  function renderChatMessages(list) {
+  function renderChatMessages(list, opts) {
     chatMessages.innerHTML = (list || []).map((m, i) => {
       const timeTag = (i > 0 && i % 6 === 0)
         ? `<div class="chat-time">${m.time}</div>`
@@ -1383,8 +1384,40 @@
         : escapeHtml(m.text);
       return timeTag + `<div class="chat-bubble ${m.mine ? 'me' : 'peer'}">${inner}</div>`;
     }).join('');
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    if (!(opts && opts.noScroll)) chatMessages.scrollTop = chatMessages.scrollHeight;
   }
+
+  // ========== 历史分页（9.2 before 时间游标上滑加载更早；王总 2026-09-02 完善私信④） ==========
+  var chatHasMore = false;       // 后端 hasMore（本次拉取后还有更早消息）
+  var chatLoadingOlder = false;  // 上滑加载进行中（防重入）
+  function applyChatHistory(data) {
+    chatBubbles = ((data && data.list) || []).slice().reverse().map(toBubble);
+    chatHasMore = !!(data && data.hasMore);
+    renderChatMessages(chatBubbles);
+  }
+  function loadOlderChatMessages() {
+    if (!chatConvId || !chatHasMore || chatLoadingOlder) return;
+    const oldest = chatBubbles.find(function (b) { return b.createdAt; });
+    if (!oldest) { chatHasMore = false; return; }
+    chatLoadingOlder = true;
+    const prevHeight = chatMessages.scrollHeight;
+    MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) +
+      '/messages?limit=50&before=' + encodeURIComponent(oldest.createdAt))
+      .then(function (data) {
+        const older = ((data && data.list) || []).slice().reverse().map(toBubble);
+        if (older.length) chatBubbles = older.concat(chatBubbles);
+        chatHasMore = !!(data && data.hasMore);
+        renderChatMessages(chatBubbles, { noScroll: true });
+        // 保持视口：新增内容在上方，把 scrollTop 补回差值
+        chatMessages.scrollTop = chatMessages.scrollHeight - prevHeight;
+      })
+      .catch(function (e) { console.warn('[chat older]', e && e.message); })
+      .then(function () { chatLoadingOlder = false; });
+  }
+  // 滚到顶 → 拉更早（绑定一次；renderChatMessages 重绘不换容器）
+  chatMessages.addEventListener('scroll', function () {
+    if (chatMessages.scrollTop <= 2) loadOlderChatMessages();
+  });
 
   // ========== 真实会话列表（9.1 GET /chat/conversations；王总 2026-09-02 完善私信） ==========
   // 私信 tab = 真实会话列表（对方头像/昵称/最后一条摘要/相对时间/未读数），点击直接打开对话；
@@ -1462,10 +1495,7 @@
     ensureChatSocket();
     setTimeout(() => chatInput.focus(), 320);
     MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages?limit=50')
-      .then(function (data) {
-        chatBubbles = ((data && data.list) || []).slice().reverse().map(toBubble);
-        renderChatMessages(chatBubbles);
-      })
+      .then(function (data) { applyChatHistory(data); })
       .catch(function (e) { console.warn('[chat history]', e && e.message); });
     MemoAPI.put('/chat/conversations/' + encodeURIComponent(chatConvId) + '/read')
       .catch(function (e) { console.warn('[conv read]', e && e.message); });
@@ -1578,10 +1608,7 @@
   function reloadChatHistory() {
     if (!chatConvId) return;
     MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages?limit=50')
-      .then(function (data) {
-        chatBubbles = ((data && data.list) || []).slice().reverse().map(toBubble);
-        renderChatMessages(chatBubbles);
-      })
+      .then(function (data) { applyChatHistory(data); })
       .catch(function (e) {
         console.warn('[chat history reload]', e && e.message);
       });
