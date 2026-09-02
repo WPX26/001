@@ -210,6 +210,90 @@
   }
   .benefit-text strong { color: #D4691C; }
 
+  .plan-btn {
+    width: 100%;
+    padding: 13rem;
+    border: none;
+    border-radius: 12rem;
+    font-size: 14rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6rem;
+  }
+  .plan-btn.subscribe {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    box-shadow: 0 4rem 14rem rgba(240, 160, 64, 0.4);
+  }
+  .plan-btn.subscribe:hover { transform: translateY(-1rem); box-shadow: 0 6rem 18rem rgba(240, 160, 64, 0.5); }
+  .plan-btn.subscribe:active { transform: scale(0.97); }
+  .plan-btn.cancel {
+    background: rgba(232, 83, 83, 0.1);
+    color: #E85353;
+    border: 1rem solid rgba(232, 83, 83, 0.3);
+  }
+  .plan-btn.cancel:hover { background: rgba(232, 83, 83, 0.18); }
+  .plan-btn.cancel:active { transform: scale(0.97); }
+  .plan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* 摄影师升级区块（照搬会员中心） */
+  .photographer-block {
+    margin-top: 18rem;
+    padding: 16rem;
+    border-radius: 14rem;
+    background: linear-gradient(135deg, rgba(240, 160, 64, 0.12) 0%, rgba(212, 105, 28, 0.08) 100%);
+    border: 1rem dashed rgba(240, 160, 64, 0.4);
+    text-align: center;
+  }
+  .photographer-block.active {
+    background: linear-gradient(135deg, rgba(46, 125, 50, 0.1) 0%, rgba(102, 187, 106, 0.08) 100%);
+    border: 1rem solid rgba(46, 125, 50, 0.35);
+  }
+  .photographer-icon {
+    width: 40rem; height: 40rem;
+    margin: 0 auto 8rem;
+    border-radius: 50%;
+    background: rgba(240, 160, 64, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .photographer-block.active .photographer-icon {
+    background: linear-gradient(135deg, #66BB6A 0%, #2E7D32 100%);
+  }
+  .photographer-icon svg { width: 20rem; height: 20rem; color: #D4691C; }
+  .photographer-block.active .photographer-icon svg { color: white; }
+  .photographer-title {
+    font-size: 14rem;
+    font-weight: 700;
+    color: #F5DFC0;
+    margin-bottom: 4rem;
+  }
+  .photographer-desc {
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.85);
+    margin-bottom: 12rem;
+    line-height: 1.5;
+  }
+  .photographer-btn {
+    padding: 8rem 20rem;
+    border: none;
+    border-radius: 10rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 12rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .photographer-btn:hover { transform: translateY(-1rem); box-shadow: 0 4rem 12rem rgba(240, 160, 64, 0.4); }
+  .photographer-btn:active { transform: scale(0.96); }
+  .photographer-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none; }
+
   /* 邀请卡（照搬会员中心） */
   .invite-card {
     background: rgba(245, 223, 192, 0.05);
@@ -674,6 +758,7 @@
               <span class="plan-price-unit">/ 月</span>
               <span class="price-original" style="display:none;">¥12</span>
             </div>
+            <button class="plan-btn subscribe" id="subscribeBtn">立即订阅</button>
           </div>
 
           <!-- 邀请码兑换区块（照搬会员中心） -->
@@ -751,6 +836,18 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
             </div>
+          </div>
+
+          <!-- 摄影师升级区块（照搬会员中心） -->
+          <div class="photographer-block" id="photographerBlock">
+            <div class="photographer-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+            <div class="photographer-title" id="photographerTitle">升级为认证摄影师</div>
+            <div class="photographer-desc" id="photographerDesc">订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换</div>
+            <button class="photographer-btn" id="upgradePhotographerBtn" disabled>升级摄影师</button>
           </div>
 
           <!-- 会员权益（照搬会员中心） -->
@@ -1203,9 +1300,14 @@
       inviteInput.value = '';
       vipInviteInput.value = '';
 
+      serverStatusLoaded = true;
+      serverRemainingDays = days;
+      isMember = true;
+      isPhotographer = !!(data && data.isPhotographer);
       localStorage.setItem(MEMBER_KEY, '1');
-      localStorage.setItem(PHOTOGRAPHER_KEY, (data && data.isPhotographer) ? '1' : '0');
+      localStorage.setItem(PHOTOGRAPHER_KEY, isPhotographer ? '1' : '0');
       localStorage.setItem(MEMBER_MONTHS_KEY, String(Math.max(1, Math.ceil(days / 30))));
+      refreshMemberUI();
 
       showToast('🎉 兑换成功，会员时长已顺延' + (days ? ' ' + days + ' 天' : ''));
     }).catch(function (err) {
@@ -1239,6 +1341,7 @@
 
       redeemedCodes.push(code);
       localStorage.setItem('profile_redeemed_codes', JSON.stringify(redeemedCodes));
+      isMember = true;
       localStorage.setItem(MEMBER_KEY, '1');
       localStorage.setItem(MEMBER_MONTHS_KEY, (memberMonths + 1).toString());
 
@@ -1280,6 +1383,7 @@
     function localRedeem() {
       var memberMonths = parseInt(localStorage.getItem(MEMBER_MONTHS_KEY) || '0', 10);
       if (!VALID_VIP_CODES.includes(code)) { showToast('VIP邀请码无效', 'warning'); return; }
+      isMember = true;
       localStorage.setItem(MEMBER_KEY, '1');
       localStorage.setItem(MEMBER_MONTHS_KEY, (memberMonths + 1).toString());
 
@@ -1316,6 +1420,94 @@
 
   refreshInviteUI();
   loadInviteUsage();
+
+  // ========== 会员状态联动（照搬会员中心：同接口 / 同状态机） ==========
+  var serverStatusLoaded = false;
+  var serverRemainingDays = 0;
+  var isMember = localStorage.getItem(MEMBER_KEY) === '1';
+  var isPhotographer = localStorage.getItem(PHOTOGRAPHER_KEY) === '1';
+  var memberMonths = parseInt(localStorage.getItem(MEMBER_MONTHS_KEY) || '0', 10);
+
+  const subscribeBtn = document.getElementById('subscribeBtn');
+  const photographerBlock = document.getElementById('photographerBlock');
+  const photographerTitle = document.getElementById('photographerTitle');
+  const photographerDesc = document.getElementById('photographerDesc');
+  const upgradePhotographerBtn = document.getElementById('upgradePhotographerBtn');
+
+  function refreshMemberUI() {
+    // 订阅按钮：未订阅显示"立即订阅"，已订阅显示"取消订阅"
+    if (isMember) {
+      subscribeBtn.textContent = '取消订阅';
+      subscribeBtn.classList.remove('subscribe');
+      subscribeBtn.classList.add('cancel');
+    } else {
+      subscribeBtn.textContent = '立即订阅';
+      subscribeBtn.classList.add('subscribe');
+      subscribeBtn.classList.remove('cancel');
+    }
+
+    // 摄影师升级区块：必须先订阅才能升级
+    upgradePhotographerBtn.disabled = !isMember || isPhotographer;
+
+    if (isPhotographer) {
+      photographerBlock.classList.add('active');
+      photographerTitle.textContent = '已升级认证摄影师';
+      photographerDesc.textContent = '你已解锁工作 / 生活模式切换，可在我的主页顶部切换模式';
+      upgradePhotographerBtn.textContent = '已升级';
+    } else {
+      photographerBlock.classList.remove('active');
+      photographerTitle.textContent = '升级为认证摄影师';
+      photographerDesc.textContent = isMember
+        ? '订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换'
+        : '请先订阅会员，再升级为认证摄影师';
+      upgradePhotographerBtn.textContent = '升级摄影师';
+    }
+  }
+
+  function loadMemberStatus() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.get('/member/status').then(function (data) {
+      if (!data) return;
+      serverStatusLoaded = true;
+      isMember = data.memberStatus === 'active';
+      isPhotographer = !!data.isPhotographer;
+      serverRemainingDays = Math.max(0, Number(data.remainingDays) || 0);
+      // 回写 localStorage 兜底（离线打开/接口失败时保持一致）
+      localStorage.setItem(MEMBER_KEY, isMember ? '1' : '0');
+      localStorage.setItem(PHOTOGRAPHER_KEY, isPhotographer ? '1' : '0');
+      localStorage.setItem(MEMBER_MONTHS_KEY, isMember ? String(Math.max(1, Math.ceil(serverRemainingDays / 30))) : '0');
+      refreshMemberUI();
+    }).catch(function (e) {
+      console.warn('[member status] 拉取失败，使用本地会员状态：', e && e.message);
+    });
+  }
+
+  // 订阅 / 取消订阅（本页即支付页：订阅=发起支付；取消=关闭自动续费，与会员中心一致）
+  subscribeBtn.addEventListener('click', function () {
+    if (serverStatusLoaded || isMember) {
+      if (!isMember) { confirmPayment(); return; }
+      if (!confirm('确定要取消订阅吗？取消后将关闭自动续费，会员到期后失效并收回摄影师认证。')) return;
+      MemoAPI.post('/member/cancel-renewal').then(function () {
+        showToast('已取消订阅，会员到期后将自动失效');
+        loadMemberStatus();
+      }).catch(function (err) {
+        if (err && err.network) { showToast('服务不可达，请稍后重试'); return; }
+        showToast(err && err.message ? err.message : '取消订阅失败，请重试');
+      });
+      return;
+    }
+    // 未登录 / 服务不可达兜底：直接发起支付
+    confirmPayment();
+  });
+
+  // 升级摄影师（本页即支付页：点击=发起支付）
+  upgradePhotographerBtn.addEventListener('click', function () {
+    if (isPhotographer) return;
+    confirmPayment();
+  });
+
+  refreshMemberUI();
+  loadMemberStatus();
 
   loadPlans();
 </script>
