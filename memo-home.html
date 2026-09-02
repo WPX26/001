@@ -9937,6 +9937,7 @@
         // 行政分级聚合：minZoom 降到 3（支持看全国/全球），maxZoom 提到 18（精确坐标）
         minZoom: 3,
         maxZoom: 18,
+        zoomSnap: 0.5, // 缩放半档化:默认 zoomSnap:1 整数跳档(源码 Math.round(zoom/snap)*snap),0.5 让捏合更连续
         zoomControl: false,
         attributionControl: false
       });
@@ -9945,7 +9946,9 @@
       // （手机、Windows 125%+ 缩放）会把层 maxZoom 钳到 17 并请求 z19（z19 为空白占位图），
       // 导致最大级白屏/灰屏。故用官方默认 256px 瓦片直连请求。
       // （2026-08-13 曾去掉自定义手动行列换算改官方默认路径，官方默认路径本身无错，本改动不回归）
-      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, maxNativeZoom: 18, updateWhenZooming: false, keepBuffer: 4 };
+      // 2026-09-02 丝滑对齐: updateWhenIdle:false——Leaflet 默认手机端只 moveend 才换瓦片(源码 updateWhenIdle:Browser.mobile),
+      // 是捏合缩放灰块的直接病因;改 false 后手势中实时加载。updateWhenZooming:false 砍掉缩放动画沿途每档的 load storm。
+      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, maxNativeZoom: 18, updateWhenZooming: false, updateWhenIdle: false, keepBuffer: 4 };
       new ResilientTileLayer(TDT_URL, TILE_OPTS).addTo(map);
       new ResilientTileLayer(TDT_LABEL, TILE_OPTS).addTo(map);
 
@@ -9962,7 +9965,7 @@
           interactive: false,
           className: 'prefetch-tiles',
           keepBuffer: 6,
-          updateWhenIdle: true,
+          updateWhenIdle: false,
           minZoom: 6
         })).addTo(map);
       });
@@ -9982,8 +9985,8 @@
           opacity: 0,
           interactive: false,
           className: 'prefetch-tiles',
-          keepBuffer: off >= -3 ? 4 : 2,
-          updateWhenIdle: true,
+          keepBuffer: 4,
+          updateWhenIdle: false,
           minZoom: 6
         })).addTo(map);
       });
@@ -9996,7 +9999,7 @@
           this._tpl = urlTemplate;
           this._fz = fixedZoom;
           L.GridLayer.prototype.initialize.call(this, {
-            tileSize: 256, updateWhenIdle: true, keepBuffer: 0,
+            tileSize: 256, updateWhenIdle: false, keepBuffer: 2,
             className: 'prefetch-tiles wide-prefetch',
             subdomains: TILE_OPTS.subdomains
           });
