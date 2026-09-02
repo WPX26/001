@@ -18,7 +18,8 @@ FROM nginx:1.27-alpine
 # 9 个页面 + admin.html（管理端）+ api.js（根目录下）
 # 注意：online_check.html 是旧副本页（.gitignore 标注不入库），勿加 COPY（加了会因文件不在仓库导致 ACR 构建失败）
 # 注意：phone-link-prototype.html 已下线（2026-08-18 清理，功能已并入 connect-prototype.html），勿恢复 COPY
-COPY album-prototype.html camera-prototype.html connect-prototype.html \
+# [2026-09-02 冻结] 互联模块移出本版（备份库：互联备份库-20260902）：camera-prototype/connect-prototype/camera-ptp/usb-transport/browser-usb-transport/bridge-transport 的 COPY 一并移除
+COPY album-prototype.html \
      login-prototype.html memo-home.html message-prototype.html \
      photographer-payment.html profile-prototype.html register-prototype.html \
      admin.html \
@@ -26,12 +27,7 @@ COPY album-prototype.html camera-prototype.html connect-prototype.html \
 
 COPY api.js /usr/share/nginx/html/
 
-# 相机互联 USB 有线连接（阶段1：Native.js 直连 PTP）——联机页 script 引用，缺失会 404 导致 USB 功能失效
-COPY camera-ptp.js usb-transport.js browser-usb-transport.js /usr/share/nginx/html/
 
-# r69：App 内 UTS 原生 USB 桥传输层（connect-prototype.html script 引用；App web-view 加载线上页面，
-# 缺失则 App 内 USB 直连不可用）。与上面三个文件同一部署纪律：改动必须进镜像。
-COPY bridge-transport.js /usr/share/nginx/html/
 
 # 卡片插画底图（他人主页/我的主页 hero 引用 card-bg.jpg，1ae52a5 起）——缺失时线上 404、卡片只剩染色层
 COPY card-bg.jpg /usr/share/nginx/html/

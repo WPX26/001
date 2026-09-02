@@ -17,14 +17,6 @@
 			}
 		},
 		{
-			"path": "pages/connect/connect",
-			"style": {
-				"navigationBarTitleText": "联机",
-				"disableScroll": true,
-				"navigationStyle": "custom"
-			}
-		},
-		{
 			"path": "pages/message/message",
 			"style": {
 				"navigationBarTitleText": "消息",

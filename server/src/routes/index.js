@@ -22,8 +22,9 @@ import inspireRoutes from './inspire.routes.js';
 import exploreRoutes from './explore.routes.js';
 import reportRoutes from './report.routes.js';
 import chatRoutes from './chat.routes.js';
-import phonelinkRoutes from './phonelink.routes.js';
-import tetherRoutes from './tether.routes.js';
+// [2026-09-02 冻结] 互联模块移入备份库（互联备份库-20260902），本版停用；恢复时取消本行与下方挂载的注释
+// import phonelinkRoutes from './phonelink.routes.js';
+// import tetherRoutes from './tether.routes.js';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.use('/inspire', inspireRoutes);
 router.use('/explore', exploreRoutes);
 router.use('/report', reportRoutes);
 router.use('/chat', chatRoutes);
-router.use('/phonelink', phonelinkRoutes);
-router.use('/tether', tetherRoutes);
+// [2026-09-02 冻结] router.use('/phonelink', phonelinkRoutes);
+// [2026-09-02 冻结] router.use('/tether', tetherRoutes);
 
 export default router;

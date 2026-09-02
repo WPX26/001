@@ -1976,7 +1976,7 @@
 <script>
 // 导航 active 兜底：页面加载时强制单一 active（防止任何路径导致多个键亮起）
 (function () {
-  var tabs = { 'memo-home.html': 'home', 'connect-prototype.html': 'market', 'message-prototype.html': 'message', 'profile-prototype.html': 'profile' };
+  var tabs = { 'memo-home.html': 'home', 'photographer-payment.html': 'promote', 'message-prototype.html': 'message', 'profile-prototype.html': 'profile' };
   var cur = tabs[(location.pathname.split('/').pop() || '')];
   document.querySelectorAll('.nav-item').forEach(function (i) {
     i.classList.toggle('active', !!cur && i.dataset.tab === cur);
@@ -2631,11 +2631,11 @@
             </svg>
             <span class="nav-label">首页</span>
           </div>
-          <div class="nav-item" data-tab="market">
+          <div class="nav-item" data-tab="promote">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              <path d="M3 17h18"/><path d="M4 17V8l5 4 3-7 3 7 5-4v9"/>
             </svg>
-            <span class="nav-label">联机</span>
+            <span class="nav-label">晋升</span>
           </div>
           <div class="nav-center">
             <button class="nav-center-btn" id="cameraBtn">
@@ -3593,8 +3593,8 @@
       if (tab === 'home') {
         window.location.href = 'memo-home.html';
         return;
-      } else if (tab === 'market') {
-        window.location.href = 'connect-prototype.html';
+      } else if (tab === 'promote') {
+        window.location.href = 'photographer-payment.html';
         return;
       } else if (tab === 'message') {
         window.location.href = 'message-prototype.html';
