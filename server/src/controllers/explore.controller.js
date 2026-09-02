@@ -12,7 +12,7 @@ import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, paginated } from '../utils/pagination.js';
 import { haversineKm, radiusDelta, radiusMaxKm } from '../utils/geo.js';
-import { User, Coord, Photo } from '../models/index.js';
+import { User, Coord, Photo, ExploreBoost } from '../models/index.js';
 
 /** 探索池候选坐标上限（批量过滤摄影师后内存分组排序分页） */
 const COORD_CANDIDATE_LIMIT = 1000;
@@ -166,6 +166,24 @@ export const exploreCoords = asyncHandler(async (req, res) => {
     ps.sort((a, b) => (b.likes || 0) - (a.likes || 0));
   }
 
+  // 置顶席位注入（三赛道付费席）：本页坐标的活跃 boost → 每坐标 boostAuthors（作者昵称，排位赛按 start 先后由前端处理）
+  const pageCoordTitles = [
+    ...new Set(pageGroups.flatMap((g) => g.coords.slice(0, COORDS_PER_AUTHOR).map((c) => c.title))),
+  ];
+  const activeBoosts = pageCoordTitles.length
+    ? await ExploreBoost.find({ coordKey: { $in: pageCoordTitles }, until: { $gt: new Date() } })
+        .sort({ start: -1 })
+        .populate('authorId', 'nickname')
+        .lean()
+    : [];
+  const boostByCoord = new Map();
+  for (const b of activeBoosts) {
+    const nick = b.authorId && b.authorId.nickname;
+    if (!nick) continue;
+    if (!boostByCoord.has(b.coordKey)) boostByCoord.set(b.coordKey, []);
+    boostByCoord.get(b.coordKey).push(nick);
+  }
+
   const coordsFlat = [];
   const authorGroups = pageGroups.map((g) => {
     const u = g.user;
@@ -178,6 +196,7 @@ export const exploreCoords = asyncHandler(async (req, res) => {
         photoCount: c.photoCount || 0,
         likeCount: likeByCoord.get(String(c._id)) || 0,
         thumbnails: (thumbByCoord.get(String(c._id)) || []).map((p) => p.thumbnailUrl || p.imageUrl),
+        boostAuthors: boostByCoord.get(c.title) || [],
       };
       coordsFlat.push({ ...card, authorId: String(c.authorId) });
       return card;

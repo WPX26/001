@@ -2,10 +2,11 @@
  * 探索模式路由（api.md 第 5 章）
  */
 import { Router } from 'express';
-import { query } from 'express-validator';
+import { query, body, param } from 'express-validator';
 import { validate } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import * as explore from '../controllers/explore.controller.js';
+import * as member from '../controllers/member.controller.js';
 
 const router = Router();
 
@@ -34,6 +35,20 @@ router.get(
     validate,
   ],
   explore.ranking
+);
+
+// 5.3 坐标置顶下单（¥6/7天，半自动人工确认；质量门槛/幂等在控制器内）
+router.post(
+  '/boost/order',
+  [body('coordKey').isString().trim().notEmpty().withMessage('缺少坐标参数'), validate],
+  member.createBoostOrder
+);
+
+// 5.4 置顶订单详情/轮询（复用会员订单查询：归属校验在控制器内）
+router.get(
+  '/boost/order/:orderId',
+  [param('orderId').isString().notEmpty().withMessage('订单号格式不正确'), validate],
+  member.getOrder
 );
 
 export default router;

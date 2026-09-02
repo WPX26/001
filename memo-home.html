@@ -8064,7 +8064,7 @@
     const myLikes = myPhotos.reduce((s, p) => s + (Number(p.likes) || 0), 0);
     boostContext = { coordKey: coord.title };
     boostPopupTitleEl.textContent = '「' + coord.title + '」置顶';
-    boostPopupSubEl.textContent = '置顶期间你的作品席位列最前；越早续买越靠前';
+    boostPopupSubEl.textContent = '置顶期间你的作品席位列最前；越新购买，席位越靠前';
     boostWaitEl.textContent = '已通知商家，确认后置顶立即生效…';
     boostPayQrEl.style.display = 'none';
     boostPayBtnEl.style.display = '';
@@ -8175,17 +8175,17 @@
     const __all = Object.values(authorGroups);
     const __st = {};
     __all.forEach(g => { __st[g.author] = __authorStats(g); });
-    // 付费席队列：boost 记录 [{author, start, until}]，未过期的按购买先后排（排位赛：先买先占坑）
+    // 付费席队列：boost 记录 [{author, start, until}]，未过期的按购买先后排（排位赛：后买靠前，王总定案 C>B>A）
     let __paidQ = [];
     try {
       const __boosts = JSON.parse(localStorage.getItem('explore_boost_' + __coordKey) || '[]');
-      const __local = __boosts.filter(b => Number(b.until) > __now).sort((a, b) => a.start - b.start).map(b => b.author);
+      const __local = __boosts.filter(b => Number(b.until) > __now).sort((a, b) => b.start - a.start).map(b => b.author);
       // 远程席位（后端 ExploreBoost 注入，按确认时间序=排位赛「后买靠前」）优先，本地演示/未同步席位补充
       const __remote = Array.isArray(coord.boostAuthors) ? coord.boostAuthors.filter(n => __st[n]) : [];
       __paidQ = __remote.concat(__local.filter(a => __remote.indexOf(a) === -1)).filter(a => __st[a]);
     } catch (e) { __paidQ = []; }
-    // 高赞席队列：总赞降序，平赞按最近发布降序
-    const __hotQ = __all.slice().sort((a, b) => {
+    // 高赞席队列：总赞降序，平赞按最近发布降序（至少获赞1才入高赞席，与购买门槛呼应）
+    const __hotQ = __all.filter(g => __st[g.author].likes >= 1).sort((a, b) => {
       const s = __st[b.author].likes - __st[a.author].likes;
       return s !== 0 ? s : __st[b.author].newest - __st[a.author].newest;
     }).map(g => g.author);
@@ -8207,6 +8207,9 @@
       } else if (__now - Number(__c.since) > 72 * 3600) {
         __crown[__top] = { bannedUntil: __now + 7 * 86400 };
         try { localStorage.setItem('explore_crown_' + __coordKey, JSON.stringify(__crown)); } catch (e) {}
+        // 惩罚即刻生效：榜首逐出最新席（本轮落尾，按总赞排）
+        const __bi = __newQ.indexOf(__top);
+        if (__bi > -1) __newQ.splice(__bi, 1);
       }
     }
     // 三席循环取人（paid → hot → new，每轮各取一名未用作者，队列空则跳过）
