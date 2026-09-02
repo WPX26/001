@@ -12,12 +12,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import jwt from 'jsonwebtoken';
 import env, { UPLOAD_DIR } from '../config/env.js';
-import { ERR } from '../config/constants.js';
+import { ERR, BOOST_PLAN } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, paginated } from '../utils/pagination.js';
-import { MemberOrder, User } from '../models/index.js';
+import { MemberOrder, User, ExploreBoost } from '../models/index.js';
 import { activateMembership } from '../services/membership.service.js';
 
 /** 收款码图片对外相对路径（静态托管于 /uploads；容器内落盘即 /app/uploads/pay-qrcode.png） */
@@ -92,6 +92,15 @@ export const confirmPayment = asyncHandler(async (req, res) => {
   const order = await MemberOrder.findOne({ orderId: req.params.orderId });
   if (!order) throw new AppError(ERR.NOT_FOUND, '订单不存在', 404);
 
+  // 幂等：置顶订单已确认直接返回（会员激活逻辑不适用）
+  if (order.status === 'paid' && order.planId === BOOST_PLAN.planId) {
+    return ok(
+      res,
+      { orderId: order.orderId, status: order.status, paidAt: order.paidAt, confirmedAt: order.confirmedAt },
+      '该置顶订单已确认'
+    );
+  }
+
   // 幂等：已确认过的直接返回（一致性兜底：会员未激活则补齐）
   if (order.status === 'paid') {
     const user = await User.findById(order.userId);
@@ -114,6 +123,37 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 
   if (order.status !== 'pending_confirm') {
     throw new AppError(ERR.DUPLICATE, `当前状态（${order.status}）不可确认`, 409);
+  }
+
+  // 置顶订单：不激活会员，写/顺延 ExploreBoost 席位（排位赛 start=确认时刻，后买靠前）
+  if (order.planId === BOOST_PLAN.planId) {
+    const now = new Date();
+    let boost = await ExploreBoost.findOne({ coordKey: order.coordKey, authorId: order.userId });
+    const base = boost && boost.until && boost.until.getTime() > now.getTime() ? boost.until : now;
+    if (boost) {
+      boost.start = now;
+      boost.until = new Date(base.getTime() + BOOST_PLAN.days * 86400000);
+      boost.orderId = order.orderId;
+      await boost.save();
+    } else {
+      boost = await ExploreBoost.create({
+        coordKey: order.coordKey,
+        authorId: order.userId,
+        orderId: order.orderId,
+        start: now,
+        until: new Date(now.getTime() + BOOST_PLAN.days * 86400000),
+      });
+    }
+    order.status = 'paid';
+    order.paidAt = now;
+    order.confirmedAt = now;
+    order.expireAt = boost.until;
+    await order.save();
+    return ok(
+      res,
+      { orderId: order.orderId, status: order.status, paidAt: now, confirmedAt: now, boostUntil: boost.until },
+      '置顶已生效'
+    );
   }
 
   const user = await User.findById(order.userId);

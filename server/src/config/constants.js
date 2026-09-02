@@ -68,5 +68,14 @@ export const MEMBER_PLAN = {
   benefits: ['订阅即认证摄影师', '作品进入探索池展示', '照片上传不限量', '高清原图保存'],
 };
 
+/** 坐标置顶套餐（方案④：6元/7天，半自动人工确认，与会员订单共用链路） */
+export const BOOST_PLAN = {
+  planId: 'boost_coord_7d',
+  planName: '坐标置顶·7天',
+  amount: 600, // 分（6元）
+  period: 'week',
+  days: 7,
+};
+
 /** 会员订单超时未确认（pending_confirm）的惰性过期时长：48 小时 */
 export const MEMBER_PENDING_EXPIRE_MS = 48 * 3600 * 1000;
