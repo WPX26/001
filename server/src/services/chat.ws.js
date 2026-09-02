@@ -11,7 +11,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import jwt from 'jsonwebtoken';
 import env from '../config/env.js';
-import { User } from '../models/index.js';
+import { User, Conversation } from '../models/index.js';
 
 /** WS 端点路径（对齐 api.md 附录 A /chat/ws，含 /api/v1 前缀） */
 export const CHAT_WS_PATH = '/api/v1/chat/ws';
@@ -81,12 +81,16 @@ async function handleConnection(ws, url) {
     ws.isAlive = true;
   });
 
-  // 客户端上行：当前仅处理 ping 保活（其余事件留 P2，如 typing）
+  // 客户端上行：ping 保活 + typing 正在输入转发（api.md 附录 A：typing S<->C）
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
       if (msg?.type === 'ping') {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'pong' }));
+        return;
+      }
+      if (msg?.type === 'typing' && msg.conversationId) {
+        forwardTyping(ws, String(msg.conversationId));
       }
     } catch {
       // 非 JSON 上行忽略
@@ -129,4 +133,28 @@ export function pushToUser(userId, payload) {
 /** 在线用户数（冒烟测试/监控用） */
 export function onlineUserCount() {
   return online.size;
+}
+
+/** typing 服务端兜底限频：key -> 上次转发时间（2s/连接，防客户端失控刷屏） */
+const typingAt = new Map();
+const TYPING_THROTTLE_MS = 2 * 1000;
+
+/**
+ * 转发「正在输入」给会话对端（api.md 附录 A typing；校验成员身份，防越权探测）
+ * @param {import('ws').WebSocket} ws 发起连接
+ * @param {string} conversationId 会话 id
+ */
+async function forwardTyping(ws, conversationId) {
+  const key = ws.userId + ':' + conversationId;
+  const now = Date.now();
+  if (typingAt.get(key) && now - typingAt.get(key) < TYPING_THROTTLE_MS) return;
+  typingAt.set(key, now);
+  try {
+    const conv = await Conversation.findById(conversationId).select('participants').lean();
+    if (!conv) return;
+    const peerId = conv.participants.map(String).find((p) => p !== String(ws.userId));
+    if (peerId) pushToUser(peerId, { type: 'typing', data: { conversationId } });
+  } catch {
+    /* 会话不存在/查询失败：静默忽略 */
+  }
 }

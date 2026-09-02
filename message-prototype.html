@@ -501,6 +501,14 @@
     justify-content: center;
   }
   .chat-img-viewer-close svg { width: 20rem; height: 20rem; }
+  /* ⑥ 正在输入状态条（对话面板底部，追加件） */
+  .chat-typing-bar {
+    padding: 6rem 14rem 2rem;
+    font-size: 12rem;
+    color: rgba(245, 230, 208, 0.6);
+    text-align: left;
+    flex-shrink: 0;
+  }
   .chat-header {
     display: flex;
     align-items: center;
@@ -808,6 +816,7 @@
             <div class="chat-messages" id="chatMessages">
               <!-- 消息由JS动态生成 -->
             </div>
+            <div class="chat-typing-bar" id="chatTypingBar" style="display:none"></div>
             <div class="chat-input-bar">
               <input type="file" id="chatImgInput" accept="image/jpeg,image/png,image/webp" style="display:none">
               <button id="chatImg" title="发送图片">
@@ -1530,7 +1539,13 @@
   }
 
   function handleWsEvent(evt) {
-    if (!evt || evt.type !== 'new_message' || !evt.data || !evt.data.message) return;
+    if (!evt || !evt.type) return;
+    // ⑥ 对端正在输入（api.md 附录 A typing；仅当前打开的会话显示状态条）
+    if (evt.type === 'typing') {
+      if (chatConvId && evt.data && String(evt.data.conversationId) === String(chatConvId)) showChatTyping();
+      return;
+    }
+    if (evt.type !== 'new_message' || !evt.data || !evt.data.message) return;
     const data = evt.data;
     const msg = evt.data.message;
     const me = (MemoAPI.getUser && MemoAPI.getUser()) || null;
@@ -1546,6 +1561,7 @@
           .catch(function (e) { console.warn('[conv read]', e && e.message); });
         // 会话列表摘要/时间跟进（正在聊也保持列表新鲜）
         refreshConversationsSoon();
+        hideChatTyping();
       }
       return;
     }
@@ -1603,6 +1619,32 @@
     chatImgViewer.addEventListener('mousemove', function (e) { viewerDragMove(e.clientY); });
     chatImgViewer.addEventListener('mouseup', function (e) { viewerDragEnd(e.clientY); });
   }
+
+  // ========== ⑥ 正在输入（上行 2s 节流；对端状态条 4s 自动消失；王总 2026-09-02 完善私信） ==========
+  var chatTypingTimer = null;
+  var chatTypingSentAt = 0;
+  function sendChatTyping() {
+    if (!chatConvId || !chatSocket || !chatSocket.isOpen()) return;
+    const now = Date.now();
+    if (now - chatTypingSentAt < 2000) return;
+    chatTypingSentAt = now;
+    chatSocket.send({ type: 'typing', conversationId: chatConvId });
+  }
+  function showChatTyping() {
+    const bar = document.getElementById('chatTypingBar');
+    if (!bar) return;
+    bar.textContent = (chatPeerName && chatPeerName.textContent ? chatPeerName.textContent.trim() : '对方') + ' 正在输入…';
+    bar.style.display = 'block';
+    clearTimeout(chatTypingTimer);
+    chatTypingTimer = setTimeout(hideChatTyping, 4000);
+  }
+  function hideChatTyping() {
+    clearTimeout(chatTypingTimer);
+    chatTypingTimer = null;
+    const bar = document.getElementById('chatTypingBar');
+    if (bar) bar.style.display = 'none';
+  }
+  chatInput.addEventListener('input', sendChatTyping);
 
   // 重拉当前会话历史（重连成功兜底；服务已持久化，直接替换，乐观发送的已入库消息也含在内）
   function reloadChatHistory() {
