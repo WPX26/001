@@ -296,37 +296,41 @@
 
   /* 邀请卡（照搬会员中心） */
   .invite-card {
-    background: rgba(245, 223, 192, 0.05);
-    border: 1rem solid rgba(212, 165, 116, 0.3);
-    border-radius: 14rem;
-    padding: 14rem;
     margin-top: 14rem;
+    padding: 16rem 18rem;
+    border-radius: 16rem;
+    background: linear-gradient(135deg, rgba(240, 160, 64, 0.14) 0%, rgba(212, 105, 28, 0.06) 100%);
+    border: 1.5rem solid rgba(240, 160, 64, 0.35);
+    box-shadow: 0 4rem 14rem rgba(28, 15, 8, 0.06);
   }
   .invite-title {
     display: flex;
     align-items: center;
     gap: 8rem;
-    font-size: 14rem;
+    font-size: 15rem;
     font-weight: 700;
     color: #F5DFC0;
     margin-bottom: 6rem;
   }
-  .invite-title svg { width: 16rem; height: 16rem; color: #F0A040; }
+  .invite-title svg { width: 18rem; height: 18rem; color: #D4691C; }
   .invite-desc {
     font-size: 12rem;
-    color: rgba(245, 223, 192, 0.6);
+    color: rgba(245, 223, 192, 0.85);
+    line-height: 1.5;
     margin-bottom: 12rem;
   }
-  .invite-desc strong { color: #F0A040; font-weight: 700; }
+  .invite-desc strong { color: #D4691C; }
   .invite-input-row {
     display: flex;
+    flex-direction: column;
     gap: 10rem;
+    margin-bottom: 10rem;
   }
   .invite-input {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
     padding: 12rem 14rem;
-    border: 1rem solid rgba(212, 165, 116, 0.3);
+    border: 1.5rem solid rgba(212, 165, 116, 0.3);
     border-radius: 10rem;
     background: #0a0a0a;
     font-size: 14rem;
