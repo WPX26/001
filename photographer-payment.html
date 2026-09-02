@@ -210,6 +210,127 @@
   }
   .benefit-text strong { color: #D4691C; }
 
+  /* 邀请卡（照搬会员中心） */
+  .invite-card {
+    background: rgba(245, 223, 192, 0.05);
+    border: 1rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 14rem;
+    padding: 14rem;
+    margin-top: 14rem;
+  }
+  .invite-title {
+    display: flex;
+    align-items: center;
+    gap: 8rem;
+    font-size: 14rem;
+    font-weight: 700;
+    color: #F5DFC0;
+    margin-bottom: 6rem;
+  }
+  .invite-title svg { width: 16rem; height: 16rem; color: #F0A040; }
+  .invite-desc {
+    font-size: 12rem;
+    color: rgba(245, 223, 192, 0.6);
+    margin-bottom: 12rem;
+  }
+  .invite-desc strong { color: #F0A040; font-weight: 700; }
+  .invite-input-row {
+    display: flex;
+    gap: 10rem;
+  }
+  .invite-input {
+    flex: 1;
+    min-width: 0;
+    padding: 12rem 14rem;
+    border: 1rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 10rem;
+    background: #0a0a0a;
+    font-size: 14rem;
+    font-weight: 600;
+    color: #F5DFC0;
+    outline: none;
+    letter-spacing: 1.5rem;
+    text-transform: uppercase;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .invite-input::placeholder {
+    color: rgba(245, 223, 192, 0.6);
+    font-weight: 400;
+    letter-spacing: 0.5rem;
+    text-transform: none;
+  }
+  .invite-input:focus {
+    border-color: #F0A040;
+    box-shadow: 0 0 0 3rem rgba(240, 160, 64, 0.18);
+  }
+  .invite-btn {
+    width: 100%;
+    padding: 12rem 0;
+    border: none;
+    border-radius: 10rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 15rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.35);
+    flex-shrink: 0;
+  }
+  .invite-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.45); }
+  .invite-btn:active { transform: scale(0.96); }
+  .invite-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .invite-tip {
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.5);
+    text-align: center;
+    padding-top: 8rem;
+    border-top: 1rem dashed rgba(212, 165, 116, 0.3);
+  }
+  .invite-tip span {
+    font-weight: 700;
+    color: #D4691C;
+    letter-spacing: 1rem;
+    user-select: all;
+    cursor: pointer;
+  }
+  .invite-tip.success { color: #2E7D32; }
+  .vip-invite-card {
+    background: linear-gradient(135deg, rgba(220, 180, 80, 0.15) 0%, rgba(180, 140, 50, 0.08) 100%);
+    border-color: rgba(220, 180, 80, 0.4);
+  }
+  .vip-invite-card .invite-title svg { color: #DCB450; }
+  .vip-invite-card .invite-desc strong { color: #C89B32; }
+  .vip-invite-card .invite-input:focus { border-color: #DCB450; box-shadow: 0 0 0 3rem rgba(220, 180, 80, 0.18); }
+  .vip-btn {
+    background: linear-gradient(135deg, #E6C864 0%, #C89B32 100%);
+    box-shadow: 0 3rem 10rem rgba(220, 180, 80, 0.35);
+  }
+  .vip-btn:hover { box-shadow: 0 5rem 14rem rgba(220, 180, 80, 0.45); }
+
+  /* 操作提示 toast（会员中心同款） */
+  .toast {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(28, 15, 8, 0.95);
+    backdrop-filter: blur(10rem);
+    padding: 16rem 28rem;
+    border-radius: 14rem;
+    box-shadow: 0 10rem 40rem rgba(28, 15, 8, 0.4);
+    font-size: 14rem;
+    color: #F5DFC0;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 200;
+    text-align: center;
+    white-space: nowrap;
+    border: 1rem solid rgba(240, 160, 64, 0.3);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
   /* 订单详情 */
   .order-section {
     background: rgba(245, 223, 192, 0.05);
@@ -516,6 +637,7 @@
 
 </head>
 <body>
+<div class="toast" id="toast"></div>
 <div class="container">
   <div class="phone-wrapper">
     <div class="phone-frame">
@@ -552,6 +674,38 @@
               <span class="plan-price-unit">/ 月</span>
               <span class="price-original" style="display:none;">¥12</span>
             </div>
+          </div>
+
+          <!-- 邀请码兑换区块（照搬会员中心） -->
+          <div class="invite-card" id="inviteCard">
+            <div class="invite-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+              </svg>
+              邀请码兑换
+            </div>
+            <div class="invite-desc">输入好友的邀请码，双方均可获得 <strong>1 个月会员</strong></div>
+            <div class="invite-input-row">
+              <input type="text" id="inviteInput" class="invite-input" placeholder="请输入 8 位邀请码" maxlength="8">
+              <button id="inviteBtn" class="invite-btn">兑换</button>
+            </div>
+            <div class="invite-tip" id="inviteTip">我的邀请码：<span id="myInviteCode">PHOTO268</span></div>
+          </div>
+
+          <!-- VIP邀请码兑换区块（照搬会员中心） -->
+          <div class="invite-card vip-invite-card" id="vipInviteCard">
+            <div class="invite-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              VIP邀请码兑换
+            </div>
+            <div class="invite-desc">输入VIP专属邀请码，获得 <strong>1 个月会员（可无限叠加）</strong></div>
+            <div class="invite-input-row">
+              <input type="text" id="vipInviteInput" class="invite-input" placeholder="请输入 VIP 邀请码">
+              <button id="vipInviteBtn" class="invite-btn vip-btn">兑换VIP</button>
+            </div>
+            <div class="invite-tip" id="vipInviteTip"></div>
           </div>
 
           <!-- 订单详情 -->
@@ -898,6 +1052,279 @@
   });
 
   // 初始化：进页拉套餐价格渲染（未登录时由 confirmPayment 统一拦截跳登录页）
+  // ========== 邀请码系统（照搬会员中心：同接口 / 同 localStorage 键 / 同文案） ==========
+  const MEMBER_KEY = 'profile_member';
+  const MEMBER_MONTHS_KEY = 'profile_member_months';
+  const PHOTOGRAPHER_KEY = 'profile_photographer';
+
+  const toast = document.getElementById('toast');
+  const showToast = (msg) => {
+    // 与会员中心同一规则：仅保留错误/警示类提示
+    if (msg && !/⚠️|失败|错误|无效|不可达|请输入|需为|不能|重复|请稍后|手动/.test(String(msg))) return;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 2000);
+  };
+
+  function generateInviteCode() {
+    var seed = localStorage.getItem('profile_invite_seed');
+    if (!seed) {
+      seed = String(Date.now()) + '_' + String(Math.random()).slice(2, 8);
+      localStorage.setItem('profile_invite_seed', seed);
+    }
+    var hash = 0;
+    for (var i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+      hash |= 0;
+    }
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var code = '';
+    for (var i = 0; i < 8; i++) {
+      code += chars[Math.abs((hash * (i + 7)) % chars.length)];
+    }
+    return code;
+  }
+
+  function getMyInviteCode() {
+    var saved = localStorage.getItem('profile_my_code');
+    if (!saved) {
+      saved = generateInviteCode();
+      localStorage.setItem('profile_my_code', saved);
+    }
+    return saved;
+  }
+
+  function isMyCodeUsed() {
+    return localStorage.getItem('profile_my_code_used') === '1';
+  }
+
+  function refreshInviteUI() {
+    var codeEl = document.getElementById('myInviteCode');
+    var tip = document.getElementById('inviteTip');
+    if (isMyCodeUsed()) {
+      codeEl.style.textDecoration = 'line-through';
+      codeEl.style.opacity = '0.5';
+      tip.classList.add('success');
+      tip.innerHTML = '你的邀请码已被使用（已失效）';
+    } else {
+      codeEl.textContent = getMyInviteCode();
+      codeEl.style.textDecoration = 'none';
+      codeEl.style.opacity = '1';
+      tip.classList.remove('success');
+      tip.innerHTML = '我的邀请码：<span id="myInviteCode">' + getMyInviteCode() + '</span>';
+      var span = tip.querySelector('#myInviteCode');
+      if (span) {
+        span.addEventListener('click', copyInviteCode);
+      }
+    }
+  }
+
+  function loadInviteUsage() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.post('/invite/my-code', {}).then(function (mine) {
+      if (!mine || !mine.code) return;
+      myCode = mine.code;
+      var codeEl = document.getElementById('myInviteCode');
+      if (codeEl) {
+        if (mine.used) {
+          codeEl.style.textDecoration = 'line-through';
+          codeEl.style.opacity = '0.5';
+        } else {
+          codeEl.style.textDecoration = 'none';
+          codeEl.style.opacity = '1';
+        }
+      }
+    }).catch(function (e) {
+      console.warn('[invite/my-code] 拉取失败，保持本地邀请码：', e && e.message);
+    });
+    MemoAPI.get('/invite/my-usage').then(function (data) {
+      if (!data) return;
+      var tip = document.getElementById('inviteTip');
+      if (!tip) return;
+      var parts = [];
+      if (data.totalRedeemed > 0) {
+        parts.push('已兑换 ' + data.totalRedeemed + ' 次');
+        var latest = data.records && data.records[0];
+        if (latest && latest.code) parts.push('最近码 ' + latest.code);
+      } else {
+        parts.push('尚未兑换邀请码');
+      }
+      if (data.remainingDays != null) parts.push('会员剩余 ' + data.remainingDays + ' 天');
+      tip.classList.remove('success');
+      tip.innerHTML = '<span id="myInviteCode" style="display:none">' + getMyInviteCode() + '</span>' + parts.join(' · ');
+      if (data.records && data.records.length) {
+        var rows = data.records.slice(0, 3).map(function (r) {
+          var d = r.createdAt ? new Date(r.createdAt) : null;
+          var t = d && !isNaN(d.getTime())
+            ? (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+            : '';
+          return '<div style="font-size:11px;color:rgba(245,223,192,0.6);margin-top:3px;">' + (r.code || '') + ' · ' + t + '</div>';
+        }).join('');
+        tip.innerHTML += rows;
+      }
+    }).catch(function (e) {
+      console.warn('[invite/my-usage] 拉取失败，保持本地邀请码逻辑：', e && e.message);
+    });
+  }
+
+  function copyInviteCode(e) {
+    var code = getMyInviteCode();
+    navigator.clipboard.writeText(code).then(function() {
+      e && e.stopPropagation && e.stopPropagation();
+    });
+  }
+
+  const inviteInput = document.getElementById('inviteInput');
+  const inviteBtn = document.getElementById('inviteBtn');
+  const inviteTip = document.getElementById('inviteTip');
+  var myCode = getMyInviteCode();
+
+  var redeemedCodes = [];
+  try { redeemedCodes = JSON.parse(localStorage.getItem('profile_redeemed_codes') || '[]'); } catch(e) { redeemedCodes = []; }
+
+  var knownValidCodes = JSON.parse(localStorage.getItem('profile_known_codes') || '["DEMOCODE"]');
+
+  function redeemInviteCodeReal(code, isVip, fallback) {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.getToken()) {
+      window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
+      return;
+    }
+    MemoAPI.post('/invite/redeem', { code: code }).then(function (data) {
+      var days = data && data.remainingDays != null ? Math.max(0, Number(data.remainingDays)) : 0;
+      var expireText = '';
+      if (data && data.memberExpireAt) {
+        var d = new Date(data.memberExpireAt);
+        if (!isNaN(d.getTime())) {
+          var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+          expireText = '，会员至 ' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' 到期';
+        }
+      }
+
+      if (isVip) {
+        vipInviteTip.classList.add('success');
+        vipInviteTip.innerHTML = '✓ VIP激活成功，剩余 ' + days + ' 天会员（可无限叠加）' + expireText;
+      } else {
+        inviteTip.classList.add('success');
+        inviteTip.innerHTML = '✓ 兑换成功！你和邀请人都获得了 1 个月会员（剩余 ' + days + ' 天）' + expireText;
+      }
+      inviteInput.value = '';
+      vipInviteInput.value = '';
+
+      localStorage.setItem(MEMBER_KEY, '1');
+      localStorage.setItem(PHOTOGRAPHER_KEY, (data && data.isPhotographer) ? '1' : '0');
+      localStorage.setItem(MEMBER_MONTHS_KEY, String(Math.max(1, Math.ceil(days / 30))));
+
+      showToast('🎉 兑换成功，会员时长已顺延' + (days ? ' ' + days + ' 天' : ''));
+    }).catch(function (err) {
+      if (err && err.network) {  // 服务不可达 → 回退本地模拟
+        if (fallback) fallback();
+        return;
+      }
+      if (err && err.code === 1002) {  // Token 过期/无效 → 重新登录
+        if (typeof MemoAPI !== 'undefined') MemoAPI.clearAuth();
+        window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
+        return;
+      }
+      showToast(err && err.message ? err.message : '兑换失败，请重试');
+    });
+  }
+
+  inviteBtn.addEventListener('click', function() {
+    var code = inviteInput.value.trim().toUpperCase();
+    if (!code) { showToast('请输入邀请码', 'warning'); return; }
+
+    function localRedeem() {
+      var memberMonths = parseInt(localStorage.getItem(MEMBER_MONTHS_KEY) || '0', 10);
+      if (code.length !== 8) { showToast('邀请码需为 8 位', 'warning'); return; }
+      if (code === myCode) { showToast('不能使用自己的邀请码', 'warning'); return; }
+      if (redeemedCodes.length >= 1) { showToast('你已兑换过邀请码，不可重复兑换', 'warning'); return; }
+
+      if (!knownValidCodes.includes(code)) {
+        knownValidCodes.push(code);
+        localStorage.setItem('profile_known_codes', JSON.stringify(knownValidCodes));
+      }
+
+      redeemedCodes.push(code);
+      localStorage.setItem('profile_redeemed_codes', JSON.stringify(redeemedCodes));
+      localStorage.setItem(MEMBER_KEY, '1');
+      localStorage.setItem(MEMBER_MONTHS_KEY, (memberMonths + 1).toString());
+
+      var benefitKey = 'profile_benefit_' + code;
+      if (localStorage.getItem(benefitKey) !== '1') {
+        localStorage.setItem(benefitKey, '1');
+        var inviteBenefitMap = JSON.parse(localStorage.getItem('profile_invite_benefits') || '{}');
+        if (!inviteBenefitMap[code]) inviteBenefitMap[code] = 0;
+        inviteBenefitMap[code] += 1;
+        localStorage.setItem('profile_invite_benefits', JSON.stringify(inviteBenefitMap));
+      }
+
+      inviteInput.value = '';
+      inviteBtn.disabled = true;
+      inviteTip.classList.add('success');
+      inviteTip.innerHTML = '✓ 兑换成功！你和邀请人都获得了 1 个月会员';
+
+      showToast('🎉 兑换成功，双方各得 1 个月会员');
+      refreshInviteUI();
+
+      setTimeout(function() { inviteBtn.disabled = false; }, 1500);
+    }
+
+    redeemInviteCodeReal(code, false, localRedeem);
+  });
+
+  // -- VIP 邀请码兑换 --
+  var VALID_VIP_CODES = [];
+  try { VALID_VIP_CODES = JSON.parse(localStorage.getItem('profile_vip_codes') || '["BETA2026"]'); } catch(e) { VALID_VIP_CODES = ['BETA2026']; }
+
+  const vipInviteBtn = document.getElementById('vipInviteBtn');
+  const vipInviteInput = document.getElementById('vipInviteInput');
+  const vipInviteTip = document.getElementById('vipInviteTip');
+
+  vipInviteBtn.addEventListener('click', function() {
+    var code = vipInviteInput.value.trim().toUpperCase();
+    if (!code) { showToast('请输入VIP邀请码', 'warning'); return; }
+
+    function localRedeem() {
+      var memberMonths = parseInt(localStorage.getItem(MEMBER_MONTHS_KEY) || '0', 10);
+      if (!VALID_VIP_CODES.includes(code)) { showToast('VIP邀请码无效', 'warning'); return; }
+      localStorage.setItem(MEMBER_KEY, '1');
+      localStorage.setItem(MEMBER_MONTHS_KEY, (memberMonths + 1).toString());
+
+      vipInviteInput.value = '';
+      vipInviteTip.classList.add('success');
+      vipInviteTip.innerHTML = '✓ VIP激活成功，已累计 ' + (memberMonths + 1) + ' 个月会员（可无限叠加）';
+
+      showToast('🎉 VIP码兑换成功，已累计 ' + (memberMonths + 1) + ' 个月会员');
+    }
+
+    redeemInviteCodeReal(code, true, localRedeem);
+  });
+
+  // 添加 VIP 码（管理功能：浏览器控制台调用，与会员中心一致）
+  window.addVipCode = function(code) {
+    if (VALID_VIP_CODES.includes(code)) { showToast('该VIP码已存在'); return; }
+    VALID_VIP_CODES.push(code);
+    localStorage.setItem('profile_vip_codes', JSON.stringify(VALID_VIP_CODES));
+    showToast('VIP码 ' + code + ' 已添加');
+  };
+
+  // 输入恢复 + 只允许字母数字
+  inviteInput.addEventListener('input', function() {
+    inviteTip.classList.remove('success');
+    refreshInviteUI();
+  });
+  vipInviteInput.addEventListener('input', function() {
+    vipInviteTip.classList.remove('success');
+    vipInviteTip.innerHTML = '';
+  });
+  inviteInput.addEventListener('input', function() {
+    inviteInput.value = inviteInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  });
+
+  refreshInviteUI();
+  loadInviteUsage();
+
   loadPlans();
 </script>
 </body>
