@@ -9958,17 +9958,18 @@
       // 400% 预载层（王总 2026-08 要求）：zoomOffset -1 使每张瓦片覆盖当前视野 4 倍面积，
       // 透明且不拦截交互；地图平移/缩放时自动跟随加载。缩小地图时目标档位瓦片已在
       // 浏览器缓存中，避免出现大片未加载空白，提升缩放流畅度。
-      // v2：三层预载（zoomOffset -1/-2/-3 = 每张瓦片覆盖 400%/1600%/6400% 面积），
-      // 覆盖细化控件一次跨多档缩小；瓦片 URL 与主层一致（同子域轮换），可直接命中浏览器缓存。
-      var PREFETCH_DEPTHS = [-1, -2, -3];
+      // 2026-09-03 弱机实验室定罪（CPU×6+4G 节流实测）：预载层开 updateWhenIdle:false 会在捏合
+      // 缩放时 135 张请求齐发，堵死带宽与解码，帧率 16fps；砍到单层+空闲档后 45fps。
+      // 故：预载层只留 1 层（-1 档，400% 覆盖），updateWhenIdle:true——只在手势结束后补缓存。
+      var PREFETCH_DEPTHS = [-1];
       PREFETCH_DEPTHS.forEach(function (off) {
         L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
           zoomOffset: off,
           opacity: 0,
           interactive: false,
           className: 'prefetch-tiles',
-          keepBuffer: 6,
-          updateWhenIdle: false,
+          keepBuffer: 2,
+          updateWhenIdle: true,
           minZoom: 6
         })).addTo(map);
       });
@@ -9976,23 +9977,9 @@
       // 保证预载层任何异常都不会吞掉版本标识（v3 教训）。
       var __pv = document.createElement('div');
       __pv.className = 'map-prefetch-badge';
-      __pv.textContent = '预载v4';
+      __pv.textContent = '预载v5';
       var __pvHost = document.getElementById('amapContainer');
       if (__pvHost) __pvHost.appendChild(__pv);
-
-      // v2：相邻级预载（zoomOffset -1..-6）：缩小 1-6 档的目标级瓦片随图自动进缓存。
-      var PREFETCH_DEPTHS = [-1, -2, -3, -4, -5, -6];
-      PREFETCH_DEPTHS.forEach(function (off) {
-        L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
-          zoomOffset: off,
-          opacity: 0,
-          interactive: false,
-          className: 'prefetch-tiles',
-          keepBuffer: 4,
-          updateWhenIdle: false,
-          minZoom: 6
-        })).addTo(map);
-      });
 
       // v4：钉级宽区预载——修复 v3 的致命 bug（GridLayer 选项缺 subdomains，
       // createTile 抛 TypeError 被 initLeafletMap 的 catch 吞掉后 map=null，
@@ -10002,7 +9989,7 @@
           this._tpl = urlTemplate;
           this._fz = fixedZoom;
           L.GridLayer.prototype.initialize.call(this, {
-            tileSize: 256, updateWhenIdle: false, keepBuffer: 2,
+            tileSize: 256, updateWhenIdle: true, keepBuffer: 2,
             className: 'prefetch-tiles wide-prefetch',
             subdomains: TILE_OPTS.subdomains
           });
