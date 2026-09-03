@@ -68,18 +68,39 @@ self.addEventListener('fetch', function (e) {
     var p = (async function () {
       var resp = await fetchWithRetry(url);
       if (resp && resp.ok) {
-        cache.put(e.request, resp.clone()).then(function () { trim(cache); }).catch(function () {});
+        cache.put(urlKey, resp.clone()).then(function () { trim(cache); }).catch(function () {});
       }
       return resp;
     })();
-    inflight[url] = p;
-    try { return await p; } finally { delete inflight[url]; }
+    inflight[urlKey] = p;
+    try { return await p; } finally { delete inflight[urlKey]; }
   })());
 });
 
 /* A. 世界底座预植(王总拍板C)：z1-3 底图+注记(168张) + z4 底图(256张) 一次性匀速种入仓库——世界视图永久秒开、与429绝缘 */
 self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'preseed-world') preseedWorld(e.data.tk);
+  // v7.7 方案三(王总拍板)：搜索跳转前预取目标视野——落地即命中缓存,白屏绝迹
+  if (e.data && e.data.type === 'prefetch-area') {
+    (async function () {
+      var cache = await caches.open(CACHE);
+      var urls = e.data.urls || [], done = 0, fails = 0;
+      for (var i = 0; i < urls.length; i++) {
+        var key = urls[i].replace(/\/\/t[0-7]\./, '//t0.');
+        if (await cache.match(key)) { done++; }
+        else {
+          var r = await fetchWithRetry(urls[i]);
+          if (r && r.ok) { await cache.put(key, r.clone()); done++; fails = 0; }
+          else if (++fails >= 3) {
+            // v7.7 惩罚期收兵：连败3张即弃,不给限流火上浇油
+            self.clients.matchAll().then(function (cs) { cs.forEach(function (c) { c.postMessage({ type: 'prefetch-area-progress', id: e.data.id, done: done, total: urls.length, aborted: true }); }); });
+            return;
+          }
+        }
+        self.clients.matchAll().then(function (cs) { cs.forEach(function (c) { c.postMessage({ type: 'prefetch-area-progress', id: e.data.id, done: done, total: urls.length }); }); });
+      }
+    })();
+  }
   if (e.data && e.data.type === 'user-active') userBusyUntil = Date.now() + 5000;
 });
 
