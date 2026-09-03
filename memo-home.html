@@ -9288,6 +9288,45 @@
     } catch (e) {}
   }
 
+  // 收藏红点恢复（王总 2026-09-03 拍板）：刷新/重开页面后从本地快照读回持久红标记
+  // 快照只存 id/title/lng/lat：坐标按当前视口重投影（渲染定位本就走 lat/lng，x/y 仅聚类用）
+  function restoreSavedMarkersFromSnapshot() {
+    try {
+      const raw = localStorage.getItem('inspire_saved_snapshot');
+      if (!raw) return;
+      const snap = JSON.parse(raw);
+      if (!Array.isArray(snap)) return;
+      let added = false;
+      snap.forEach((s) => {
+        if (!s || s.id == null) return;
+        if (savedRedMarkers.some(m => m.sourceCoordId === s.id)) return;
+        const lng = Number(s.lng), lat = Number(s.lat);
+        if (!isFinite(lng) || !isFinite(lat)) return; // 无地理信息的旧快照条目跳过
+        const sourceCoord = {
+          id: s.id,
+          title: s.title || '未命名灵感',
+          lng: lng, lat: lat,
+          date: '', time: '',
+          color: '#E53935',
+          photos: [],
+          _remote: true
+        };
+        const xy = legacyCoordXY(sourceCoord);
+        savedRedMarkers.push({
+          id: 'saved_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          sourceCoordId: s.id,
+          x: xy.x, y: xy.y,
+          sourceCoord: sourceCoord
+        });
+        added = true;
+      });
+      if (added) {
+        renderSavedMarkers(currentDetailLevel);
+        syncInspireSavedSnapshot();
+      }
+    } catch (e) {}
+  }
+
   // 工作模式上传→探索模式同步（王总 2026-09-03 定：本地和探索同步上传；灵感模式上传形式不变）
   function syncWorkUploadToExplore(cp, lng, lat, pid) {
     try {
@@ -10349,11 +10388,14 @@
           var sn = Math.sin(lat * Math.PI / 180);
           return Math.floor((0.5 - Math.log((1 + sn) / (1 - sn)) / (4 * Math.PI)) * Math.pow(2, z));
         }
-        [
-          { z: 9,  rKm: 80, cap: 40 },
-          { z: 10, rKm: 40, cap: 60 },
-          { z: 11, rKm: 20, cap: 90 },
-          { z: 12, rKm: 10, cap: 120 }
+        // v7.1 限流处方①(王总拍板)：广域预取大瘦身——一次 310 张齐发是 429 主源。
+        // 手机端只保留放大预载 3×3（性价比最高），桌面端限额减半再减半。
+        var __pfMobile = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+        if (!__pfMobile) [
+          { z: 9,  rKm: 60, cap: 20 },
+          { z: 10, rKm: 30, cap: 30 },
+          { z: 11, rKm: 15, cap: 40 },
+          { z: 12, rKm: 8,  cap: 50 }
         ].forEach(function (rd) {
           var cx = tx(c.lng, rd.z), cy = ty(c.lat, rd.z);
           var kmPerTile = 40075 * Math.cos(c.lat * Math.PI / 180) / Math.pow(2, rd.z);
@@ -10467,6 +10509,9 @@
 
   // 灵感/探索真实数据加载（已登录 + 后端可达 → 真实数据；否则自动降级演示数据，空数据显示空态）
   loadInspireExploreFromBackend();
+
+  // 收藏红点恢复（王总 2026-09-03 拍板）：刷新后从本地快照读回，不因登录态数据替换而丢失
+  restoreSavedMarkersFromSnapshot();
 
   /**
    * 将用户拍摄的照片同步到他人灵感/探索模式数据
@@ -11202,4 +11247,10 @@
   })();
 </script>
 
+<script>
+/* v7.1 瓦片本地缓存(王总拍板②)：Service Worker 常驻缓存天地图瓦片——看过即存，二次访问零请求 */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || ['localhost', '127.0.0.1'].indexOf(location.hostname) >= 0)) {
+  navigator.serviceWorker.register('/sw.js').catch(function () {});
+}
+</script>
 </body>
