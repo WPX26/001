@@ -107,6 +107,8 @@
 .map-prefetch-badge { position: absolute; left: 10rem; bottom: 150rem; z-index: 5; pointer-events: none; background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.85); font-size: 10rem; line-height: 1; padding: 3rem 7rem; border-radius: 10rem; }
 /* 暗色地图模式：天地图瓦片反相（invert+hue-rotate），深色底图与深色 UI 风格统一；仅瓦片层，标记点不受影响 */
   .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.88) contrast(0.88) saturate(0.65); }
+  /* v6: MapLibre 引擎下同款反相滤镜作用于 WebGL 画布（弱机实验室已证滤镜非卡顿瓶颈），外观与旧版逐像素同风格 */
+  .maplibregl-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.88) contrast(0.88) saturate(0.65); }
 
   /* 地图标记点 */
   .map-marker {
@@ -2623,6 +2625,16 @@
   }
   .photo-detail-comment-input input::placeholder { color: rgba(255, 255, 255, 0.3); }
   .photo-detail-comment-input input:focus { border-color: rgba(240, 160, 64, 0.4); }
+  /* 模式切换提示弹窗（新功能：认证摄影师生活模式下传→提示进探索池，全周期仅一次） */
+  .mode-prompt-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 8, 5, 0.72); z-index: 9600; display: none; align-items: center; justify-content: center; }
+  .mode-prompt-mask.show { display: flex; }
+  .mode-prompt-card { width: 560rem; max-width: 86%; background: #2A1D0E; border: 1px solid rgba(240, 160, 64, 0.3); border-radius: 24rem; padding: 36rem 32rem 28rem; box-shadow: 0 12rem 40rem rgba(0, 0, 0, 0.5); box-sizing: border-box; }
+  .mode-prompt-title { font-size: 18rem; font-weight: 700; color: #F5E9D6; margin-bottom: 12rem; }
+  .mode-prompt-text { font-size: 14rem; color: rgba(245, 233, 214, 0.72); line-height: 1.7; margin-bottom: 26rem; }
+  .mode-prompt-actions { display: flex; flex-direction: column; gap: 12rem; }
+  .mode-prompt-btn { width: 100%; height: 44rem; border-radius: 22rem; font-size: 15rem; font-weight: 600; border: none; cursor: pointer; box-sizing: border-box; }
+  .mode-prompt-btn.primary { background: linear-gradient(135deg, #F0A040, #D4691C); color: #fff; }
+  .mode-prompt-btn.ghost { background: transparent; border: 1px solid rgba(240, 160, 64, 0.45); color: #F0A040; }
   .photo-detail-comment-input button {
     background: linear-gradient(135deg, #F0A040, #D4691C);
     border: none;
@@ -3412,6 +3424,9 @@
 <!-- Leaflet + 天地图瓦片 -->
 <link rel="stylesheet" href="lib/leaflet/leaflet.css" />
 <script src="lib/leaflet/leaflet.js"></script>
+<!-- v6 引擎切换(王总拍板方案①): MapLibre GL WebGL 合成——缩放=GPU 无级重采样, 瓦片淡入, 告别离散换档 -->
+<link rel="stylesheet" href="lib/maplibre/maplibre-gl.css" />
+<script src="lib/maplibre/maplibre-gl.js"></script>
 <script src="lib/dexie/dexie.js"></script>
 <script src="api.js"></script>
 <script>
@@ -4179,6 +4194,17 @@
     </svg>
   </div>
   <span id="toastMsg">操作成功</span>
+</div>
+
+<div class="mode-prompt-mask" id="modePromptMask">
+  <div class="mode-prompt-card">
+    <div class="mode-prompt-title">切换到工作模式？</div>
+    <div class="mode-prompt-text">切换后本次上传的作品将进入探索池，被附近的人看到并约拍；保持生活模式则仅自己可见。</div>
+    <div class="mode-prompt-actions">
+      <button class="mode-prompt-btn primary" id="modePromptSwitch">切换工作模式</button>
+      <button class="mode-prompt-btn ghost" id="modePromptKeep">保持生活模式（不再提示）</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -8792,6 +8818,39 @@
     if (photo.backendId) loadRemoteComments(photo);
   }
 
+  // ===== 模式切换提示（新功能）：认证摄影师生活模式下传时弹一次，选定本次上传的落库模式 =====
+  var MODE_PROMPT_KEY = 'mode_prompt_dismissed';
+  function showModePromptDialog(resolve) {
+    var mask = document.getElementById('modePromptMask');
+    if (!mask) { resolve('life'); return; }
+    mask.classList.add('show');
+    document.getElementById('modePromptSwitch').onclick = function() {
+      mask.classList.remove('show');
+      localStorage.setItem('profile_mode', 'work');
+      if (typeof MemoAPI !== 'undefined' && MemoAPI.put) {
+        MemoAPI.put('/users/me/mode', { mode: 'work' }).catch(function() {
+          // 服务端拒绝（认证状态不同步等）→ 回落生活模式，不打断上传
+          localStorage.setItem('profile_mode', 'life');
+        });
+      }
+      resolve('work');
+    };
+    document.getElementById('modePromptKeep').onclick = function() {
+      mask.classList.remove('show');
+      localStorage.setItem(MODE_PROMPT_KEY, '1');
+      resolve('life');
+    };
+  }
+  function resolveUploadMode() {
+    return new Promise(function(resolve) {
+      try {
+        var isPhotographer = localStorage.getItem('profile_photographer') === '1';
+        var userMode = localStorage.getItem('profile_mode') || 'life';
+        if (!isPhotographer || userMode === 'work' || localStorage.getItem(MODE_PROMPT_KEY) === '1') { resolve(userMode); return; }
+        showModePromptDialog(resolve);
+      } catch (e) { resolve('life'); }
+    });
+  }
   // 未上传照片 → 上传（/upload/callback + /coords），成功后刷新详情为已上传态
   if (photoDetailUploadBtn) {
     photoDetailUploadBtn.addEventListener('click', function() {
@@ -8815,13 +8874,16 @@
         var photoIds = (data && data.photoIds) || [];
         if (!photoIds[0]) { var err = new Error('上传未返回照片 ID'); err.business = true; throw err; }
         MemoAPI.setPhotoBackendId(pid, photoIds[0]);
-        // 创建后端坐标（title=坐标点名；无坐标时用默认值，后端可再校正）
-        return MemoAPI.post('/coords', {
-          title: String(cp.coord.title || '').slice(0, 50),
-          lng: coordLng !== null ? coordLng : 120.3826,
-          lat: coordLat !== null ? coordLat : 36.0671,
-          photoIds: [photoIds[0]],
-          photoTimes: {}
+        // 创建后端坐标（title=坐标点名；无坐标时用默认值，后端可再校正）；先过模式提示定 mode
+        return resolveUploadMode().then(function(uploadMode) {
+          return MemoAPI.post('/coords', {
+            title: String(cp.coord.title || '').slice(0, 50),
+            lng: coordLng !== null ? coordLng : 120.3826,
+            lat: coordLat !== null ? coordLat : 36.0671,
+            photoIds: [photoIds[0]],
+            photoTimes: {},
+            mode: uploadMode
+          });
         });
       }).then(function() {
         showToast('✅ 已上传，照片现在可评论、点赞、收藏', 'success', 2500);
@@ -9914,6 +9976,159 @@
     var TDT_URL  = 'https://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=' + TDT_KEY;
     var TDT_LABEL = 'https://t{s}.tianditu.gov.cn/cva_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=cva&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=' + TDT_KEY;
 
+    // ===== v6 引擎切换（2026-09-03 王总拍板方案①）：底图 Leaflet → MapLibre GL =====
+    // 底图=WebGL 合成：缩放=GPU 无级重采样+瓦片淡入（高德丝滑的必要条件）；天地图栅格瓦片照用。
+    // 标记/聚合/细化控件经 L 垫片 + map 适配器零改动复用，功能不减。
+    var SUBS = ['0','1','2','3','4','5','6','7'];
+    function buildLShim() {
+      function divIcon(o) {
+        return { __divIcon: true, html: o && o.html || '', className: o && o.className || '',
+                 iconSize: o && o.iconSize || null, iconAnchor: o && o.iconAnchor || null };
+      }
+      function marker(latlng, opts) {
+        var lat = latlng instanceof Array ? latlng[0] : latlng.lat;
+        var lng = latlng instanceof Array ? latlng[1] : latlng.lng;
+        var st = {
+          __marker: true, _latlng: { lat: lat, lng: lng },
+          _spec: (opts && opts.icon) || null,
+          _z: (opts && opts.zIndexOffset) || 0,
+          _interactive: !!(opts && opts.interactive),
+          _handlers: {}, _ml: null
+        };
+        st.addTo = function (m) {
+          if (this._ml) this.remove();
+          var spec = this._spec || {};
+          var el = document.createElement('div');
+          if (spec.className) el.className = spec.className;
+          el.innerHTML = spec.html || '';
+          if (spec.iconSize) { el.style.width = spec.iconSize[0] + 'px'; el.style.height = spec.iconSize[1] + 'px'; }
+          if (spec.iconAnchor) { el.style.marginLeft = -spec.iconAnchor[0] + 'px'; el.style.marginTop = -spec.iconAnchor[1] + 'px'; }
+          el.style.zIndex = String(1000 + this._z);
+          if (!this._interactive) el.style.pointerEvents = 'none';
+          var self = this;
+          el.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var evt = { latlng: { lat: self._latlng.lat, lng: self._latlng.lng }, originalEvent: e };
+            (self._handlers.click || []).forEach(function (fn) { fn.call(self, evt); });
+          });
+          this._ml = new maplibregl.Marker({ element: el })
+            .setLngLat([this._latlng.lng, this._latlng.lat]).addTo(m.__ml);
+          this._el = el;
+          return this;
+        };
+        st.remove = function () { if (this._ml) { this._ml.remove(); this._ml = null; } return this; };
+        st.on = function (t, fn) { (this._handlers[t] = this._handlers[t] || []).push(fn); return this; };
+        st.off = function (t, fn) { var a = this._handlers[t] || []; var i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); return this; };
+        st.setLatLng = function (ll) {
+          this._latlng = { lat: ll.lat !== undefined ? ll.lat : ll[0], lng: ll.lng !== undefined ? ll.lng : ll[1] };
+          if (this._ml) this._ml.setLngLat([this._latlng.lng, this._latlng.lat]);
+          return this;
+        };
+        st.getLatLng = function () { return { lat: this._latlng.lat, lng: this._latlng.lng }; };
+        return st;
+      }
+      return {
+        __shim: true,
+        marker: marker,
+        divIcon: divIcon,
+        DomEvent: { stopPropagation: function (e) { if (e && e.originalEvent && e.originalEvent.stopPropagation) e.originalEvent.stopPropagation(); } }
+      };
+    }
+    function buildMLAdapter() {
+      function tdtTiles(tpl) { return SUBS.map(function (s) { return tpl.replace('{s}', s); }); }
+      var ml = new maplibregl.Map({
+        container: 'amapContainer',
+        style: {
+          version: 8,
+          sources: {
+            vec: { type: 'raster', tiles: tdtTiles(TDT_URL), tileSize: 256, maxzoom: 18 },
+            cva: { type: 'raster', tiles: tdtTiles(TDT_LABEL), tileSize: 256, maxzoom: 18 }
+          },
+          layers: [
+            { id: 'bg', type: 'background', paint: { 'background-color': '#E8EEE8' } },
+            { id: 'vec', type: 'raster', source: 'vec' },
+            { id: 'cva', type: 'raster', source: 'cva' }
+          ]
+        },
+        center: [120.3826, 36.0671],
+        zoom: 15,
+        minZoom: 3,
+        maxZoom: 18,
+        attributionControl: false,
+        dragRotate: false,
+        pitchWithRotate: false,
+        touchPitch: false,
+        maxPitch: 0
+      });
+      var listeners = {};
+      function fire(type, evt) { (listeners[type] || []).forEach(function (fn) { fn(evt); }); }
+      ml.on('moveend', function () { fire('moveend', {}); });
+      ml.on('zoomend', function () { fire('zoomend', {}); });
+      ml.on('click', function (e) {
+        fire('click', {
+          latlng: { lat: e.lngLat.lat, lng: e.lngLat.lng },
+          containerPoint: { x: e.point.x, y: e.point.y },
+          originalEvent: e.originalEvent
+        });
+      });
+      function toLL(latlng) {
+        if (latlng instanceof Array) return [latlng[1], latlng[0]];
+        return [latlng.lng, latlng.lat];
+      }
+      var api = {
+        __ml: ml,
+        getCenter: function () { var c = ml.getCenter(); return { lat: c.lat, lng: c.lng }; },
+        getZoom: function () { return ml.getZoom(); },
+        setView: function (latlng, zoom, opts) {
+          var c = toLL(latlng);
+          if (opts && opts.animate === false) ml.jumpTo({ center: c, zoom: zoom });
+          else ml.easeTo({ center: c, zoom: zoom === undefined ? ml.getZoom() : zoom, duration: 350 });
+        },
+        setZoom: function (zoom, opts) {
+          if (opts && opts.animate === false) ml.jumpTo({ center: ml.getCenter(), zoom: zoom });
+          else ml.easeTo({ zoom: zoom, duration: 350 });
+        },
+        flyTo: function (latlng, zoom, opts) {
+          var o = { center: toLL(latlng), zoom: zoom };
+          if (opts) for (var k in opts) if (k !== 'animate') o[k] = opts[k];
+          ml.flyTo(o);
+        },
+        fitBounds: function (b, opts) {
+          var o = { padding: opts && opts.padding ? opts.padding[0] : 0, linear: !(opts && opts.animate === true) };
+          ml.fitBounds([[b[0][1], b[0][0]], [b[1][1], b[1][0]]], o);
+        },
+        getBounds: function () {
+          var b = ml.getBounds();
+          return {
+            getNorthEast: function () { return { lat: b.getNorth(), lng: b.getEast() }; },
+            getSouthWest: function () { return { lat: b.getSouth(), lng: b.getWest() }; },
+            getNorth: function () { return b.getNorth(); },
+            getSouth: function () { return b.getSouth(); },
+            getWest: function () { return b.getWest(); },
+            getEast: function () { return b.getEast(); }
+          };
+        },
+        latLngToContainerPoint: function (latlng) {
+          var ll = latlng instanceof Array ? { lat: latlng[0], lng: latlng[1] } : latlng;
+          var p = ml.project([ll.lng, ll.lat]);
+          return { x: p.x, y: p.y };
+        },
+        containerPointToLatLng: function (pt) {
+          var x = pt instanceof Array ? pt[0] : pt.x;
+          var y = pt instanceof Array ? pt[1] : pt.y;
+          var ll = ml.unproject([x, y]);
+          return { lat: ll.lat, lng: ll.lng };
+        },
+        addLayer: function (x) { if (x && x.__marker && x.addTo) x.addTo(api); return api; },
+        removeLayer: function (x) { if (x && x.remove) x.remove(); return api; },
+        invalidateSize: function () { ml.resize(); },
+        on: function (t, fn) { (listeners[t] = listeners[t] || []).push(fn); },
+        off: function (t, fn) { var a = listeners[t] || []; var i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); }
+      };
+      return api;
+    }
+
+
     // 弹性瓦片层：加载失败/超时自动重试（指数退避，最多 3 次）+ 轮换天地图子域（t0-t7）
     // 修复：瓦片部分请求失败（子域不可达/网络抖动/限流）导致左侧灰色空白、缩放后地图消失
     var ResilientTileLayer = L.TileLayer.extend({
@@ -9951,16 +10166,9 @@
     });
 
     try {
-      map = L.map('amapContainer', {
-        center: [36.0671, 120.3826],
-        zoom: 15,
-        // 行政分级聚合：minZoom 降到 3（支持看全国/全球），maxZoom 提到 18（精确坐标）
-        minZoom: 3,
-        maxZoom: 18,
-        zoomSnap: 0.5, // 缩放半档化:默认 zoomSnap:1 整数跳档(源码 Math.round(zoom/snap)*snap),0.5 让捏合更连续
-        zoomControl: false,
-        attributionControl: false
-      });
+      // 行政分级聚合：minZoom 3（看全国/全球）maxZoom 18（精确坐标）——适配器内同参构建 MapLibre
+      window.L = buildLShim();
+      map = buildMLAdapter();
 
       // 不用 detectRetina：天地图无 Retina 版瓦片且最高只到 18 级；detectRetina 在 dpr>1 设备
       // （手机、Windows 125%+ 缩放）会把层 maxZoom 钳到 17 并请求 z19（z19 为空白占位图），
@@ -9968,70 +10176,16 @@
       // （2026-08-13 曾去掉自定义手动行列换算改官方默认路径，官方默认路径本身无错，本改动不回归）
       // 2026-09-02 丝滑对齐: updateWhenIdle:false——Leaflet 默认手机端只 moveend 才换瓦片(源码 updateWhenIdle:Browser.mobile),
       // 是捏合缩放灰块的直接病因;改 false 后手势中实时加载。updateWhenZooming:false 砍掉缩放动画沿途每档的 load storm。
-      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, maxNativeZoom: 18, updateWhenZooming: false, updateWhenIdle: false, keepBuffer: 4 };
-      new ResilientTileLayer(TDT_URL, TILE_OPTS).addTo(map);
-      new ResilientTileLayer(TDT_LABEL, TILE_OPTS).addTo(map);
-
-      // 400% 预载层（王总 2026-08 要求）：zoomOffset -1 使每张瓦片覆盖当前视野 4 倍面积，
-      // 透明且不拦截交互；地图平移/缩放时自动跟随加载。缩小地图时目标档位瓦片已在
-      // 浏览器缓存中，避免出现大片未加载空白，提升缩放流畅度。
-      // 2026-09-03 弱机实验室定罪（CPU×6+4G 节流实测）：预载层开 updateWhenIdle:false 会在捏合
-      // 缩放时 135 张请求齐发，堵死带宽与解码，帧率 16fps；砍到单层+空闲档后 45fps。
-      // 故：预载层只留 1 层（-1 档，400% 覆盖），updateWhenIdle:true——只在手势结束后补缓存。
-      var PREFETCH_DEPTHS = [-1];
-      PREFETCH_DEPTHS.forEach(function (off) {
-        L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
-          zoomOffset: off,
-          opacity: 0,
-          interactive: false,
-          className: 'prefetch-tiles',
-          keepBuffer: 2,
-          updateWhenIdle: true,
-          minZoom: 6
-        })).addTo(map);
-      });
+      // v6: 瓦片请求全权移交 MapLibre 引擎（内建按需加载+失败重试），Leaflet 预载层建制撤销；
+      // 网络预热仍由下方 prefetchWideArea 的 Image() 直拉负责（TILE_OPTS 仅存子域表供其使用）。
+      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'] };
       // 临时版本角标（验证 App 是否加载到新版用，验完可撤）——先建角标再做预载，
       // 保证预载层任何异常都不会吞掉版本标识（v3 教训）。
       var __pv = document.createElement('div');
       __pv.className = 'map-prefetch-badge';
-      __pv.textContent = '预载v5';
+      __pv.textContent = '引擎v6';
       var __pvHost = document.getElementById('amapContainer');
       if (__pvHost) __pvHost.appendChild(__pv);
-
-      // v4：钉级宽区预载——修复 v3 的致命 bug（GridLayer 选项缺 subdomains，
-      // createTile 抛 TypeError 被 initLeafletMap 的 catch 吞掉后 map=null，
-      // 导致定位无响应且预载全没生效）。本层把网格坐标降采样到固定粗档请求瓦片。
-      var WidePrefetchLayer = L.GridLayer.extend({
-        initialize: function (urlTemplate, fixedZoom) {
-          this._tpl = urlTemplate;
-          this._fz = fixedZoom;
-          L.GridLayer.prototype.initialize.call(this, {
-            tileSize: 256, updateWhenIdle: true, keepBuffer: 2,
-            className: 'prefetch-tiles wide-prefetch',
-            subdomains: TILE_OPTS.subdomains
-          });
-        },
-        onAdd: function (m) {
-          L.GridLayer.prototype.onAdd.call(this, m);
-          this._container.style.opacity = '0';      // 只进缓存不显示
-          this._container.style.pointerEvents = 'none'; // 不拦截交互
-        },
-        createTile: function (coords) {
-          var scale = Math.pow(2, this._fz - coords.z);
-          var fx = Math.floor(coords.x * scale);
-          var fy = Math.floor(coords.y * scale);
-          var subs = this.options.subdomains || ['0'];
-          var sub = subs[(((fx + fy) % subs.length) + subs.length) % subs.length];
-          var img = document.createElement('img');
-          img.alt = '';
-          img.setAttribute('role', 'presentation');
-          img.src = L.Util.template(this._tpl, Object.assign({}, this.options, { s: sub, x: fx, y: fy, z: this._fz }));
-          return img;
-        }
-      });
-      [9, 10, 11, 12].forEach(function (fz) {
-        new WidePrefetchLayer(TDT_URL, fz).addTo(map);
-      });
 
       // v4：宽域直接预取——「视野锚定」预载盖不住跨档缩小（视野面积放大上千倍）。
       // 绕当前中心把 z9-z12 数十公里半径的瓦片用 Image() 直拉进浏览器缓存
@@ -10148,16 +10302,16 @@
         if (map) map.invalidateSize(false);
       }, 500);
     } catch(e) {
-      console.error('Leaflet 初始化失败:', e);
+      console.error('地图引擎初始化失败:', e);
       map = null;
     }
   }
 
   // 启动地图
-  if (typeof L !== 'undefined') {
+  if (typeof maplibregl !== 'undefined') {
     initLeafletMap();
   } else {
-    console.warn('Leaflet 未加载，使用 simMap 后备渲染');
+    console.warn('MapLibre 未加载，使用 simMap 后备渲染');
     renderMarkers(currentDetailLevel);
     renderSavedMarkers(currentDetailLevel);
   }
@@ -10415,7 +10569,8 @@
       db.pendingPhotos.clear();
 
       // 登录态：把归类结果同步到云端（上传回调 + 创建坐标），失败静默（console），不影响本地演示
-      syncPendingPhotosToCloud(syncGroups, userMode);
+      // 摄影师生活模式下传 → 先弹模式提示（一次），以选定模式同步
+      resolveUploadMode().then(function(syncMode) { syncPendingPhotosToCloud(syncGroups, syncMode); });
 
       // 新拍摄点逆地理编码自动命名（新功能，不阻塞归类；名称可用时替换"拍摄点 xx,xx"默认名）
       // 注意：云端 coords 按原名创建（后端暂无 PUT /coords/{id}，见后端任务清单）
