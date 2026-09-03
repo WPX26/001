@@ -441,6 +441,9 @@
     padding-top: max(env(safe-area-inset-top, 0px), 44px);
   }
   body.full-embed .status-bar { display: none; }
+  /* 私信对话面板 absolute inset:0 会盖掉上面的状态栏让位（绝对定位按内边距盒铺满）→ 头部/图片查看器关闭键下移，顶部按钮好点（王总 2026-09-02） */
+  body.full-embed .chat-header { padding-top: calc(14rem + max(env(safe-area-inset-top, 0px), 44px)); }
+  body.full-embed .chat-img-viewer-close { top: calc(14rem + max(env(safe-area-inset-top, 0px), 44px)); }
   body.full-embed .bottom-nav,
   body.full-embed .home-indicator { display: none; }
 
