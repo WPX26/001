@@ -7837,6 +7837,7 @@
       registerBackendAuthors(coords);
       inspireData = { coordinates: coords };
       inspireDataIsRemote = true;
+      if (typeof syncMinePoolsSnapshot === 'function') syncMinePoolsSnapshot();
       console.log('[inspire] 已加载真实数据 ' + coords.length + ' 个坐标');
       // 数据到达后重渲染当前模式标记（若用户已进入灵感模式）
       if (inspireMode && typeof renderInspireMarkers === 'function') renderInspireMarkers(currentDetailLevel);
@@ -7862,6 +7863,7 @@
       });
       exploreData = { coordinates: coords };
       exploreDataIsRemote = true;
+      if (typeof syncMinePoolsSnapshot === 'function') syncMinePoolsSnapshot();
       console.log('[explore] 已加载真实数据 ' + coords.length + ' 个坐标');
       if (exploreMode && typeof renderExploreMarkers === 'function') renderExploreMarkers(currentDetailLevel);
     }).catch(function (e) {
@@ -9275,6 +9277,21 @@
         lat: m.sourceCoord && m.sourceCoord.lat
       }));
       localStorage.setItem('inspire_saved_snapshot', JSON.stringify(snap));
+    } catch (e) {}
+  }
+
+  // 我的坐标池归属快照（王总 2026-09-03 定：三模式均为自己上传的坐标，按灵感池/探索池归属过滤）
+  function syncMinePoolsSnapshot() {
+    try {
+      const mine = { inspire: [], explore: [] };
+      const collect = (coords, key) => {
+        (coords || []).forEach(c => {
+          if (c && (c.photos || []).some(p => p.author === '@我') && c.title && mine[key].indexOf(c.title) === -1) mine[key].push(c.title);
+        });
+      };
+      collect(inspireData.coordinates, 'inspire');
+      collect(exploreData.coordinates, 'explore');
+      localStorage.setItem('mine_pools_snapshot', JSON.stringify(mine));
     } catch (e) {}
   }
 

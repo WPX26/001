@@ -1633,6 +1633,9 @@
     border-radius: 999rem;
     white-space: nowrap;
   }
+  .myhome-coord-ranked .myhome-coord-name {
+    max-width: 30%;
+  }
   .myhome-coord-rank.dim {
     color: rgba(245, 223, 192, 0.4);
     background: transparent;
@@ -4303,57 +4306,56 @@
   });
 
   // 统计栏三 tab 切换：点击项文字+数字泛起光晕（持续光晕=激活项），下方切换三视图
-  // 坐标点三模式（王总 2026-09-03 定：本地坐标/灵感坐标/探索坐标；探索排名仅自己可见）
+  // 坐标点三模式（王总 2026-09-03 定：三模式均为自己上传的坐标、形式对标本地模式；区别仅在池归属过滤与探索排名）
   const myHomeModeViews = { local: 'myHomeModeLocal', inspire: 'myHomeModeInspire', explore: 'myHomeModeExplore' };
-  function renderMyHomeInspireList() {
-    const container = document.getElementById('myHomeInspireList');
-    let snap = [];
-    try { snap = JSON.parse(localStorage.getItem('inspire_saved_snapshot') || '[]'); } catch (e) { snap = []; }
-    if (!snap.length) {
-      container.innerHTML = '<div style="text-align:center;color:rgba(245,223,192,0.5);padding:40px 0;font-size:13px;">暂无收藏的灵感坐标（在地图灵感模式中收藏后显示在这里）</div>';
-      return;
-    }
-    container.innerHTML = snap.map((c, i) => `
-      <div class="myhome-coord-card">
-        <div class="myhome-coord-card-header">
-          <div class="myhome-coord-idx">${i + 1}</div>
-          <div class="myhome-coord-name">${escapeHtml(c.title || '未命名灵感')}</div>
-          <button class="myhome-coord-locate" title="定位到此坐标">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'}</button>
-        </div>
-      </div>`).join('');
-    container.querySelectorAll('.myhome-coord-card').forEach((card, i) => {
-      const c = snap[i];
-      card.querySelector('.myhome-coord-locate').addEventListener('click', () => {
-        if (c && isFinite(c.lng) && isFinite(c.lat)) {
-          window.location.href = 'memo-home.html?locate=' + c.lng + ',' + c.lat + '&level=3';
-        }
-      });
+  function getMinePoolTitles(key) {
+    let snap = {};
+    try { snap = JSON.parse(localStorage.getItem('mine_pools_snapshot') || '{}'); } catch (e) { snap = {}; }
+    return Array.isArray(snap[key]) ? snap[key] : [];
+  }
+  function filterMineByPool(list, titles) {
+    if (!titles.length) return [];
+    return list.filter(cg => {
+      const full = (cg.cityPrefix ? cg.cityPrefix + '·' : '') + cg.title;
+      return titles.some(t => t === full || t === cg.title || t.indexOf(cg.title) !== -1 || full.indexOf(t) !== -1 || cg.title.indexOf(t) !== -1);
     });
   }
-  function renderMyHomeExploreList() {
-    const container = document.getElementById('myHomeExploreList');
-    let ranks = {};
-    try { ranks = JSON.parse(localStorage.getItem('explore_myrank') || '{}'); } catch (e) { ranks = {}; }
-    const list = getMyHomeData();
-    list.sort((a, b) => (b.latestTs || 0) - (a.latestTs || 0));
+  // 与本地模式同款卡片（序号+名称+最新时间+定位键+缩略图网格）；探索模式多一枚排名徽章（仅自己可见）
+  function renderMyHomePoolList(containerId, list, ranks) {
+    const container = document.getElementById(containerId);
     if (!list.length) {
-      container.innerHTML = '<div style="text-align:center;color:rgba(245,223,192,0.5);padding:40px 0;font-size:13px;">暂无探索坐标点</div>';
+      container.innerHTML = '<div style="text-align:center;color:rgba(245,223,192,0.5);padding:40px 0;font-size:13px;">暂无坐标点</div>';
       return;
     }
     container.innerHTML = list.map((cg, i) => {
-      const rank = ranks[cg.title];
-      const rankHtml = rank
-        ? '<div class="myhome-coord-rank">我的排名：第 ' + rank + ' 位</div>'
-        : '<div class="myhome-coord-rank dim">打开探索弹窗后更新</div>';
+      const thumbs = cg.photos.slice(0, 6).map(p => {
+        const bg = p.url
+          ? `background-image:url('${escapeHtml(p.url)}');background-size:cover;background-position:center;`
+          : 'background:linear-gradient(135deg,' + (p.color1 || '#F0A040') + ',' + (p.color2 || '#D4691C') + ');';
+        return `<div class="myhome-coord-thumb" style="${bg}"
+          data-lng="${cg.lng != null ? cg.lng : ''}" data-lat="${cg.lat != null ? cg.lat : ''}"
+          data-title="${escapeHtml(cg.title)}" data-time="${escapeHtml(p.timeLabel || '')}"
+          data-url="${escapeHtml(p.url)}" data-color1="${p.color1 || ''}" data-color2="${p.color2 || ''}"></div>`;
+      }).join('');
       const fullTitle = (cg.cityPrefix ? cg.cityPrefix + '·' : '') + cg.title;
+      const rank = ranks ? ranks[cg.title] : null;
+      const timeLabel = ranks ? (cg.latestTs ? (new Date(cg.latestTs).getMonth() + 1) + '月' + new Date(cg.latestTs).getDate() + '日' : '') : formatLatestTime(cg.latestTs);
+      const rankHtml = ranks
+        ? (rank
+          ? '<div class="myhome-coord-rank" title="我在该坐标的探索排名">第 ' + rank + ' 位</div>'
+          : '<div class="myhome-coord-rank dim" title="打开地图探索弹窗后更新排名">待更新</div>')
+        : '';
       return `
-        <div class="myhome-coord-card">
+        <div class="myhome-coord-card${ranks ? ' myhome-coord-ranked' : ''}">
           <div class="myhome-coord-card-header">
             <div class="myhome-coord-idx">${i + 1}</div>
             <div class="myhome-coord-name" title="${escapeHtml(fullTitle)}">${escapeHtml(fullTitle)}</div>
+            <div class="myhome-coord-time">${ranks ? timeLabel : '最新 ' + timeLabel}</div>
             ${rankHtml}
             <button class="myhome-coord-locate" title="定位到此坐标">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'}</button>
+            <div class="myhome-coord-arrow">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'}</div>
           </div>
+          <div class="myhome-coord-grid">${thumbs || '<div class="myhome-coord-empty" style="color:rgba(245,223,192,0.5);font-size:11px;padding:10px 0;text-align:center;">暂无照片</div>'}</div>
         </div>`;
     }).join('');
     container.querySelectorAll('.myhome-coord-card').forEach((card, i) => {
@@ -4364,6 +4366,31 @@
         }
       });
     });
+    container.querySelectorAll('.myhome-coord-thumb').forEach(thumb => {
+      thumb.addEventListener('click', () => {
+        showMyHomeViewer({
+          imageUrl: thumb.dataset.url,
+          color1: thumb.dataset.color1,
+          color2: thumb.dataset.color2,
+          title: thumb.dataset.title,
+          time: thumb.dataset.time,
+          lng: parseFloat(thumb.dataset.lng),
+          lat: parseFloat(thumb.dataset.lat)
+        });
+      });
+    });
+  }
+  function renderMyHomeInspireList() {
+    const list = filterMineByPool(getMyHomeData(), getMinePoolTitles('inspire'));
+    list.sort((a, b) => (b.latestTs || 0) - (a.latestTs || 0));
+    renderMyHomePoolList('myHomeInspireList', list, null);
+  }
+  function renderMyHomeExploreList() {
+    let ranks = {};
+    try { ranks = JSON.parse(localStorage.getItem('explore_myrank') || '{}'); } catch (e) { ranks = {}; }
+    const list = filterMineByPool(getMyHomeData(), getMinePoolTitles('explore'));
+    list.sort((a, b) => (b.latestTs || 0) - (a.latestTs || 0));
+    renderMyHomePoolList('myHomeExploreList', list, ranks);
   }
   document.querySelectorAll('.myhome-mode-tab').forEach(tab => {
     tab.addEventListener('click', () => {
