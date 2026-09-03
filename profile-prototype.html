@@ -2269,7 +2269,7 @@
                   </div>
                   <div>
                     <div class="menu-label">演示模式</div>
-                    <div class="menu-sub">恢复模拟信息，仅用于演示</div>
+                    <div class="menu-sub">恢复模拟信息，全站生效，仅用于演示</div>
                   </div>
                 </div>
                 <div class="menu-item-right">
@@ -2804,8 +2804,8 @@
   }
 
   // ========== 设置·演示模式（王总 2026-09-03：一键恢复模拟信息，仅用于演示） ==========
-  var DEMO_MODE_KEY = 'profile_demo_mode';
-  function demoModeOn() { try { return localStorage.getItem(DEMO_MODE_KEY) === '1'; } catch (e) { return false; } }
+  var DEMO_MODE_KEY = 'memomap_demo_mode'; // 全站统一演示开关（王总 2026-09-03：所有模式可恢复演示；正式上线前删除）
+  function demoModeOn() { try { return localStorage.getItem(DEMO_MODE_KEY) === '1' || localStorage.getItem('profile_demo_mode') === '1'; } catch (e) { return false; } }
   function updateDemoBadge() {
     var b = document.getElementById('demoModeBadge');
     if (b) b.textContent = demoModeOn() ? '开启中' : '未开启';

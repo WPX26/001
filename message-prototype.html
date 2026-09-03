@@ -1435,7 +1435,40 @@
   var realConvMode = false;      // 会话列表是否已切换为真实数据
   var convLoadTimer = null;      // 防抖刷新定时器
 
+  // ========== 演示模式（王总 2026-09-03）：全站演示开关打开时私信走内置演示数据（正式上线前删除） ==========
+  function memoDemoModeOn() { try { return localStorage.getItem('memomap_demo_mode') === '1' || localStorage.getItem('profile_demo_mode') === '1'; } catch (e) { return false; } }
+  var DEMO_CONVERSATIONS = [
+    { conversationId: 'demo-conv-1', peerName: '摄影老张', peerAvatar: '', lastMessage: '明早六点西湖断桥约拍？', lastTime: Date.now() - 3600000, unreadCount: 2, lastImageUrl: '' },
+    { conversationId: 'demo-conv-2', peerName: '小舟爱拍照', peerAvatar: '', lastMessage: '收到！照片已发你邮箱', lastTime: Date.now() - 86400000, unreadCount: 0, lastImageUrl: '' }
+  ];
+  var DEMO_CHAT_MESSAGES = {
+    'demo-conv-1': [
+      { time: '06:12', text: '老哥，明天断桥日出约不约？', mine: false },
+      { time: '06:15', text: '约！我带上5D2，你带广角', mine: true },
+      { time: '06:16', text: '好嘞，六点桥东头见', mine: false, createdAt: 1 }
+    ],
+    'demo-conv-2': [
+      { time: '昨天 18:40', text: '照片修好了，发你邮箱了', mine: false },
+      { time: '昨天 18:42', text: '收到！辛苦', mine: true }
+    ]
+  };
+  function openDemoChat(conv) {
+    if (!conv || !conv.conversationId) return;
+    chatConvId = conv.conversationId;
+    chatPeerName.textContent = conv.peerName || '私信';
+    chatPeerAvatar.style.backgroundImage = '';
+    chatPeerAvatar.style.background = 'linear-gradient(135deg, #F0A040, #D4691C)';
+    chatBubbles = (DEMO_CHAT_MESSAGES[conv.conversationId] || []).slice();
+    renderChatMessages(chatBubbles);
+    chatPanel.classList.add('show');
+    setTimeout(function () { chatInput.focus(); }, 320);
+  }
+
   function loadConversations() {
+    if (memoDemoModeOn()) {
+      conversations = DEMO_CONVERSATIONS.slice(); realConvMode = true;
+      if (currentCategory === 'chat') renderMessages(); updateBadges(); return;
+    }
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/chat/conversations').then(function (data) {
       conversations = (data && data.list) || [];
@@ -1490,6 +1523,7 @@
    */
   function openChatByConversation(conv) {
     if (!conv || !conv.conversationId) return;
+    if (memoDemoModeOn()) { openDemoChat(conv); return; } // 演示模式：不走真实会话/WS
     chatConvId = conv.conversationId;
     chatPeerName.textContent = conv.peerName || '私信';
     if (conv.peerAvatar) {

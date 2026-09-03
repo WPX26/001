@@ -835,15 +835,19 @@
     });
   }
 
+  // 演示模式（王总 2026-09-03）：全站演示开关打开时不出跳登录、保留本地占位（正式上线前删除）
+  function memomapDemoOn() { try { return localStorage.getItem('memomap_demo_mode') === '1' || localStorage.getItem('profile_demo_mode') === '1'; } catch (e) { return false; } }
+
   // 初始化：未登录跳登录页；已登录拉取全部页后渲染；失败回退本地占位
   (function () {
-    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
+    if ((typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) && !memomapDemoOn()) {
       // App 内置浏览器（web-view）内：显式 full=1 全屏打开登录页；Web 端不带参
       window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
       return;
     }
     var all = [];
     function loadPage(page) {
+      if (memomapDemoOn()) return; // 演示模式：保持本地占位
       MemoAPI.get('/photos/mine?sortBy=time&page=' + page + '&pageSize=100').then(function (data) {
         if (!data) return;
         all = all.concat(data.list || []);
@@ -854,7 +858,7 @@
         console.warn('[album] 拉取照片失败，使用本地占位：', e && e.message);
       });
     }
-    loadPage(1);
+    if (!memomapDemoOn()) loadPage(1);
   })();
 </script>
 

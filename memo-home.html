@@ -7827,7 +7827,11 @@
     });
   }
 
+  // 演示模式（王总 2026-09-03）：全站演示开关打开时，探索/灵感保持内置演示数据（正式上线前删除）
+  function memoDemoModeOn() { try { return localStorage.getItem('memomap_demo_mode') === '1' || localStorage.getItem('profile_demo_mode') === '1'; } catch (e) { return false; } }
+
   function loadInspireDataFromBackend() {
+    if (memoDemoModeOn()) return; // 演示模式：不拉真实数据
     memoApiGet('/inspire/coords?' + inspireRequestParams()).then(function (data) {
       var list = (data && data.list) || [];
       if (!Array.isArray(list)) return;
@@ -7847,6 +7851,7 @@
   }
 
   function loadExploreDataFromBackend() {
+    if (memoDemoModeOn()) return; // 演示模式：不拉真实数据
     memoApiGet('/explore/coords?' + inspireRequestParams()).then(function (data) {
       var groups = (data && data.authorGroups) || [];
       if (!Array.isArray(groups)) return;
