@@ -10161,6 +10161,7 @@
           return this;
         };
         st.getLatLng = function () { return { lat: this._latlng.lat, lng: this._latlng.lng }; };
+        st.getElement = function () { return this._el || null; }; // v7 shim 补 Leaflet Marker.getElement（收藏红点常驻后重渲染必经此分支）
         return st;
       }
       return {

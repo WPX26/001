@@ -47,13 +47,11 @@ export const getMarkers = asyncHandler(async (req, res) => {
     lng: { $gte: Number(minLng), $lte: Number(maxLng) },
     lat: { $gte: Number(minLat), $lte: Number(maxLat) },
   };
-  // 灵感模式=生活池、探索模式=工作池；均不含自己的内容
+  // 灵感模式=生活池、探索模式=工作池（王总2026-09-03拍板：两个模式均含自己上传的坐标；注意此接口不做 isPhotographer 校验，探索资格校验在 /explore/coords）
   if (mode === 'inspire') {
     match.mode = 'life';
-    match.authorId = { $ne: req.user._id };
   } else if (mode === 'explore') {
     match.mode = 'work';
-    match.authorId = { $ne: req.user._id };
   }
 
   // 按网格聚合（$limit 防止超大视窗拖垮查询，P0 基础版）

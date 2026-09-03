@@ -37,7 +37,7 @@ async function buildUserMap(userIds) {
 
 /**
  * 4.1 灵感坐标列表
- * - 生活池（mode=life）公开坐标；排除自己的坐标（api.md 4.1：他人公开内容）
+ * - 生活池（mode=life）公开坐标（王总2026-09-03拍板：列表含自己上传的坐标；工作池归探索模式）
  * - 排序：followed（已关注作者优先 → 热度 → 时间，默认）/ hot（热度）/ time（最新）
  * - 每个坐标返回 coordInfo + photoGroups（照片按拍摄日期分组，组内按关注优先 + 热度排序，每组前 9 张）
  */
@@ -55,7 +55,7 @@ export const inspireCoords = asyncHandler(async (req, res) => {
     mode: 'life',
     isPublic: true,
     deletedAt: null,
-    authorId: { $ne: meId }, // 排除自己
+
   };
   const delta = radiusDelta(radius, lat);
   if (delta) {
