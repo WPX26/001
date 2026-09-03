@@ -244,6 +244,12 @@
   .menu-item:hover { background: rgba(240, 160, 64, 0.08); box-shadow: 0 0 12rem rgba(232, 144, 32, 0.35); }
   .menu-item:active { background: rgba(240, 160, 64, 0.15); box-shadow: 0 0 16rem rgba(232, 144, 32, 0.55); }
 
+  .menu-sub {
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.55);
+    margin-top: 2rem;
+  }
+
   .menu-item + .menu-item {
     border-top: 1rem solid rgba(212, 165, 116, 0.3);
   }
@@ -2220,7 +2226,7 @@
             <div class="menu-section">
               <div class="menu-title">其他</div>
               <div class="menu-card">
-                <div class="menu-item">
+                <div class="menu-item" id="settingsEntry">
                   <div class="menu-item-left">
                     <div class="menu-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2234,6 +2240,40 @@
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 设置视图（王总 2026-09-03：演示模式开关，对外演示时恢复模拟信息） -->
+        <div class="view" id="viewSettings">
+          <div class="sub-header">
+            <div class="sub-back" id="settingsBack">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </div>
+            <div class="sub-title">设置</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-title">演示</div>
+            <div class="menu-card">
+              <div class="menu-item" id="demoModeEntry">
+                <div class="menu-item-left">
+                  <div class="menu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="menu-label">演示模式</div>
+                    <div class="menu-sub">恢复模拟信息，仅用于演示</div>
+                  </div>
+                </div>
+                <div class="menu-item-right">
+                  <span class="menu-badge" id="demoModeBadge">未开启</span>
                 </div>
               </div>
             </div>
@@ -2750,6 +2790,7 @@
   const viewMyProfile = document.getElementById('viewMyProfile');
   const viewEditProfile = document.getElementById('viewEditProfile');
   const viewFollowList = document.getElementById('viewFollowList');
+  const viewSettings = document.getElementById('viewSettings');
 
   function showView(view) {
     viewProfile.classList.toggle('active', view === 'profile');
@@ -2759,7 +2800,70 @@
     viewMyProfile.classList.toggle('active', view === 'myprofile');
     viewEditProfile.classList.toggle('active', view === 'editprofile');
     viewFollowList.classList.toggle('active', view === 'followlist');
+    viewSettings.classList.toggle('active', view === 'settings');
   }
+
+  // ========== 设置·演示模式（王总 2026-09-03：一键恢复模拟信息，仅用于演示） ==========
+  var DEMO_MODE_KEY = 'profile_demo_mode';
+  function demoModeOn() { try { return localStorage.getItem(DEMO_MODE_KEY) === '1'; } catch (e) { return false; } }
+  function updateDemoBadge() {
+    var b = document.getElementById('demoModeBadge');
+    if (b) b.textContent = demoModeOn() ? '开启中' : '未开启';
+  }
+  var DEMO_PROFILE_AVATAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+  function applyDemoProfile() {
+    serverCoordPhotos = null; // 演示模式：我的照片走本地模拟（myHomeCoords + 色块作品）
+    var name = '旅行者', bio = '记录旅途的每一个瞬间';
+    var pairs = [
+      [document.querySelector('.profile-name'), name],
+      [document.querySelector('.profile-desc'), bio],
+      [document.getElementById('myHomeName'), name],
+      [document.getElementById('myHomeBio'), bio],
+      [document.getElementById('myProfileName'), name],
+      [document.getElementById('myProfileBio'), bio]
+    ];
+    pairs.forEach(function (p) { if (p[0]) p[0].textContent = p[1]; });
+    [document.querySelector('.profile-avatar'), document.getElementById('myHomeAvatar'), document.getElementById('myProfileAvatar')].forEach(function (box) {
+      if (box) box.innerHTML = DEMO_PROFILE_AVATAR_SVG;
+    });
+    var badge = document.getElementById('myProfilePhotographerBadge');
+    if (badge) badge.classList.add('show');
+    var stats = { myProfileLikeCount: '128', myProfileMutualCount: '36', myProfileFollowingCount: '89', myProfileFollowerCount: '152' };
+    Object.keys(stats).forEach(function (id) { var el = document.getElementById(id); if (el) el.textContent = stats[id]; });
+    renderMyProfileGrid();
+    renderMyHomeCoordsList();
+  }
+  function resetRealProfile() {
+    serverCoordPhotos = null;
+    var name = '旅行者', bio = '记录旅途的每一个瞬间';
+    [['.profile-name', name], ['.profile-desc', bio], ['#myHomeName', name], ['#myHomeBio', bio], ['#myProfileName', name], ['#myProfileBio', bio]].forEach(function (p) {
+      var el = document.querySelector(p[0]); if (el) el.textContent = p[1];
+    });
+    var badge = document.getElementById('myProfilePhotographerBadge');
+    if (badge) badge.classList.remove('show');
+    ['myProfileLikeCount', 'myProfileMutualCount', 'myProfileFollowingCount', 'myProfileFollowerCount'].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.textContent = '0';
+    });
+    loadUserProfile();
+    loadMyCoordPhotos();
+    renderMyHomeCoordsList();
+  }
+  function toggleDemoMode() {
+    var on = !demoModeOn();
+    try { on ? localStorage.setItem(DEMO_MODE_KEY, '1') : localStorage.removeItem(DEMO_MODE_KEY); } catch (e) {}
+    updateDemoBadge();
+    if (on) { applyDemoProfile(); showToast('演示模式已开启'); }
+    else { resetRealProfile(); showToast('已恢复真实数据'); }
+  }
+  var settingsEntryEl = document.getElementById('settingsEntry');
+  if (settingsEntryEl) settingsEntryEl.addEventListener('click', function () { showView('settings'); });
+  var settingsBackEl = document.getElementById('settingsBack');
+  if (settingsBackEl) settingsBackEl.addEventListener('click', function () { showView('profile'); });
+  var demoModeEntryEl = document.getElementById('demoModeEntry');
+  if (demoModeEntryEl) demoModeEntryEl.addEventListener('click', toggleDemoMode);
+  updateDemoBadge();
+
+
 
   // 删除的坐标点数据
   let deletedMarkers = [
@@ -3052,6 +3156,7 @@
   // ========== 我的主页（抖音式）渲染：头图+统计三列+按钮行+三列作品网格 ==========
   // 互关数 = 我的关注 ∩ 我的粉丝(前端算交集,王总 2026-08-14 新图要求 4 项统计)
   function loadMutualCount() {
+    if (demoModeOn()) return;
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     Promise.all([
       MemoAPI.get('/users/me/following?page=1&pageSize=100').catch(function () { return { list: [] }; }),
@@ -3069,6 +3174,7 @@
   }
 
   function renderMyProfile() {
+    if (demoModeOn()) { applyDemoProfile(); return; }
     if (serverProfile) {
       const d = serverProfile;
       const name = d.nickname || '旅行者';
@@ -3794,6 +3900,7 @@
   let serverProfile = null;
 
   function loadUserProfile() {
+    if (demoModeOn()) { applyDemoProfile(); return; }
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/users/me').then(function (data) {
       if (!data) return;
@@ -3807,6 +3914,7 @@
 
   // 应用真实资料：昵称/简介/头像 + 统计（"已删除"统计来自回收站接口）
   function applyUserProfile() {
+    if (demoModeOn()) return;
     if (!serverProfile) return;
     const d = serverProfile;
     const name = d.nickname || '旅行者';
@@ -3857,6 +3965,7 @@
   let serverCoordPhotos = null;
 
   function loadMyCoordPhotos() {
+    if (demoModeOn()) return;
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/photos/mine?sortBy=coord&pageSize=100').then(function (data) {
       if (!data || !data.list || !data.list.length) return;
@@ -4787,7 +4896,7 @@
   // 已登录时拉取真实会员/摄影师状态；未登录或接口失败自动回退 localStorage 逻辑（页面不崩）
   loadMemberStatus();
   // 已登录时拉取真实用户资料 / 我的照片 / 回收站；未登录或接口失败自动回退本地模拟（页面不崩）
-  loadUserProfile();
+  if (demoModeOn()) { applyDemoProfile(); } else { loadUserProfile(); }
   loadMyCoordPhotos();
   loadTrash();
 </script>
