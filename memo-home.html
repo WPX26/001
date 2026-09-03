@@ -99,7 +99,7 @@
     height: 100%;
   }
   
-  .leaflet-container { background: #E8EEE8; }
+  .leaflet-container, .maplibregl-map { background: #0d1117; } /* v7: 深空底色——globe 投影下画布外透出处即夜空；平面态由 bg 层盖住不受影响 */
   /* Retina 2x 瓦片按 512rem 显示时插值锐化（Chromium 优化对比度，文字边缘更实） */
   .leaflet-tile { image-rendering: -webkit-optimize-contrast; image-rendering: optimize-contrast; }
   /* 400% 预载层：透明瓦片仅作缓存预热，穿透点击且不可见 */
@@ -10128,10 +10128,14 @@
     }
     function buildMLAdapter() {
       function tdtTiles(tpl) { return SUBS.map(function (s) { return tpl.replace('{s}', s); }); }
+      // v7 地球仪（王总拍板方案B）：MapLibre v5 globe 投影——缩小成星球、放大回平面；
+      // 并发压档 16→6 + 低档预取收兵，治天地图 429 限流（真机截图实锤）
+      if (maplibregl.setMaxParallelImageRequests) maplibregl.setMaxParallelImageRequests(6);
       var ml = new maplibregl.Map({
         container: 'amapContainer',
         style: {
           version: 8,
+          projection: { type: 'globe' },
           sources: {
             vec: { type: 'raster', tiles: tdtTiles(TDT_URL), tileSize: 256, maxzoom: 18 },
             cva: { type: 'raster', tiles: tdtTiles(TDT_LABEL), tileSize: 256, maxzoom: 18 }
@@ -10144,7 +10148,7 @@
         },
         center: [120.3826, 36.0671],
         zoom: 15,
-        minZoom: 3,
+        minZoom: 1,
         maxZoom: 18,
         attributionControl: false,
         dragRotate: false,
@@ -10328,6 +10332,8 @@
       var __pfSeen = {};
       var __pfLastKey = '';
       function prefetchWideArea() {
+        // v7 限流处方：低档位(世界视图)时本视野瓦片本就稀少，预取直拉只会撞天地图 429 红线——收兵
+        if (map.getZoom() < 7) return;
         if (!map || !map.getCenter) return;
         var c = map.getCenter();
         var key = c.lat.toFixed(2) + ',' + c.lng.toFixed(2) + ',' + Math.round(map.getZoom() / 2);
