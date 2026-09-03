@@ -10,7 +10,7 @@ const MAX = 3000;
 const TILE_RE = /^https:\/\/t[0-7]\.tianditu\.gov\.cn\//;
 const MAX_ACTIVE = 4;
 const GAP_MS = 150;
-const RETRY_DELAYS = [1000, 2000, 4000];
+const RETRY_DELAYS = [2000, 5000, 10000];
 
 var active = 0;
 var waiters = [];
@@ -36,6 +36,8 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 async function gateFetch(url) {
   await acquire();
   try {
+    // v7.5.3 全流量让路：429 惩罚窗内全体静默——重试不再火上浇油(778 病根)
+    while (Date.now() < rateCoolUntil) await sleep(400);
     var gap = lastStart + GAP_MS - Date.now();
     if (gap > 0) await sleep(gap);
     lastStart = Date.now();
@@ -47,7 +49,7 @@ async function fetchWithRetry(url) {
   for (var i = 0; i <= RETRY_DELAYS.length; i++) {
     var resp = await gateFetch(url);
     if (resp && resp.ok) return resp;
-    if (resp && resp.status === 429) rateCoolUntil = Date.now() + 8000;
+    if (resp && resp.status === 429) rateCoolUntil = Date.now() + 10000;
     if (i < RETRY_DELAYS.length) {
       await sleep(RETRY_DELAYS[i] + Math.floor(Math.random() * 300));
     }
