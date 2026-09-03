@@ -16,6 +16,8 @@ var active = 0;
 var waiters = [];
 var lastStart = 0;
 var inflight = {};
+var userBusyUntil = 0;   // 用户在动图: 预植让路
+var rateCoolUntil = 0;   // 撞429: 预植集体歇8s,不跟用户抢
 
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });
@@ -45,6 +47,7 @@ async function fetchWithRetry(url) {
   for (var i = 0; i <= RETRY_DELAYS.length; i++) {
     var resp = await gateFetch(url);
     if (resp && resp.ok) return resp;
+    if (resp && resp.status === 429) rateCoolUntil = Date.now() + 8000;
     if (i < RETRY_DELAYS.length) {
       await sleep(RETRY_DELAYS[i] + Math.floor(Math.random() * 300));
     }
@@ -75,7 +78,12 @@ self.addEventListener('fetch', function (e) {
 /* A. 世界底座预植(王总拍板C)：z1-3 底图+注记(168张) + z4 底图(256张) 一次性匀速种入仓库——世界视图永久秒开、与429绝缘 */
 self.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'preseed-world') preseedWorld(e.data.tk);
+  if (e.data && e.data.type === 'user-active') userBusyUntil = Date.now() + 5000;
 });
+
+async function yieldToUser() {
+  while (Date.now() < Math.max(userBusyUntil, rateCoolUntil)) await sleep(400);
+}
 
 async function preseedWorld(tk) {
   try {
@@ -89,6 +97,7 @@ async function preseedWorld(tk) {
         var dim = Math.pow(2, z);
         for (var x = 0; x < dim; x++) for (var y = 0; y < dim; y++) {
           var u = 'https://t0.tianditu.gov.cn/' + layer + '_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=' + layer + '&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX=' + z + '&TILEROW=' + y + '&TILECOL=' + x + '&tk=' + tk;
+          await yieldToUser();
           if (await cache.match(u)) { done++; continue; }
           var r = await fetchWithRetry(u);
           if (r && r.ok) { await cache.put(u, r.clone()); done++; }

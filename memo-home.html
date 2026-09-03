@@ -10189,8 +10189,8 @@
           layers: [
             { id: 'bg', type: 'background', paint: { 'background-color': '#E8EEE8' } },
             { id: 'world-silhouette', type: 'fill', source: 'world', paint: { 'fill-color': '#cdd4cd', 'fill-opacity': 0.95 } },
-            { id: 'vec', type: 'raster', source: 'vec' },
-            { id: 'cva', type: 'raster', source: 'cva' }
+            { id: 'vec', type: 'raster', source: 'vec', paint: { 'raster-fade-duration': 300 } },
+            { id: 'cva', type: 'raster', source: 'cva', paint: { 'raster-fade-duration': 300 } }
           ]
         },
         center: [120.3826, 36.0671],
@@ -10230,6 +10230,11 @@
         __mlToast('地图引擎提示: ' + m);
       });
       ml.on('webglcontextlost', function () { __mlToast('显卡渲染上下文丢失，正在恢复…'); });
+      // v7.4 预植让路：用户一动图就通知 SW 暂停底座预植(5s),不跟定位/浏览抢配额
+      ml.on('movestart', function () {
+        var c = navigator.serviceWorker && navigator.serviceWorker.controller;
+        if (c) c.postMessage({ type: 'user-active' });
+      });
       if (!window.__mlWatchdog) {
         window.__mlWatchdog = setInterval(function () {
           try {
@@ -10369,7 +10374,7 @@
       // 保证预载层任何异常都不会吞掉版本标识（v3 教训）。
       var __pv = document.createElement('div');
       __pv.className = 'map-prefetch-badge';
-      __pv.textContent = '引擎v7.3';
+      __pv.textContent = '引擎v7.4';
       var __pvHost = document.getElementById('amapContainer');
       if (__pvHost) __pvHost.appendChild(__pv);
 
