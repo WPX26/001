@@ -8,7 +8,7 @@
  * 管理端确认/列表（/member/order/:orderId/confirm、/member/orders）在 routes 中复用 admin.controller
  */
 import env from '../config/env.js';
-import { ERR, MEMBER_PLAN, MEMBER_PENDING_EXPIRE_MS, BOOST_PLAN } from '../config/constants.js';
+import { ERR, MEMBER_PLAN, MEMBER_PENDING_EXPIRE_MS, BOOST_PLANS } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -140,7 +140,7 @@ export const getOrder = asyncHandler(async (req, res) => {
 });
 
 /**
- * POST /explore/boost/order 购买坐标置顶（方案④：6元/7天，半自动人工确认）
+ * POST /explore/boost/order 购买坐标置顶（王总 2026-08-31 定稿：周卡6元/7天、月卡60元/30天，持卡期间不可叠加再买）
  * - coordKey 校验（坐标须存在）；活跃席位拒绝重复购买（409）
  * - 与会员下单共用全局待确认幂等（一人一笔 pending）
  */
@@ -148,6 +148,8 @@ export const createBoostOrder = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const coordKey = String(req.body.coordKey || '').trim();
   if (!coordKey) throw new AppError(ERR.VALIDATE, '缺少 coordKey', 400);
+  const tier = req.body.tier === 'month' ? 'month' : 'week';
+  const boostPlan = BOOST_PLANS[tier];
 
   const coord = await Coord.findOne({ title: coordKey, deletedAt: null });
   if (!coord) throw new AppError(ERR.NOT_FOUND, '坐标不存在', 404);
@@ -175,10 +177,10 @@ export const createBoostOrder = asyncHandler(async (req, res) => {
         orderId: genOrderId(),
         orderNo: genOrderNo(),
         userId,
-        planId: BOOST_PLAN.planId,
-        planName: BOOST_PLAN.planName,
-        amount: BOOST_PLAN.amount,
-        period: BOOST_PLAN.period,
+        planId: boostPlan.planId,
+        planName: boostPlan.planName,
+        amount: boostPlan.amount,
+        period: boostPlan.period,
         coordKey,
         paymentMethod: 'wechat',
         status: 'pending_confirm',

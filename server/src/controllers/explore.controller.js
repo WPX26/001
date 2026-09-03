@@ -166,7 +166,7 @@ export const exploreCoords = asyncHandler(async (req, res) => {
     ps.sort((a, b) => (b.likes || 0) - (a.likes || 0));
   }
 
-  // 置顶席位注入：本页坐标的活跃 boost，按 start 倒序（后买靠前，王总定案 C>B>A）
+  // 置顶席位注入：本页坐标的活跃 boost，按档位分池、各池按 start 倒序（后买靠前）
   const pageCoordTitles = [...new Set(pageGroups.flatMap((g) => g.coords.map((c) => c.title)))];
   const activeBoosts = pageCoordTitles.length
     ? await ExploreBoost.find({ coordKey: { $in: pageCoordTitles }, until: { $gt: new Date() } })
@@ -178,9 +178,9 @@ export const exploreCoords = asyncHandler(async (req, res) => {
   for (const b of activeBoosts) {
     const name = b.authorId ? b.authorId.nickname : '';
     if (!name) continue;
-    const list = boostByCoord.get(b.coordKey) || [];
-    list.push(name);
-    boostByCoord.set(b.coordKey, list);
+    const bucket = boostByCoord.get(b.coordKey) || { month: [], week: [] };
+    (b.tier === 'month' ? bucket.month : bucket.week).push(name);
+    boostByCoord.set(b.coordKey, bucket);
   }
 
   const coordsFlat = [];
@@ -194,7 +194,7 @@ export const exploreCoords = asyncHandler(async (req, res) => {
         lat: c.lat,
         photoCount: c.photoCount || 0,
         likeCount: likeByCoord.get(String(c._id)) || 0,
-        boostAuthors: boostByCoord.get(c.title) || [],
+        boostAuthors: boostByCoord.get(c.title) || { month: [], week: [] },
         thumbnails: (thumbByCoord.get(String(c._id)) || []).map((p) => p.thumbnailUrl || p.imageUrl),
       };
       coordsFlat.push({ ...card, authorId: String(c.authorId) });

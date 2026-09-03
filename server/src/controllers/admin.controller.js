@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import jwt from 'jsonwebtoken';
 import env, { UPLOAD_DIR } from '../config/env.js';
-import { ERR, BOOST_PLAN } from '../config/constants.js';
+import { ERR, BOOST_PLANS } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -93,7 +93,8 @@ export const confirmPayment = asyncHandler(async (req, res) => {
   if (!order) throw new AppError(ERR.NOT_FOUND, '订单不存在', 404);
 
   // 幂等：置顶订单已确认直接返回（会员激活逻辑不适用）
-  if (order.status === 'paid' && order.planId === BOOST_PLAN.planId) {
+  const paidBoostPlan = Object.values(BOOST_PLANS).find((p) => p.planId === order.planId);
+  if (order.status === 'paid' && paidBoostPlan) {
     return ok(
       res,
       { orderId: order.orderId, status: order.status, paidAt: order.paidAt, confirmedAt: order.confirmedAt },
@@ -126,13 +127,14 @@ export const confirmPayment = asyncHandler(async (req, res) => {
   }
 
   // 置顶订单：不激活会员，写/顺延 ExploreBoost 席位（排位赛 start=确认时刻，后买靠前）
-  if (order.planId === BOOST_PLAN.planId) {
+  if (paidBoostPlan) {
     const now = new Date();
     let boost = await ExploreBoost.findOne({ coordKey: order.coordKey, authorId: order.userId });
     const base = boost && boost.until && boost.until.getTime() > now.getTime() ? boost.until : now;
     if (boost) {
+      boost.tier = paidBoostPlan.tier;
       boost.start = now;
-      boost.until = new Date(base.getTime() + BOOST_PLAN.days * 86400000);
+      boost.until = new Date(base.getTime() + paidBoostPlan.days * 86400000);
       boost.orderId = order.orderId;
       await boost.save();
     } else {
@@ -140,8 +142,9 @@ export const confirmPayment = asyncHandler(async (req, res) => {
         coordKey: order.coordKey,
         authorId: order.userId,
         orderId: order.orderId,
+        tier: paidBoostPlan.tier,
         start: now,
-        until: new Date(now.getTime() + BOOST_PLAN.days * 86400000),
+        until: new Date(now.getTime() + paidBoostPlan.days * 86400000),
       });
     }
     order.status = 'paid';
