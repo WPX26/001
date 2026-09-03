@@ -72,6 +72,34 @@ self.addEventListener('fetch', function (e) {
   })());
 });
 
+/* A. 世界底座预植(王总拍板C)：z1-3 底图+注记(168张) + z4 底图(256张) 一次性匀速种入仓库——世界视图永久秒开、与429绝缘 */
+self.addEventListener('message', function (e) {
+  if (e.data && e.data.type === 'preseed-world') preseedWorld(e.data.tk);
+});
+
+async function preseedWorld(tk) {
+  try {
+    var cache = await caches.open(CACHE);
+    if (await cache.match('mm://preseed-done')) return;
+    var done = 0;
+    var plan = [['vec', 4], ['cva', 3]];
+    for (var li = 0; li < plan.length; li++) {
+      var layer = plan[li][0], maxZ = plan[li][1];
+      for (var z = 1; z <= maxZ; z++) {
+        var dim = Math.pow(2, z);
+        for (var x = 0; x < dim; x++) for (var y = 0; y < dim; y++) {
+          var u = 'https://t0.tianditu.gov.cn/' + layer + '_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=' + layer + '&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX=' + z + '&TILEROW=' + y + '&TILECOL=' + x + '&tk=' + tk;
+          if (await cache.match(u)) { done++; continue; }
+          var r = await fetchWithRetry(u);
+          if (r && r.ok) { await cache.put(u, r.clone()); done++; }
+        }
+      }
+    }
+    await cache.put('mm://preseed-done', new Response('done:' + done));
+    self.clients.matchAll().then(function (cs) { cs.forEach(function (c) { c.postMessage({ type: 'preseed-progress', done: done }); }); });
+  } catch (err) {}
+}
+
 async function trim(cache) {
   try {
     var keys = await cache.keys();
