@@ -7019,8 +7019,10 @@
   // ========== 地名搜索（本地代理 → 天地图 API） ==========
   var searchDebounceTimer = null;
 
-  // 前端直调天地图 geocoder（浏览器端 Key + 域名白名单内可用）：
+  // 前端直调天地图（浏览器端 Key + 域名白名单内可用）：
   // 后端结果为空/后端不可达时兜底，确保未登录也能直接搜到地名
+  // v8 搜索升级（2026-09-03 王总拍板）：优先 V2 关键词搜索——模糊匹配/视野优先/富POI结果；
+  // 失败或空结果自动回退 geocoder 精确编码，行为只增不减
   function tdtGeocodeFront(keyword) {
     var ds = encodeURIComponent(JSON.stringify({ keyWord: keyword }));
     return fetch('https://api.tianditu.gov.cn/geocoder?ds=' + ds + '&tk=ee36c38eb7777006970a6e5597f7bae9') // 浏览器端 Key（与 initLeafletMap 同值）
@@ -7039,13 +7041,42 @@
       .catch(function () { return []; });
   }
 
+  function tdtSearchV2Front(keyword) {
+    var bounds = '73.66,3.86,135.05,53.55'; // 中国全境兜底
+    try {
+      var ml = window.map && window.map.__ml;
+      if (ml && ml.getBounds) {
+        var b = ml.getBounds();
+        bounds = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(function (v) { return v.toFixed(4); }).join(',');
+      }
+    } catch (e) { /* 地图未就绪用兜底视野 */ }
+    var postStr = encodeURIComponent(JSON.stringify({ keyWord: keyword, level: 12, mapBound: bounds, queryType: '1', start: 0, count: 10 }));
+    return fetch('https://api.tianditu.gov.cn/v2/search?postStr=' + postStr + '&type=query&tk=ee36c38eb7777006970a6e5597f7bae9')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var pois = (d && Array.isArray(d.pois)) ? d.pois : [];
+        return pois.map(function (p) {
+          var ll = String(p.lonlat || '').split(',');
+          return {
+            title: p.name || keyword,
+            lng: Number(ll[0]),
+            lat: Number(ll[1]),
+            address: p.address || p.name || '',
+            isExternal: true
+          };
+        }).filter(function (r) { return r.title && !isNaN(r.lng) && !isNaN(r.lat); });
+      })
+      .catch(function () { return []; })
+      .then(function (list) { return list.length ? list : tdtGeocodeFront(keyword); });
+  }
+
   function searchTiandituPlaces(keyword) {
     // 首选后端代理（混合地标+本地坐标，可选认证），失败/空结果时前端直调天地图
     // 返回 { results:  [{title,lng,lat,address,isExternal}], fallback: 天地图外部搜索入口 }
     var fallback = 'https://map.tianditu.gov.cn/#/search?key=' + encodeURIComponent(keyword);
     // 未登录：直接前端直调天地图（秒出结果，不等后端）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
-      return tdtGeocodeFront(keyword).then(function (extra) {
+      return tdtSearchV2Front(keyword).then(function (extra) {
         return { results: extra, fallback: fallback };
       });
     }
@@ -7064,14 +7095,14 @@
         }).filter(function(r) { return r.title && !isNaN(r.lng) && !isNaN(r.lat); });
         if (results.length > 0) return { results: results, fallback: fallback };
         // 后端无结果（如天地图服务端 Key 受限）→ 前端直调兜底
-        return tdtGeocodeFront(keyword).then(function (extra) {
+        return tdtSearchV2Front(keyword).then(function (extra) {
           return { results: extra, fallback: fallback };
         });
       })
       .catch(function(e) {
         console.warn('[search places]', e && e.message);
         // 后端不可达 → 前端直调天地图
-        return tdtGeocodeFront(keyword).then(function (extra) {
+        return tdtSearchV2Front(keyword).then(function (extra) {
           return { results: extra, fallback: fallback };
         });
       });
