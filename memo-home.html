@@ -8897,6 +8897,9 @@
             photoIds: [photoIds[0]],
             photoTimes: {},
             mode: uploadMode
+          }).then(function(created) {
+            if (uploadMode === 'work') syncWorkUploadToExplore(cp, coordLng, coordLat, pid);
+            return created;
           });
         });
       }).then(function() {
@@ -9278,6 +9281,51 @@
       }));
       localStorage.setItem('inspire_saved_snapshot', JSON.stringify(snap));
     } catch (e) {}
+  }
+
+  // 工作模式上传→探索模式同步（王总 2026-09-03 定：本地和探索同步上传；灵感模式上传形式不变）
+  function syncWorkUploadToExplore(cp, lng, lat, pid) {
+    try {
+      if (!exploreData || !Array.isArray(exploreData.coordinates)) return;
+      var title = String(cp.coord.title || '').slice(0, 50);
+      var photo = {
+        id: pid,
+        backendId: (typeof MemoAPI !== 'undefined' && MemoAPI.getPhotoBackendId) ? MemoAPI.getPhotoBackendId(pid) : null,
+        url: cp.photo.url || '',
+        thumbnailUrl: cp.photo.url || '',
+        color: seedColor(pid, EXPLORE_COLORS),
+        likes: 0, tips: 0, liked: false, tipped: false, collected: false,
+        uploadTime: Math.floor(Date.now() / 1000),
+        author: '@我',
+        authorAvatar: hashColor('@我'),
+        comments: []
+      };
+      var coord = null;
+      for (var i = 0; i < exploreData.coordinates.length; i++) {
+        if (exploreData.coordinates[i].title === title) { coord = exploreData.coordinates[i]; break; }
+      }
+      if (coord) {
+        if (!(coord.photos || []).some(function (p) { return p.id === pid; })) coord.photos.push(photo);
+        coord.photoCount = (coord.photoCount || 0) + 1;
+      } else {
+        coord = {
+          id: 'my_explore_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+          title: title,
+          lng: Number(lng), lat: Number(lat),
+          date: '', time: '', anchorTitle: title,
+          color: '#5E35B1', _remote: true,
+          authorId: (typeof MemoAPI !== 'undefined' && MemoAPI.getUserBackendId) ? (MemoAPI.getUserBackendId('@我') || '') : '',
+          authorName: '@我',
+          authorAvatar: hashColor('@我'),
+          photoCount: 1, likeCount: 0, thumbnails: [], boostAuthors: [],
+          photos: [photo]
+        };
+        exploreData.coordinates.push(coord);
+      }
+      if (exploreMode && typeof renderExploreMarkers === 'function') renderExploreMarkers(currentDetailLevel);
+      if (typeof syncMinePoolsSnapshot === 'function') syncMinePoolsSnapshot();
+      console.log('[explore] 工作模式上传已同步到探索模式：', title);
+    } catch (e) { console.warn('[explore] 同步失败（不打断上传）：', e && e.message); }
   }
 
   // 我的坐标池归属快照（王总 2026-09-03 定：三模式均为自己上传的坐标，按灵感池/探索池归属过滤）
