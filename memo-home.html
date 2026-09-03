@@ -10207,6 +10207,16 @@
       // v7 地球仪（王总拍板方案B）：MapLibre v5 globe 投影——缩小成星球、放大回平面；
       // 并发压档 16→6 + 低档预取收兵，治天地图 429 限流（真机截图实锤）
       if (maplibregl.setMaxParallelImageRequests) maplibregl.setMaxParallelImageRequests(6);
+      // v7.5 球面节流(A,王总拍板AB连招)：世界视图(z<5)并发压档 6→2——旋转一次上百发的请求洪峰直接减半再减半
+      var __gateCap = 6;
+      function __gateByZoom() {
+        try {
+          var z = ml.getZoom();
+          var cap = z < 5 ? 2 : 6;
+          if (cap !== __gateCap) { __gateCap = cap; maplibregl.setMaxParallelImageRequests(cap); }
+        } catch (_) {}
+      }
+
       var ml = new maplibregl.Map({
         container: 'amapContainer',
         style: {
@@ -10220,7 +10230,7 @@
           layers: [
             { id: 'bg', type: 'background', paint: { 'background-color': '#E8EEE8' } },
             { id: 'world-silhouette', type: 'fill', source: 'world', paint: { 'fill-color': '#cdd4cd', 'fill-opacity': 0.95 } },
-            { id: 'vec', type: 'raster', source: 'vec', paint: { 'raster-fade-duration': 300 } },
+            { id: 'vec', type: 'raster', source: 'vec', minzoom: 5, paint: { 'raster-fade-duration': 300 } },
             { id: 'cva', type: 'raster', source: 'cva', paint: { 'raster-fade-duration': 300 } }
           ]
         },
@@ -10261,6 +10271,8 @@
         __mlToast('地图引擎提示: ' + m);
       });
       ml.on('webglcontextlost', function () { __mlToast('显卡渲染上下文丢失，正在恢复…'); });
+      ml.on('zoom', __gateByZoom);
+      ml.on('movestart', __gateByZoom);
       // v7.4 预植让路：用户一动图就通知 SW 暂停底座预植(5s),不跟定位/浏览抢配额
       ml.on('movestart', function () {
         var c = navigator.serviceWorker && navigator.serviceWorker.controller;
@@ -10405,7 +10417,7 @@
       // 保证预载层任何异常都不会吞掉版本标识（v3 教训）。
       var __pv = document.createElement('div');
       __pv.className = 'map-prefetch-badge';
-      __pv.textContent = '引擎v7.4';
+      __pv.textContent = '引擎v7.5';
       var __pvHost = document.getElementById('amapContainer');
       if (__pvHost) __pvHost.appendChild(__pv);
 

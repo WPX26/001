@@ -90,7 +90,22 @@ async function preseedWorld(tk) {
     var cache = await caches.open(CACHE);
     if (await cache.match('mm://preseed-done')) return;
     var done = 0;
-    var plan = [['vec', 4], ['cva', 3]];
+    // v7.5：vec 层 minzoom=5(世界视图改用公版剪影)——vec 只预植 z5 中国窗；注记 cva 照旧 z1-3 全球
+    var plan = [['cva', 3]];
+    // z5 中国窗(经度73-135/纬度18-54)的 vec+cva，放大到 z5 首屏即命中
+    for (var z5 = 5; z5 <= 5; z5++) {
+      var x5a = 24, x5b = 29, y5a = 10, y5b = 15;
+      for (var lx = 0; lx < 2; lx++) {
+        var layer = lx === 0 ? 'vec' : 'cva';
+        for (var xx = x5a; xx <= x5b; xx++) for (var yy = y5a; yy <= y5b; yy++) {
+          var u5 = 'https://t0.tianditu.gov.cn/' + layer + '_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=' + layer + '&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX=' + z5 + '&TILEROW=' + yy + '&TILECOL=' + xx + '&tk=' + tk;
+          await yieldToUser();
+          if (await cache.match(u5)) { done++; continue; }
+          var r5 = await fetchWithRetry(u5);
+          if (r5 && r5.ok) { await cache.put(u5, r5.clone()); done++; }
+        }
+      }
+    }
     for (var li = 0; li < plan.length; li++) {
       var layer = plan[li][0], maxZ = plan[li][1];
       for (var z = 1; z <= maxZ; z++) {
