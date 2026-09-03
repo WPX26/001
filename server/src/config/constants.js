@@ -68,9 +68,9 @@ export const MEMBER_PLAN = {
   benefits: ['订阅即认证摄影师', '作品进入探索池展示', '照片上传不限量', '高清原图保存'],
 };
 
-/** 坐标置顶套餐（王总 2026-08-31 定稿：周卡6元/月卡60元，同坐标持卡期间不可叠加再买，半自动人工确认，与会员订单共用链路） */
+/** 坐标置顶套餐（王总定稿：周卡7元(2026-09-02 由6元改,与会员¥6错开防对账混淆)/月卡60元，同坐标持卡期间不可叠加再买，半自动人工确认，与会员订单共用链路） */
 export const BOOST_PLANS = {
-  week: { tier: 'week', planId: 'boost_coord_7d', planName: '坐标置顶·7天', amount: 600, period: 'week', days: 7 },
+  week: { tier: 'week', planId: 'boost_coord_7d', planName: '坐标置顶·7天', amount: 700, period: 'week', days: 7 },
   month: { tier: 'month', planId: 'boost_coord_30d', planName: '坐标置顶·30天', amount: 6000, period: 'month', days: 30 },
 };
 

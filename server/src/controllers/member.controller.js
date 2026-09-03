@@ -140,7 +140,7 @@ export const getOrder = asyncHandler(async (req, res) => {
 });
 
 /**
- * POST /explore/boost/order 购买坐标置顶（王总 2026-08-31 定稿：周卡6元/7天、月卡60元/30天，持卡期间不可叠加再买）
+ * POST /explore/boost/order 购买坐标置顶（王总 2026-08-31 定稿：周卡7元/7天、月卡60元/30天，持卡期间不可叠加再买）
  * - coordKey 校验（坐标须存在）；活跃席位拒绝重复购买（409）
  * - 与会员下单共用全局待确认幂等（一人一笔 pending）
  */
