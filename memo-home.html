@@ -10224,12 +10224,14 @@
           projection: { type: 'globe' },
           sources: {
             world: { type: 'geojson', data: 'lib/world-land.json' },
+            borders: { type: 'geojson', data: 'lib/world-borders.json' },
             vec: { type: 'raster', tiles: tdtTiles(TDT_URL), tileSize: 256, maxzoom: 18 },
             cva: { type: 'raster', tiles: tdtTiles(TDT_LABEL), tileSize: 256, maxzoom: 18 }
           },
           layers: [
-            { id: 'bg', type: 'background', paint: { 'background-color': '#E8EEE8' } },
-            { id: 'world-silhouette', type: 'fill', source: 'world', paint: { 'fill-color': '#cdd4cd', 'fill-opacity': 0.95 } },
+            { id: 'bg', type: 'background', paint: { 'background-color': '#f1dccc' } },
+            { id: 'world-silhouette', type: 'fill', source: 'world', paint: { 'fill-color': '#dcb2c7', 'fill-opacity': 0.98 } },
+            { id: 'world-borders', type: 'line', source: 'borders', maxzoom: 6, paint: { 'line-color': '#b58c69', 'line-width': { base: 1.2, stops: [[1, 0.5], [5, 1.8]] } } },
             { id: 'vec', type: 'raster', source: 'vec', minzoom: 5, paint: { 'raster-fade-duration': 300 } },
             { id: 'cva', type: 'raster', source: 'cva', paint: { 'raster-fade-duration': 300 } }
           ]
