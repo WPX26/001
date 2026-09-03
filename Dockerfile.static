@@ -20,7 +20,7 @@ FROM nginx:1.27-alpine
 # 注意：phone-link-prototype.html 已下线（2026-08-18 清理，功能已并入 connect-prototype.html），勿恢复 COPY
 # [2026-09-02 冻结] 互联模块移出本版（备份库：互联备份库-20260902）：camera-prototype/connect-prototype/camera-ptp/usb-transport/browser-usb-transport/bridge-transport 的 COPY 一并移除
 COPY album-prototype.html \
-     login-prototype.html memo-home.html message-prototype.html \
+     login-prototype.html memo-home.html message-prototype.html maplab.html \
      photographer-payment.html profile-prototype.html register-prototype.html \
      admin.html \
      /usr/share/nginx/html/

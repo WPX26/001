@@ -3386,9 +3386,15 @@
   @keyframes boostUp { from { transform: translateY(30%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   .boost-popup-title { font-size: 32rem; font-weight: 700; color: #222; }
   .boost-popup-sub { margin-top: 8rem; font-size: 22rem; color: #888; }
-  .boost-popup-price { margin-top: 18rem; font-size: 40rem; font-weight: 700; color: #E89020; }
-  .boost-popup-price small { font-size: 22rem; font-weight: 500; color: #999; margin-left: 8rem; }
-  .boost-gate-tip { margin-top: 12rem; font-size: 21rem; color: #C62828; line-height: 1.5; }
+  .boost-tiers { display: flex; gap: 14rem; margin-top: 18rem; }
+  .boost-tier {
+    flex: 1; border: 2rem solid #eee; padding: 18rem 0; text-align: center;
+    display: flex; flex-direction: column; gap: 6rem; cursor: pointer;
+  }
+  .boost-tier b { font-size: 38rem; font-weight: 700; color: #E89020; }
+  .boost-tier small { font-size: 20rem; color: #999; }
+  .boost-tier span { font-size: 20rem; color: #5E35B1; font-weight: 600; }
+  .boost-tier.selected { border-color: #5E35B1; background: rgba(94,53,177,0.06); }
   .boost-pay-qr { display: none; margin-top: 20rem; text-align: center; }
   .boost-pay-qr img { width: 320rem; height: 320rem; object-fit: contain; border: 1rem solid #eee; }
   .boost-order-no { margin-top: 12rem; font-size: 22rem; color: #333; }
@@ -3974,8 +3980,10 @@
           <div class="boost-popup-body">
             <div class="boost-popup-title" id="boostPopupTitle">坐标置顶</div>
             <div class="boost-popup-sub" id="boostPopupSub"></div>
-            <div class="boost-popup-price">¥6<small>置顶 7 天</small></div>
-            <div class="boost-gate-tip" id="boostGateTip" style="display:none;"></div>
+            <div class="boost-tiers">
+              <div class="boost-tier selected" data-tier="week"><b>¥6</b><small>置顶 7 天</small><span>周卡</span></div>
+              <div class="boost-tier" data-tier="month"><b>¥60</b><small>置顶 30 天</small><span>月卡·每轮排最前</span></div>
+            </div>
             <div class="boost-pay-qr" id="boostPayQr">
               <img id="boostQrImg" alt="收款码" />
               <div class="boost-order-no">付款请备注订单号：<b id="boostOrderNo"></b></div>
@@ -8047,7 +8055,6 @@
   const boostPopupEl = document.getElementById('boostPopup');
   const boostPopupTitleEl = document.getElementById('boostPopupTitle');
   const boostPopupSubEl = document.getElementById('boostPopupSub');
-  const boostGateTipEl = document.getElementById('boostGateTip');
   const boostPayQrEl = document.getElementById('boostPayQr');
   const boostQrImgEl = document.getElementById('boostQrImg');
   const boostOrderNoEl = document.getElementById('boostOrderNo');
@@ -8059,27 +8066,31 @@
 
   function stopBoostPoll() { if (boostPollTimer) { clearInterval(boostPollTimer); boostPollTimer = null; } }
 
+  let boostSelectedTier = 'week';
   function openBoostPopup(coord) {
-    const myPhotos = (coord.photos || []).filter(p => p.author === '@我');
-    const myLikes = myPhotos.reduce((s, p) => s + (Number(p.likes) || 0), 0);
     boostContext = { coordKey: coord.title };
+    boostSelectedTier = 'week';
     boostPopupTitleEl.textContent = '「' + coord.title + '」置顶';
-    boostPopupSubEl.textContent = '置顶期间你的作品席位列最前；越早续买越靠前';
+    boostPopupSubEl.textContent = '月卡每轮排最前，周卡紧随其后；持卡期间同坐标不可再买';
     boostWaitEl.textContent = '已通知商家，确认后置顶立即生效…';
     boostPayQrEl.style.display = 'none';
     boostPayBtnEl.style.display = '';
-    if (myLikes >= 1) {
-      boostGateTipEl.style.display = 'none';
-      boostPayBtnEl.disabled = false;
-    } else {
-      boostGateTipEl.style.display = '';
-      boostGateTipEl.textContent = '作品需先获得至少1个赞，才能购买置顶';
-      boostPayBtnEl.disabled = true;
-    }
+    boostPayBtnEl.disabled = false;
+    document.querySelectorAll('#boostPopup .boost-tier').forEach(el => {
+      el.classList.toggle('selected', el.dataset.tier === 'week');
+    });
     boostPopupEl.classList.add('show');
   }
 
   function closeBoostPopup() { stopBoostPoll(); boostPopupEl.classList.remove('show'); }
+
+  // 档位选择（周卡/月卡：同坐标持卡期间不可叠加再买）
+  document.querySelectorAll('#boostPopup .boost-tier').forEach(el => {
+    el.addEventListener('click', () => {
+      boostSelectedTier = el.dataset.tier;
+      document.querySelectorAll('#boostPopup .boost-tier').forEach(x => x.classList.toggle('selected', x === el));
+    });
+  });
 
   boostCancelBtnEl.addEventListener('click', closeBoostPopup);
   boostPopupEl.addEventListener('click', (e) => { if (e.target === boostPopupEl) closeBoostPopup(); });
@@ -8088,7 +8099,7 @@
     if (!boostContext) return;
     boostPayBtnEl.disabled = true;
     try {
-      const d = await memoApiPost('/explore/boost/order', { coordKey: boostContext.coordKey });
+      const d = await memoApiPost('/explore/boost/order', { coordKey: boostContext.coordKey, tier: boostSelectedTier });
       boostQrImgEl.src = d.payeeQrCodeUrl;
       boostOrderNoEl.textContent = d.orderNo;
       boostPayQrEl.style.display = '';
@@ -8106,7 +8117,7 @@
               const key = 'explore_boost_' + boostContext.coordKey;
               const arr = JSON.parse(localStorage.getItem(key) || '[]');
               const untilSec = o.expireAt ? Math.floor(new Date(o.expireAt).getTime() / 1000) : Math.floor(Date.now() / 1000) + 7 * 86400;
-              arr.push({ author: '@我', start: Math.floor(Date.now() / 1000), until: untilSec });
+              arr.push({ author: '@我', start: Math.floor(Date.now() / 1000), until: untilSec, tier: boostSelectedTier });
               localStorage.setItem(key, JSON.stringify(arr));
             } catch (e) {}
             boostWaitEl.textContent = '✓ 置顶已生效，作品已列最前';
@@ -8175,15 +8186,20 @@
     const __all = Object.values(authorGroups);
     const __st = {};
     __all.forEach(g => { __st[g.author] = __authorStats(g); });
-    // 付费席队列：boost 记录 [{author, start, until}]，未过期的按购买先后排（排位赛：后买靠前，王总定案 C>B>A）
-    let __paidQ = [];
+    // 付费席队列：按档位分池（月>周），未过期的按购买先后排（排位赛：后买靠前）
+    let __mQ = [];
+    let __wQ = [];
     try {
       const __boosts = JSON.parse(localStorage.getItem('explore_boost_' + __coordKey) || '[]');
-      const __local = __boosts.filter(b => Number(b.until) > __now).sort((a, b) => b.start - a.start).map(b => b.author);
-      // 远程席位（后端 ExploreBoost 注入，按确认时间序=排位赛「后买靠前」）优先，本地演示/未同步席位补充
-      const __remote = Array.isArray(coord.boostAuthors) ? coord.boostAuthors.filter(n => __st[n]) : [];
-      __paidQ = __remote.concat(__local.filter(a => __remote.indexOf(a) === -1)).filter(a => __st[a]);
-    } catch (e) { __paidQ = []; }
+      const __live = __boosts.filter(b => Number(b.until) > __now);
+      const __byTier = (t) => __live.filter(b => (b.tier || 'week') === t).sort((a, b) => b.start - a.start).map(b => b.author);
+      // 远程席位（后端注入 {month:[],week:[]}）优先，本地演示/未同步席位补充
+      const __rm = coord.boostAuthors && typeof coord.boostAuthors === 'object' ? coord.boostAuthors : null;
+      const __rmM = __rm ? (__rm.month || []).filter(n => __st[n]) : [];
+      const __rmW = __rm ? (__rm.week || []).filter(n => __st[n]) : [];
+      __mQ = __rmM.concat(__byTier('month').filter(a => __rmM.indexOf(a) === -1)).filter(a => __st[a]);
+      __wQ = __rmW.concat(__byTier('week').filter(a => __rmW.indexOf(a) === -1)).filter(a => __st[a]);
+    } catch (e) { __mQ = []; __wQ = []; }
     // 高赞席队列：总赞降序，平赞按最近发布降序（至少获赞1才入高赞席，与付费席真实作品原则呼应）
     const __hotQ = __all.filter(g => __st[g.author].likes >= 1).sort((a, b) => {
       const s = __st[b.author].likes - __st[a.author].likes;
@@ -8212,23 +8228,24 @@
         if (__bi > -1) __newQ.splice(__bi, 1);
       }
     }
-    // 三席循环取人（paid → hot → new，每轮各取一名未用作者，队列空则跳过）
-    const __queues = { paid: __paidQ, hot: __hotQ, new: __newQ };
+    // 五席循环取人（月 → 周 → 高赞 → 最新 → 高赞，每轮各席取一名未用作者，队列空则跳过；王总 2026-08-31 定稿）
+    const __queues = { m: __mQ, w: __wQ, hot: __hotQ, neu: __newQ };
     const __used = {};
     const __ranked = [];
-    const __qi = { paid: 0, hot: 0, new: 0 };
-    const __maxLen = Math.max(__paidQ.length, __hotQ.length, __newQ.length);
-    ['paid', 'hot', 'new'].forEach(() => {
-      for (let r = 0; r < __maxLen; r++) {
-        ['paid', 'hot', 'new'].forEach(ln => {
-          const q = __queues[ln];
-          while (__qi[ln] < q.length) {
-            const a = q[__qi[ln]]; __qi[ln]++;
-            if (!__used[a]) { __used[a] = true; __ranked.push(a); break; }
-          }
-        });
+    const __qi = { m: 0, w: 0, hot: 0, neu: 0 };
+    const __cycle = ['m', 'w', 'hot', 'neu', 'hot'];
+    while (__ranked.length < __all.length) {
+      let __took = false;
+      for (let __ci = 0; __ci < __cycle.length; __ci++) {
+        const __ln = __cycle[__ci];
+        const __q = __queues[__ln];
+        while (__qi[__ln] < __q.length) {
+          const a = __q[__qi[__ln]]; __qi[__ln]++;
+          if (!__used[a]) { __used[a] = true; __ranked.push(a); __took = true; break; }
+        }
       }
-    });
+      if (!__took) break;
+    }
     // 剩余作者（未入任何席位的：非 24h 内、被惩罚期等）按总赞排尾
     __all.filter(g => !__used[g.author]).sort((a, b) => __st[b.author].likes - __st[a.author].likes)
       .forEach(g => __ranked.push(g.author));
@@ -10056,6 +10073,25 @@
             }
           }
         });
+        // 2026-09-03 放大预载：当前档+1 的屏幕中心 3×3 瓦片提前进缓存。
+        // 放大是最常用操作、加载慢主要慢在这——点按/捏合放大一级时中心区域即刻命中缓存。
+        var zn = Math.min(17, Math.round(map.getZoom()) + 1);
+        if (zn >= 6) {
+          var cxn = tx(c.lng, zn), cyn = ty(c.lat, zn);
+          var subs = TILE_OPTS.subdomains;
+          for (var ax = -1; ax <= 1; ax++) {
+            for (var ay = -1; ay <= 1; ay++) {
+              var px = cxn + ax, py = cyn + ay;
+              if (py < 0 || py >= Math.pow(2, zn)) continue;
+              var psub = subs[(((px + py) % subs.length) + subs.length) % subs.length];
+              var purl = TDT_URL.replace('{s}', psub).replace('{z}', zn).replace('{x}', px).replace('{y}', py);
+              if (__pfSeen[purl]) continue;
+              __pfSeen[purl] = 1;
+              var pim = new Image();
+              pim.src = purl;
+            }
+          }
+        }
       }
       map.on('moveend', function () { setTimeout(prefetchWideArea, 400); });
       setTimeout(prefetchWideArea, 1500);
