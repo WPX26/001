@@ -1070,6 +1070,7 @@
 
   // 加载真实通知（分页拉全，原型数据量小）
   function loadRealNotifications() {
+    if (memoDemoModeOn()) return; // 演示模式：使用内置演示通知（正式上线前删除）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     var all = [];
     function loadPage(page) {
@@ -1101,7 +1102,7 @@
     if (realUnreadTotal > 0) realUnreadTotal -= 1;
     renderMessages();
     updateBadges();
-    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    if (memoDemoModeOn() || typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return; // 演示模式：已读仅本地
     MemoAPI.put('/notifications/' + encodeURIComponent(msg.id) + '/read').catch(function (e) {
       console.warn('[mark read]', e && e.message);
       msg.unread = true;
@@ -1461,7 +1462,7 @@
     chatPeerName.textContent = conv.peerName || '私信';
     chatPeerAvatar.style.backgroundImage = '';
     chatPeerAvatar.style.background = 'linear-gradient(135deg, #F0A040, #D4691C)';
-    chatBubbles = (DEMO_CHAT_MESSAGES[conv.conversationId] || []).slice();
+    chatBubbles = (DEMO_CHAT_MESSAGES[conv.conversationId] || DEMO_CHAT_MESSAGES['demo-conv-1']).slice();
     renderChatMessages(chatBubbles);
     chatPanel.classList.add('show');
     setTimeout(function () { chatInput.focus(); }, 320);
@@ -1685,6 +1686,7 @@
 
   // 重拉当前会话历史（重连成功兜底；服务已持久化，直接替换，乐观发送的已入库消息也含在内）
   function reloadChatHistory() {
+    if (memoDemoModeOn()) return; // 演示模式：对话在本地（正式上线前删除）
     if (!chatConvId) return;
     MemoAPI.get('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages?limit=50')
       .then(function (data) { applyChatHistory(data); })
@@ -1704,6 +1706,11 @@
    * POST /chat/conversations 幂等创建/获取 → 打开面板 → GET 历史（正序渲染）→ PUT /read 会话已读
    */
   function openChatConversation(msg) {
+    if (memoDemoModeOn()) {
+      // 演示模式：打开内置演示对话（正式上线前删除）
+      openDemoChat({ conversationId: 'demo-conv-' + (msg.actorId || 'x'), peerName: msg.name });
+      return;
+    }
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn() || !msg.actorId) {
       showToast('📩 查看与「' + msg.name + '」的对话');   // 原占位行为
       return;
@@ -1728,6 +1735,11 @@
     chatBubbles.push(bubble);
     renderChatMessages(chatBubbles);
     chatSend.disabled = true;
+    if (memoDemoModeOn()) {
+      // 演示模式：本地回显不入库（正式上线前删除）
+      chatSend.disabled = false;
+      return;
+    }
     MemoAPI.post('/chat/conversations/' + encodeURIComponent(chatConvId) + '/messages', { type: 'text', content: text })
       .then(function () {
         // 成功：乐观气泡保留（内容与后端一致）；会话列表摘要/时间跟进
@@ -1824,13 +1836,14 @@
   renderMessages();
   loadRealNotifications();
   loadConversations();
-  ensureChatSocket();
+  if (!memoDemoModeOn()) ensureChatSocket();
 
   // ?peer=<userId> 深链：他人主页[私信]/地图主页[私信]带参跳入 → 幂等建会话 → 直接开聊
   (function handlePeerDeepLink() {
     try {
       var peer = new URLSearchParams(location.search).get('peer');
       if (!peer) return;
+      if (memoDemoModeOn()) { openDemoChat({ conversationId: 'demo-conv-' + peer, peerName: '演示影友' }); return; } // 演示模式
       if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) { showToast('请先登录后再发起私信'); return; }
       MemoAPI.post('/chat/conversations', { peerId: peer })
         .then(function (conv) { openChatByConversation(conv); })

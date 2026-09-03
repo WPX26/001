@@ -2906,6 +2906,7 @@
 
   // 拉取回收站（type=all 一次拉全，列表与统计共用；失败回退本地模拟）
   function loadTrash() {
+    if (demoModeOn()) return; // 演示模式：使用本地模拟回收站（正式上线前删除）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/photos/trash?type=all&pageSize=100').then(function (data) {
       if (!data) return;
@@ -3410,6 +3411,19 @@
     followListItems.innerHTML = '<div class="follow-list-empty">加载中...</div>';
     showView('followlist');
     refreshFollowBadges();
+    if (demoModeOn()) {
+      // 演示模式：内置演示名单（正式上线前删除）
+      followListUsers = [
+        { id: 'demo-u1', nickname: '山城光影', bio: '街头与人文，扫街十年', isPhotographer: true },
+        { id: 'demo-u2', nickname: '林间鹿', bio: '自然风光 | 徒步爱好者', isPhotographer: true },
+        { id: 'demo-u3', nickname: '海边拾光', bio: '大海与落日，常驻青岛', isPhotographer: false },
+        { id: 'demo-u4', nickname: '胶片老周', bio: '只用胶片机的老派摄影师', isPhotographer: true },
+        { id: 'demo-u5', nickname: '麦子', bio: '拍娃党，记录成长', isPhotographer: false }
+      ];
+      followListMyFollowIds = new Set(['demo-u1', 'demo-u2', 'demo-u3']);
+      renderFollowItems();
+      return;
+    }
     const me = (typeof MemoAPI !== 'undefined' && MemoAPI.isLoggedIn()) ? MemoAPI.getUser() : null;
     if (!me || !me.id) {
       followListItems.innerHTML = '<div class="follow-list-empty">请先登录</div>';
@@ -3471,6 +3485,7 @@
         const was = btn.classList.contains('followed');
         btn.classList.toggle('followed', !was);
         btn.querySelector('span').textContent = was ? '关注' : '已关注';
+        if (demoModeOn()) { showToast(was ? '已取消关注' : '已关注'); return; } // 演示模式：本地切换
         (was ? MemoAPI.del('/users/' + uid + '/follow') : MemoAPI.post('/users/' + uid + '/follow', {}))
           .then(function (res) {
             if (res && res.isFollowed !== undefined) {
@@ -3577,6 +3592,29 @@
     peerProfileCoords.innerHTML = '<div class="peer-profile-empty">加载中...</div>';
     setPeerFollowBtn(false);
     peerProfile.classList.add('show');
+    if (demoModeOn()) {
+      // 演示模式：内置演示资料与作品（正式上线前删除）
+      var demoThumb = function (c1, c2) {
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/></linearGradient></defs><rect width="300" height="400" fill="url(#g)"/></svg>'); 
+      };
+      peerProfileBio.textContent = '坐标与光影记录者，走过 23 座城';
+      peerProfileLikeCount.textContent = '86';
+      peerProfileFollowingCount.textContent = '52';
+      peerProfileFollowerCount.textContent = '134';
+      setPeerFollowBtn(false);
+      var demoTitles = ['晨雾的山脊', '巷口的猫', '老城黄昏', '海边栈桥'];
+      var demoPairs = [['#F2B85C', '#A85628'], ['#7BC4A2', '#2E6E55'], ['#8FB8E8', '#3A5F8A'], ['#E8A0A8', '#8A3A4A']];
+      var grid = '';
+      demoTitles.forEach(function (t, i) {
+        var u = demoThumb(demoPairs[i][0], demoPairs[i][1]);
+        grid += '<div class="pp-card" data-img="' + u + '" data-title="' + t + '"><div class="pp-card-cover" style="background-image:url(\'' + u + '\');"></div><div class="pp-card-mask"></div><div class="pp-card-title">' + t + '</div><div class="pp-card-likes">♡ ' + (12 + i * 7) + '</div></div>';
+      });
+      peerProfileCoords.innerHTML = grid;
+      peerProfileCoords.querySelectorAll('.pp-card').forEach(function (el) {
+        el.addEventListener('click', function () { openPpPreview(el.dataset.img, el.dataset.title, ''); });
+      });
+      return;
+    }
 
     MemoAPI.get('/users/' + uid + '/profile').then(function (p) {
       if (!p || !p.id) return;
@@ -3691,6 +3729,7 @@
     setPeerFollowBtn(!was);
     const cur = parseInt(peerProfileFollowerCount.textContent, 10);
     if (!isNaN(cur)) peerProfileFollowerCount.textContent = Math.max(0, cur + (was ? -1 : 1));
+    if (demoModeOn()) { showToast(was ? '已取消关注' : '已关注'); return; } // 演示模式：本地切换
     (was ? MemoAPI.del('/users/' + currentPeer.id + '/follow') : MemoAPI.post('/users/' + currentPeer.id + '/follow', {}))
       .then(function (res) {
         if (res && res.isFollowed !== undefined) {
@@ -4612,6 +4651,7 @@
   // 已登录：拉取真实兑换记录与剩余时长（GET /invite/my-usage），覆盖邀请码区提示；
   // 失败/未登录保持本地"我的邀请码"逻辑（2026-08-14 真实化）
   function loadInviteUsage() {
+    if (demoModeOn()) return; // 演示模式：使用本地邀请码（正式上线前删除）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     // 我的普通邀请码（每用户唯一，真实后端生成；替换本地哈希造码）
     MemoAPI.post('/invite/my-code', {}).then(function (mine) {
@@ -4699,6 +4739,7 @@
    * - 服务不可达（err.network）→ 回退本地模拟，保证原型可离线演示
    */
   function redeemInviteCodeReal(code, isVip, fallback) {
+    if (demoModeOn()) { fallback(); return; } // 演示模式：走本地模拟兑换（正式上线前删除）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.getToken()) {
       // App 内置浏览器（web-view）内：显式 full=1 全屏打开登录页；Web 端不带参
       window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
