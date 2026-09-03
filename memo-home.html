@@ -10057,10 +10057,53 @@
         dragRotate: false,
         pitchWithRotate: false,
         touchPitch: false,
-        maxPitch: 0
+        maxPitch: 0,
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
       });
       var listeners = {};
       function fire(type, evt) { (listeners[type] || []).forEach(function (fn) { fn(evt); }); }
+      // ===== v6.1 稳定性补丁（2026-09-03 王总反馈：连续缩小后卡死）=====
+      // ① 渲染看门狗：rAF 断流(画面停摆)自动 resize 唤醒；动画卡滞 20s 强制 stop
+      // ② 诊断上报：引擎错误/上下文丢失 → 屏内角标提示，真机复现可截图回传
+      // （弱机 A/B 实测：DPR3 下滤镜+WebGL 合成是主要卡顿源，pixelRatio 压档 3→2 像素量 -44%）
+      function __mlToast(msg) {
+        try {
+          var t = document.getElementById('__mlDiagToast');
+          if (!t) {
+            t = document.createElement('div');
+            t.id = '__mlDiagToast';
+            t.style.cssText = 'position:absolute;left:50%;bottom:180rem;transform:translateX(-50%);z-index:9;pointer-events:none;background:rgba(0,0,0,0.55);color:#fff;font-size:10rem;line-height:1.4;padding:4rem 10rem;border-radius:8rem;max-width:80%;opacity:0;transition:opacity .3s';
+            (document.getElementById('amapContainer') || document.body).appendChild(t);
+          }
+          t.textContent = msg;
+          t.style.opacity = '1';
+          clearTimeout(t.__tm);
+          t.__tm = setTimeout(function () { t.style.opacity = '0'; }, 4000);
+        } catch (_) {}
+      }
+      ml.on('error', function (e) {
+        var m = e && e.error && e.error.message || '未知';
+        __mlToast('地图引擎提示: ' + m);
+      });
+      ml.on('webglcontextlost', function () { __mlToast('显卡渲染上下文丢失，正在恢复…'); });
+      if (!window.__mlWatchdog) {
+        window.__mlWatchdog = setInterval(function () {
+          try {
+            if (document.hidden) return;
+            var inst = window.map && window.map.__ml;
+            if (!inst) return;
+            var frames = 0;
+            requestAnimationFrame(function () { frames++; });
+            setTimeout(function () {
+              var still = inst.isMoving && inst.isMoving();
+              if (frames === 0 && !still) { inst.resize(); window.__mlDiag = (window.__mlDiag || 0) + 1; }
+            }, 300);
+            if (still && !inst._movingSince) inst._movingSince = performance.now();
+            if (!still) inst._movingOnce = 0;
+            if (inst._movingSince && performance.now() - inst._movingSince > 20000) { inst.stop(); inst._movingSince = 0; }
+          } catch (_) {}
+        }, 1500);
+      }
       ml.on('moveend', function () { fire('moveend', {}); });
       ml.on('zoomend', function () { fire('zoomend', {}); });
       ml.on('click', function (e) {
