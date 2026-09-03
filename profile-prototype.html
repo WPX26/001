@@ -3868,6 +3868,7 @@
    * - 失败（服务不可达/业务错误）：保持本地模拟逻辑，页面不崩（按 api.js 约定只 console 提示）
    */
   function loadMemberStatus() {
+    if (demoModeOn()) { serverStatusLoaded = false; return; } // 演示模式：以本地模拟状态为准
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/member/status').then(function (data) {
       if (!data) return;
@@ -4056,6 +4057,23 @@
 
   // 订阅 / 取消订阅
   subscribeBtn.addEventListener('click', () => {
+    if (demoModeOn()) {
+      // 演示模式：一键模拟开通，不进支付页、不发真实订单（正式上线前删除）
+      if (!isMember) {
+        isMember = true;
+        memberMonths += 1;
+        isPhotographer = true;
+        serverStatusLoaded = false;
+        localStorage.setItem(MEMBER_KEY, '1');
+        localStorage.setItem(MEMBER_MONTHS_KEY, String(memberMonths));
+        localStorage.setItem(PHOTOGRAPHER_KEY, '1');
+        showToast('🎬 演示模式：会员开通成功（未真实扣款）');
+      } else {
+        showToast('演示模式：会员已开通');
+      }
+      refreshMemberUI();
+      return;
+    }
     if (serverStatusLoaded) {
       // 真实模式（后端状态）：订阅=付费 → 跳转订阅支付页；取消订阅 → 关闭自动续费
       if (!isMember) {

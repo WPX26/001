@@ -992,16 +992,25 @@
   }
 
   /* 本地模拟成功（仅服务不可达时的兜底，保持原型可离线演示） */
-  function mockPaySuccess() {
+  function mockPaySuccess(demo) {
     setTimeout(function () {
       localStorage.setItem('profile_photographer', '1');
-      alert('✅ 支付成功！你已加冕为王');
+      if (demo) {
+        localStorage.setItem('profile_member', '1');
+        localStorage.setItem('profile_member_months', '1');
+      }
+      alert((demo ? '🎬 演示模式：' : '✅ ') + '支付成功！你已加冕为王' + (demo ? '（未真实扣款）' : ''));
       window.location.href = 'profile-prototype.html?upgraded=1';
-    }, 2000);
+    }, demo ? 300 : 2000);
   }
 
   /* ========== 下单：POST /member/order ========== */
   function confirmPayment() {
+    if (localStorage.getItem('memomap_demo_mode') === '1' || localStorage.getItem('profile_demo_mode') === '1') {
+      // 演示模式：不真实下单，直接模拟支付成功（正式上线前删除）
+      mockPaySuccess(true);
+      return;
+    }
     // 已登录校验：未登录 → 跳登录页（真实对接要求）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.getToken()) {
       window.location.href = 'login-prototype.html';
