@@ -1596,6 +1596,49 @@
     transition: text-shadow 0.2s ease, color 0.2s ease;
   }
 
+  /* 坐标点三模式切换器（本地/灵感/探索；王总 2026-09-03 定） */
+  .myhome-mode-tabs {
+    display: flex;
+    gap: 10rem;
+    margin-bottom: 14rem;
+  }
+  .myhome-mode-tab {
+    flex: 1;
+    text-align: center;
+    padding: 10rem 0;
+    font-size: 13rem;
+    color: rgba(245, 223, 192, 0.6);
+    background: rgba(245, 223, 192, 0.06);
+    border: 1rem solid rgba(245, 223, 192, 0.12);
+    border-radius: 999rem;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    user-select: none;
+  }
+  .myhome-mode-tab.active {
+    color: #1c0f08;
+    background: #F0A040;
+    border-color: #F0A040;
+    font-weight: 700;
+  }
+  .myhome-coord-rank {
+    flex-shrink: 0;
+    margin-left: auto;
+    margin-right: 8rem;
+    padding: 3rem 10rem;
+    font-size: 11rem;
+    color: #B39DDB;
+    background: rgba(94, 53, 177, 0.12);
+    border: 1rem solid rgba(94, 53, 177, 0.3);
+    border-radius: 999rem;
+    white-space: nowrap;
+  }
+  .myhome-coord-rank.dim {
+    color: rgba(245, 223, 192, 0.4);
+    background: transparent;
+    border-color: rgba(245, 223, 192, 0.12);
+  }
+
   /* 统计栏三视图容器（随 myhome-scroll 统一滚动；底部留白避开凸起相机按钮） */
   .myhome-tabview {
     padding: 10rem 16rem 96rem;
@@ -2328,6 +2371,13 @@
 
             <!-- 视图一：坐标点列表（卡片 = 序号+名称+最新拍摄时间+定位键，下方三栏照片网格） -->
             <div class="myhome-tabview" id="myHomeTabCoord">
+              <!-- 三模式切换（王总 2026-09-03 定：本地坐标/灵感坐标/探索坐标；排名仅自己可见） -->
+              <div class="myhome-mode-tabs">
+                <div class="myhome-mode-tab active" data-mode="local">本地坐标</div>
+                <div class="myhome-mode-tab" data-mode="inspire">灵感坐标</div>
+                <div class="myhome-mode-tab" data-mode="explore">探索坐标</div>
+              </div>
+              <div id="myHomeModeLocal">
               <!-- 搜索栏：输入城市或准确地点 → 其他坐标点隐藏 -->
               <div class="myhome-search">
                 <svg class="myhome-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2338,6 +2388,13 @@
               </div>
               <div id="myHomeCoordsList">
                 <!-- 由JS动态生成 -->
+              </div>
+              </div>
+              <div id="myHomeModeInspire" style="display:none;">
+                <div id="myHomeInspireList"><!-- 灵感坐标由JS生成 --></div>
+              </div>
+              <div id="myHomeModeExplore" style="display:none;">
+                <div id="myHomeExploreList"><!-- 探索坐标由JS生成 --></div>
               </div>
             </div>
 
@@ -4246,6 +4303,81 @@
   });
 
   // 统计栏三 tab 切换：点击项文字+数字泛起光晕（持续光晕=激活项），下方切换三视图
+  // 坐标点三模式（王总 2026-09-03 定：本地坐标/灵感坐标/探索坐标；探索排名仅自己可见）
+  const myHomeModeViews = { local: 'myHomeModeLocal', inspire: 'myHomeModeInspire', explore: 'myHomeModeExplore' };
+  function renderMyHomeInspireList() {
+    const container = document.getElementById('myHomeInspireList');
+    let snap = [];
+    try { snap = JSON.parse(localStorage.getItem('inspire_saved_snapshot') || '[]'); } catch (e) { snap = []; }
+    if (!snap.length) {
+      container.innerHTML = '<div style="text-align:center;color:rgba(245,223,192,0.5);padding:40px 0;font-size:13px;">暂无收藏的灵感坐标（在地图灵感模式中收藏后显示在这里）</div>';
+      return;
+    }
+    container.innerHTML = snap.map((c, i) => `
+      <div class="myhome-coord-card">
+        <div class="myhome-coord-card-header">
+          <div class="myhome-coord-idx">${i + 1}</div>
+          <div class="myhome-coord-name">${escapeHtml(c.title || '未命名灵感')}</div>
+          <button class="myhome-coord-locate" title="定位到此坐标">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'}</button>
+        </div>
+      </div>`).join('');
+    container.querySelectorAll('.myhome-coord-card').forEach((card, i) => {
+      const c = snap[i];
+      card.querySelector('.myhome-coord-locate').addEventListener('click', () => {
+        if (c && isFinite(c.lng) && isFinite(c.lat)) {
+          window.location.href = 'memo-home.html?locate=' + c.lng + ',' + c.lat + '&level=3';
+        }
+      });
+    });
+  }
+  function renderMyHomeExploreList() {
+    const container = document.getElementById('myHomeExploreList');
+    let ranks = {};
+    try { ranks = JSON.parse(localStorage.getItem('explore_myrank') || '{}'); } catch (e) { ranks = {}; }
+    const list = getMyHomeData();
+    list.sort((a, b) => (b.latestTs || 0) - (a.latestTs || 0));
+    if (!list.length) {
+      container.innerHTML = '<div style="text-align:center;color:rgba(245,223,192,0.5);padding:40px 0;font-size:13px;">暂无探索坐标点</div>';
+      return;
+    }
+    container.innerHTML = list.map((cg, i) => {
+      const rank = ranks[cg.title];
+      const rankHtml = rank
+        ? '<div class="myhome-coord-rank">我的排名：第 ' + rank + ' 位</div>'
+        : '<div class="myhome-coord-rank dim">打开探索弹窗后更新</div>';
+      const fullTitle = (cg.cityPrefix ? cg.cityPrefix + '·' : '') + cg.title;
+      return `
+        <div class="myhome-coord-card">
+          <div class="myhome-coord-card-header">
+            <div class="myhome-coord-idx">${i + 1}</div>
+            <div class="myhome-coord-name" title="${escapeHtml(fullTitle)}">${escapeHtml(fullTitle)}</div>
+            ${rankHtml}
+            <button class="myhome-coord-locate" title="定位到此坐标">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'}</button>
+          </div>
+        </div>`;
+    }).join('');
+    container.querySelectorAll('.myhome-coord-card').forEach((card, i) => {
+      const cg = list[i];
+      card.querySelector('.myhome-coord-locate').addEventListener('click', () => {
+        if (isFinite(cg.lng) && isFinite(cg.lat)) {
+          window.location.href = 'memo-home.html?locate=' + cg.lng + ',' + cg.lat + '&level=3';
+        }
+      });
+    });
+  }
+  document.querySelectorAll('.myhome-mode-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.myhome-mode-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const mode = tab.dataset.mode;
+      Object.keys(myHomeModeViews).forEach(k => {
+        document.getElementById(myHomeModeViews[k]).style.display = k === mode ? '' : 'none';
+      });
+      if (mode === 'inspire') renderMyHomeInspireList();
+      else if (mode === 'explore') renderMyHomeExploreList();
+    });
+  });
+
   const myHomeTabViews = { coord: 'myHomeTabCoord', photo: 'myHomeTabPhoto', like: 'myHomeTabLike' };
   document.querySelectorAll('.myhome-stat.clickable[data-tab]').forEach(stat => {
     stat.addEventListener('click', () => {

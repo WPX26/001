@@ -3406,6 +3406,8 @@
   .boost-tier b { font-size: 38rem; font-weight: 700; color: #E89020; }
   .boost-tier small { font-size: 20rem; color: #999; }
   .boost-tier span { font-size: 20rem; color: #5E35B1; font-weight: 600; }
+  .boost-expect-tip { font-size: 20rem; color: #999; text-align: center; padding: 10rem 24rem 2rem; line-height: 1.5; }
+  .author-rank-badge { display: inline-block; margin-left: 12rem; padding: 2rem 12rem; font-size: 18rem; color: #5E35B1; background: rgba(94,53,177,0.08); border: 1rem solid rgba(94,53,177,0.25); border-radius: 999rem; vertical-align: middle; }
   .boost-tier.selected { border-color: #5E35B1; background: rgba(94,53,177,0.06); }
   .boost-pay-qr { display: none; margin-top: 20rem; text-align: center; }
   .boost-pay-qr img { width: 320rem; height: 320rem; object-fit: contain; border: 1rem solid #eee; }
@@ -3999,6 +4001,7 @@
               <div class="boost-tier selected" data-tier="week"><b>¥7</b><small>置顶 7 天</small><span>周卡</span></div>
               <div class="boost-tier" data-tier="month"><b>¥60</b><small>置顶 30 天</small><span>月卡·每轮排最前</span></div>
             </div>
+            <div class="boost-expect-tip">现买即同档第1位；后续有人买，位置会后移；到期后可再买</div>
             <div class="boost-pay-qr" id="boostPayQr">
               <img id="boostQrImg" alt="收款码" />
               <div class="boost-order-no">付款请备注订单号：<b id="boostOrderNo"></b></div>
@@ -8285,6 +8288,15 @@
     let html = '';
     // 自己是否已置顶中（三赛道付费席）
     const __myBoostActive = __paidQ.indexOf('@我') !== -1;
+    // 我的排名（仅自己可见：徽章画在@我卡上，快照供主页探索坐标模式读取）
+    const __myRankIdx = sortedAuthors.findIndex(g => g.author === '@我');
+    try {
+      if (__myRankIdx !== -1) {
+        const __snap = JSON.parse(localStorage.getItem('explore_myrank') || '{}');
+        __snap[coord.title] = __myRankIdx + 1;
+        localStorage.setItem('explore_myrank', JSON.stringify(__snap));
+      }
+    } catch (__e) {}
 
     sortedAuthors.forEach((group, idx) => {
       const photos = group.photos;
@@ -8317,6 +8329,7 @@
             <div class="author-group-info">
               <div class="author-name">${group.author}</div>
               <div class="author-meta">${photos.length} 张作品 · 共获 ${photos.reduce((s,p) => s + p.likes, 0)} 赞</div>
+              ${group.author === '@我' && __myRankIdx !== -1 ? '<span class="author-rank-badge">我的第' + (__myRankIdx + 1) + '位</span>' : ''}
             </div>
             ${group.author === '@我' ? (__myBoostActive
               ? '<span class="author-boost-badge">👑 置顶中</span>'
@@ -9248,12 +9261,27 @@
     };
     savedRedMarkers.push(saved);
     renderSavedMarkers(currentDetailLevel);
+    syncInspireSavedSnapshot();
     return saved;
+  }
+
+  // 灵感收藏快照：供我的主页·灵感坐标模式读取（跨页共享）
+  function syncInspireSavedSnapshot() {
+    try {
+      const snap = savedRedMarkers.map(m => ({
+        id: m.sourceCoordId,
+        title: (m.sourceCoord && (m.sourceCoord.title || m.sourceCoord._title)) || '未命名灵感',
+        lng: m.sourceCoord && m.sourceCoord.lng,
+        lat: m.sourceCoord && m.sourceCoord.lat
+      }));
+      localStorage.setItem('inspire_saved_snapshot', JSON.stringify(snap));
+    } catch (e) {}
   }
 
   function removeSavedMarker(savedId) {
     savedRedMarkers = savedRedMarkers.filter(m => m.id !== savedId);
     renderSavedMarkers(currentDetailLevel);
+    syncInspireSavedSnapshot();
   }
 
   // 灵感弹窗导航按钮
