@@ -154,13 +154,18 @@ export const createBoostOrder = asyncHandler(async (req, res) => {
   const coord = await Coord.findOne({ title: coordKey, deletedAt: null });
   if (!coord) throw new AppError(ERR.NOT_FOUND, '坐标不存在', 404);
 
-  // 已有活跃席位：续买被拒（续买顺延在管理端确认时发生）
-  const activeBoost = await ExploreBoost.exists({
+  // 已有活跃席位：同档续买被拒（持卡期间不可叠加）；周卡期内可升级月卡
+  // （tier 升档 + until 顺延在管理端确认时发生——王总 2026-09-02 定稿）
+  const activeBoost = await ExploreBoost.findOne({
     coordKey,
     authorId: userId,
     until: { $gt: new Date() },
-  });
-  if (activeBoost) throw new AppError(ERR.DUPLICATE, '该坐标已置顶中，无需重复购买', 409);
+  })
+    .select('tier')
+    .lean();
+  if (activeBoost && !(activeBoost.tier === 'week' && tier === 'month')) {
+    throw new AppError(ERR.DUPLICATE, '该坐标已置顶中，无需重复购买', 409);
+  }
 
   // 惰性过期：超 48h 未确认的旧单置 expired
   await expireStaleOrders(userId);

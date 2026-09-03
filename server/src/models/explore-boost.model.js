@@ -12,7 +12,7 @@ const exploreBoostSchema = new mongoose.Schema(
     coordKey: { type: String, required: true, index: true }, // 坐标标题（Coord.title）
     authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     orderId: { type: String, required: true, index: true }, // 关联 MemberOrder.orderId
-    tier: { type: String, enum: ['week', 'month'], default: 'week' }, // 席位档位（五席循环：月>周>高赞>最新>高赞）
+    tier: { type: String, enum: ['week', 'month'], default: 'week' }, // 席位档位（三层排序：月卡层>周卡层>免费层）
     start: { type: Date, required: true }, // 席位起始（=最近一次确认时刻，排位赛依据）
     until: { type: Date, required: true, index: true }, // 席位到期
     status: { type: String, enum: ['active'], default: 'active' },

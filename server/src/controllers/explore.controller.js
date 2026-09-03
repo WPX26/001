@@ -13,6 +13,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { pagination, paginated } from '../utils/pagination.js';
 import { haversineKm, radiusDelta, radiusMaxKm } from '../utils/geo.js';
 import { User, Coord, Photo, ExploreBoost } from '../models/index.js';
+import { breadthFactor } from '../utils/rank-score.js';
 
 /** 探索池候选坐标上限（批量过滤摄影师后内存分组排序分页） */
 const COORD_CANDIDATE_LIMIT = 1000;
@@ -108,6 +109,34 @@ export const exploreCoords = asyncHandler(async (req, res) => {
     for (const a of likeAgg) likeByCoord.set(String(a._id), a.likes || 0);
   }
 
+  // 活跃置顶席位（王总 2026-09-02 定稿）：一次取全候选坐标，供作者组排序/组内坐标排序/席位桶共用
+  const allTitles = [...new Set(coords.map((c) => c.title))];
+  const activeBoosts = allTitles.length
+    ? await ExploreBoost.find({ coordKey: { $in: allTitles }, until: { $gt: new Date() } })
+        .sort({ start: -1 })
+        .populate('authorId', 'nickname')
+        .lean()
+    : [];
+  const TIER_RANK = { month: 2, week: 1 };
+  const boostByCoord = new Map(); // coordKey -> { month:[{name,start,authorId}], week:[...] }
+  const authorTierScore = new Map(); // authorId -> 2/1/0（作者组排序用）
+  const authorBoostTitles = new Map(); // authorId -> Map(coordKey -> tierRank)
+  for (const b of activeBoosts) {
+    const aid = String(b.authorId?._id || '');
+    const name = b.authorId ? b.authorId.nickname : '';
+    if (name) {
+      const bucket = boostByCoord.get(b.coordKey) || { month: [], week: [] };
+      (b.tier === 'month' ? bucket.month : bucket.week).push({ name, start: b.start, authorId: aid });
+      boostByCoord.set(b.coordKey, bucket);
+    }
+    if (aid) {
+      const rk = TIER_RANK[b.tier] || 0;
+      if ((authorTierScore.get(aid) || 0) < rk) authorTierScore.set(aid, rk);
+      if (!authorBoostTitles.has(aid)) authorBoostTitles.set(aid, new Map());
+      authorBoostTitles.get(aid).set(b.coordKey, rk);
+    }
+  }
+
   // 按作者分组
   const byAuthor = new Map();
   for (const c of coords) {
@@ -121,19 +150,26 @@ export const exploreCoords = asyncHandler(async (req, res) => {
     g.coordCount = g.coords.length;
     g.photoCount = g.coords.reduce((s, c) => s + (c.photoCount || 0), 0);
     g.totalLikes = g.coords.reduce((s, c) => s + (likeByCoord.get(String(c._id)) || 0), 0);
-    // 组内坐标按热度（获赞数）倒序
-    g.coords.sort(
-      (a, b) =>
+    // 组内坐标（王总 2026-09-02 定稿）：置顶席位优先（月>周）→ 热度（获赞数）→ 时间
+    const myBoostTitles = authorBoostTitles.get(String(g.user._id)) || new Map();
+    g.coords.sort((a, b) => {
+      const ta = myBoostTitles.get(a.title) || 0;
+      const tb = myBoostTitles.get(b.title) || 0;
+      return (
+        tb - ta ||
         (likeByCoord.get(String(b._id)) || 0) - (likeByCoord.get(String(a._id)) || 0) ||
         new Date(b.createdAt) - new Date(a.createdAt)
-    );
+      );
+    });
   }
 
-  // 作者排序：已关注优先 → 作品数（照片数）→ 热度（获赞数）
+  // 作者排序（王总 2026-09-02 定稿）：置顶档位优先（月卡>周卡）→ 已关注 → 作品数 → 热度
   groups.sort((a, b) => {
+    const ta = authorTierScore.get(String(a.user._id)) || 0;
+    const tb = authorTierScore.get(String(b.user._id)) || 0;
     const fa = followingSet.has(String(a.user._id)) ? 0 : 1;
     const fb = followingSet.has(String(b.user._id)) ? 0 : 1;
-    return fa - fb || b.photoCount - a.photoCount || b.totalLikes - a.totalLikes;
+    return tb - ta || fa - fb || b.photoCount - a.photoCount || b.totalLikes - a.totalLikes;
   });
 
   const total = groups.length;
@@ -166,21 +202,23 @@ export const exploreCoords = asyncHandler(async (req, res) => {
     ps.sort((a, b) => (b.likes || 0) - (a.likes || 0));
   }
 
-  // 置顶席位注入：本页坐标的活跃 boost，按档位分池、各池按 start 倒序（后买靠前）
-  const pageCoordTitles = [...new Set(pageGroups.flatMap((g) => g.coords.map((c) => c.title)))];
-  const activeBoosts = pageCoordTitles.length
-    ? await ExploreBoost.find({ coordKey: { $in: pageCoordTitles }, until: { $gt: new Date() } })
-        .sort({ start: -1 })
-        .populate('authorId', 'nickname')
-        .lean()
-    : [];
-  const boostByCoord = new Map();
-  for (const b of activeBoosts) {
-    const name = b.authorId ? b.authorId.nickname : '';
-    if (!name) continue;
-    const bucket = boostByCoord.get(b.coordKey) || { month: [], week: [] };
-    (b.tier === 'month' ? bucket.month : bucket.week).push(name);
-    boostByCoord.set(b.coordKey, bucket);
+  // 席位桶档内排序（王总 2026-09-02 定稿）：档内公式 = 热度×(1+min(0.5×覆盖率,0.5))，
+  // 探索页以「作者组总赞 × 组坐标数/页内总坐标数」近似簇级覆盖率（簇级精确覆盖率在
+  // GET /map/markers 聚合接口实现）；同分后买靠前（start 倒序兜底）。
+  const groupByAuthorId = new Map(pageGroups.map((g) => [String(g.user._id), g]));
+  const pageCoordTotal = pageGroups.reduce((acc, g) => acc + g.coordCount, 0) || 1;
+  for (const bucket of boostByCoord.values()) {
+    const scoreOf = (e) => {
+      const g = groupByAuthorId.get(e.authorId);
+      const likes = g ? g.totalLikes : 0;
+      const covered = g ? g.coordCount : 1;
+      return likes * breadthFactor(covered, pageCoordTotal);
+    };
+    const cmp = (a, b) => scoreOf(b) - scoreOf(a) || new Date(b.start).getTime() - new Date(a.start).getTime();
+    bucket.month.sort(cmp);
+    bucket.week.sort(cmp);
+    bucket.month = bucket.month.map((e) => e.name);
+    bucket.week = bucket.week.map((e) => e.name);
   }
 
   const coordsFlat = [];

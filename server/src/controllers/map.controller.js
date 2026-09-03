@@ -11,7 +11,13 @@ import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { gridKeyExpr, haversineKm, escapeRegex } from '../utils/geo.js';
-import { Coord, Photo } from '../models/index.js';
+import { Coord, Photo, User, ExploreBoost } from '../models/index.js';
+import {
+  boostScore,
+  freeScore,
+  interleaveFreshSlots,
+  FRESH_SLOT_WINDOW_MS,
+} from '../utils/rank-score.js';
 import { tdtGeocode, tdtReverse } from '../services/tdt.service.js';
 import regions from '../data/regions.js';
 
@@ -59,6 +65,8 @@ export const getMarkers = asyncHandler(async (req, res) => {
         title: 1,
         lng: 1,
         lat: 1,
+        authorId: 1,
+        createdAt: 1,
         cell: gridKeyExpr('$lng', '$lat', grid),
       },
     },
@@ -67,6 +75,8 @@ export const getMarkers = asyncHandler(async (req, res) => {
         _id: '$cell',
         ids: { $push: '$_id' },
         titles: { $push: '$title' },
+        authorIds: { $push: '$authorId' },
+        createdAts: { $push: '$createdAt' },
         count: { $sum: 1 },
         avgLng: { $avg: '$lng' },
         avgLat: { $avg: '$lat' },
@@ -80,7 +90,7 @@ export const getMarkers = asyncHandler(async (req, res) => {
   const photos = allCoordIds.length
     ? await Photo.find({ coordId: { $in: allCoordIds }, deletedAt: null })
         .sort({ takenAt: -1 })
-        .select('coordId thumbnailUrl takenAt')
+        .select('coordId thumbnailUrl takenAt uploadTime')
         .limit(1000)
         .lean()
     : [];
@@ -91,39 +101,163 @@ export const getMarkers = asyncHandler(async (req, res) => {
 
   const color = MARKER_COLOR[mode] || MARKER_COLOR.normal;
 
-  const markers = cells.map((cell, i) => {
-    const coordIds = cell.ids.map(String);
-    // 单点：直接返回坐标
-    if (cell.count === 1) {
-      const cid = coordIds[0];
-      const photo = thumbByCoord.get(cid);
+  // ── 聚合点三层排序（王总 2026-09-02 定稿；仅探索模式生效，其余模式维持原排序）──
+  // 簇内：月卡层 > 周卡层 > 免费层；档内 PK = 热度×(1+min(0.5×覆盖率,0.5))，同分后买靠前；
+  //       免费层 × 新鲜系数 × 新人系数，每 6 席保底穿插 1 席 24h 内最新发表；
+  // 簇代表 = 最高档内公式第一名（聚合点标题与首缩略图取代表）；
+  // 簇间 = 含月卡簇 > 仅周卡簇 > 纯免费簇，同档比簇内公式最高分，再比点数。
+  const isExplore = mode === 'explore';
+  const nowMs = Date.now();
+  const TIER_RANK = { month: 2, week: 1 };
+
+  let ranked = null; // [{ cell, index, orderedIds, representative, cellTier, cellScore }]
+  if (isExplore) {
+    // 每坐标获赞总数（一次聚合，勿 N+1）
+    const likeByCoord = new Map();
+    if (allCoordIds.length) {
+      const likeRows = await Photo.aggregate([
+        { $match: { coordId: { $in: allCoordIds }, deletedAt: null } },
+        { $group: { _id: '$coordId', likes: { $sum: '$likes' } } },
+      ]);
+      for (const r of likeRows) likeByCoord.set(String(r._id), r.likes || 0);
+    }
+    // 活跃置顶席位（boost 挂在工作池坐标，坐标标题为键）
+    const cellTitles = [...new Set(cells.flatMap((c) => c.titles))];
+    const boostByKey = new Map(); // coordKey|authorId -> boost
+    if (cellTitles.length) {
+      const boosts = await ExploreBoost.find({
+        coordKey: { $in: cellTitles },
+        until: { $gt: new Date(nowMs) },
+      })
+        .select('coordKey authorId tier start until')
+        .lean();
+      for (const b of boosts) boostByKey.set(`${b.coordKey}|${String(b.authorId)}`, b);
+    }
+    // 作者注册时间（新人系数）
+    const coordAuthorIds = [...new Set(cells.flatMap((c) => c.authorIds.map(String)))];
+    const createdAtByAuthor = new Map(
+      (await User.find({ _id: { $in: coordAuthorIds } }).select('createdAt').lean()).map((u) => [
+        String(u._id),
+        u.createdAt,
+      ])
+    );
+
+    ranked = cells.map((cell, index) => {
+      const total = cell.count;
+      // 作者在本簇覆盖点数（覆盖率分子）
+      const coveredByAuthor = new Map();
+      cell.authorIds.forEach((aid) => {
+        const k = String(aid);
+        coveredByAuthor.set(k, (coveredByAuthor.get(k) || 0) + 1);
+      });
+      const meta = cell.ids.map((cid, idx) => {
+        const idStr = String(cid);
+        const aidStr = String(cell.authorIds[idx]);
+        const boost = boostByKey.get(`${cell.titles[idx]}|${aidStr}`) || null;
+        const likes = likeByCoord.get(idStr) || 0;
+        const covered = coveredByAuthor.get(aidStr) || 1;
+        const photo = thumbByCoord.get(idStr);
+        const publishedAt = photo?.uploadTime || cell.createdAts?.[idx] || null;
+        const score = boost
+          ? boostScore({ likes, covered, total })
+          : freeScore({
+              likes,
+              covered,
+              total,
+              publishedAt,
+              authorCreatedAt: createdAtByAuthor.get(aidStr),
+              now: nowMs,
+            });
+        return {
+          key: idStr,
+          id: idStr,
+          title: cell.titles[idx],
+          boost,
+          likes,
+          publishedAt,
+          score,
+          thumbnailUrl: photo?.thumbnailUrl || null,
+        };
+      });
+      const boosted = meta
+        .filter((m) => m.boost)
+        .sort(
+          (a, b) =>
+            (TIER_RANK[b.boost.tier] || 0) - (TIER_RANK[a.boost.tier] || 0) ||
+            b.score - a.score ||
+            new Date(b.boost.start).getTime() - new Date(a.boost.start).getTime()
+        );
+      const free = meta.filter((m) => !m.boost).sort((a, b) => b.score - a.score || b.likes - a.likes);
+      const freshPool = free
+        .filter(
+          (m) => m.publishedAt && nowMs - new Date(m.publishedAt).getTime() <= FRESH_SLOT_WINDOW_MS
+        )
+        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+      const orderedIds = [
+        ...boosted.map((m) => m.id),
+        ...interleaveFreshSlots(free, freshPool, nowMs).map((m) => m.id),
+      ];
+      const top = boosted[0] || free[0] || null;
       return {
-        id: cid,
-        title: cell.titles[0],
+        cell,
+        index,
+        orderedIds,
+        representative: top,
+        cellTier: boosted[0] ? boosted[0].boost.tier : null,
+        cellScore: top ? top.score : 0,
+      };
+    });
+    ranked.sort(
+      (a, b) =>
+        (TIER_RANK[b.cellTier] || 0) - (TIER_RANK[a.cellTier] || 0) ||
+        b.cellScore - a.cellScore ||
+        b.cell.count - a.cell.count
+    );
+  }
+
+  const markers = (ranked || cells.map((cell, index) => ({ cell, index }))).map(
+    ({ cell, index, orderedIds, representative, cellTier }) => {
+      const coordIds = cell.ids.map(String);
+      // 单点：直接返回坐标
+      if (cell.count === 1) {
+        const cid = coordIds[0];
+        const photo = thumbByCoord.get(cid);
+        return {
+          id: cid,
+          title: cell.titles[0],
+          lng: cell.avgLng,
+          lat: cell.avgLat,
+          count: 1,
+          color,
+          isClustered: false,
+          latestPhotoTime: photo?.takenAt || null,
+          ...(isExplore && cellTier ? { boostTier: cellTier } : {}),
+        };
+      }
+      // 聚合点：探索模式簇代表打头（标题/首缩略图），子坐标按三层定稿排序
+      const thumbSource = isExplore
+        ? [
+            representative?.thumbnailUrl,
+            ...orderedIds.map((id) => thumbByCoord.get(id)?.thumbnailUrl),
+          ]
+        : coordIds.map((id) => thumbByCoord.get(id)?.thumbnailUrl);
+      const thumbnailUrls = [...new Set(thumbSource.filter(Boolean))].slice(0, 2);
+      return {
+        id: `cluster_${index + 1}`,
+        title: `${(isExplore ? representative?.title : null) || cell.titles[0]}及周边`,
         lng: cell.avgLng,
         lat: cell.avgLat,
-        count: 1,
+        count: cell.count,
         color,
-        isClustered: false,
-        latestPhotoTime: photo?.takenAt || null,
+        isClustered: true,
+        subCoordIds: isExplore ? orderedIds : coordIds,
+        ...(isExplore
+          ? { representativeId: representative?.id || coordIds[0], boostTier: cellTier || null }
+          : {}),
+        thumbnailUrls,
       };
     }
-    // 聚合点：取前 2 张不同坐标的缩略图
-    const thumbnailUrls = [
-      ...new Set(coordIds.map((id) => thumbByCoord.get(id)?.thumbnailUrl).filter(Boolean)),
-    ].slice(0, 2);
-    return {
-      id: `cluster_${i + 1}`,
-      title: `${cell.titles[0]}及周边`,
-      lng: cell.avgLng,
-      lat: cell.avgLat,
-      count: cell.count,
-      color,
-      isClustered: true,
-      subCoordIds: coordIds,
-      thumbnailUrls,
-    };
-  });
+  );
 
   ok(res, markers);
 });

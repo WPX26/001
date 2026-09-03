@@ -8198,27 +8198,49 @@
     const __now = Math.floor(Date.now() / 1000);
     const __coordKey = coord.id || coord.title;
     function __photoTime(p) { return Number(p && (p.uploadTime || p.createdAt || p.timeSec)) || 0; }
-    // 作者统计：总赞 / 最近发布 / 本轮入组时间（24h 内最早一次发布——重发不刷新，即「锁位」）
+    // 作者统计：总赞 / 最近发布 / 本坐标作品数（覆盖率分子）/ 首次发布（新人近似）
     function __authorStats(g) {
-      let likes = 0, newest = 0, entry = 0;
+      let likes = 0, newest = 0, first = 0;
       g.photos.forEach(p => {
         const t = __photoTime(p);
         likes += Number(p.likes) || 0;
         if (t > newest) newest = t;
-        if (t && __now - t < 24 * 3600 && (!entry || t < entry)) entry = t;
+        if (t && (!first || t < first)) first = t;
       });
-      return { likes, newest, entry };
+      return { likes, newest, count: g.photos.length, first };
     }
     const __all = Object.values(authorGroups);
     const __st = {};
     __all.forEach(g => { __st[g.author] = __authorStats(g); });
-    // 付费席队列：按档位分池（月>周），未过期的按购买先后排（排位赛：后买靠前）
-    let __mQ = [];
-    let __wQ = [];
+    const __groupOf = {};
+    __all.forEach(g => { __groupOf[g.author] = g; });
+    const __totalPhotos = __all.reduce((s2, g) => s2 + __st[g.author].count, 0) || 1;
+    // ── 排序公式（王总 2026-09-02 定稿：三层排序，取代五席循环）──
+    // 广度加成 1 + min(0.5×覆盖率, 0.5)：弹窗内以「本坐标作品占比」近似簇内点覆盖率
+    function __breadth(c) { return 1 + Math.min(0.5 * (c / __totalPhotos), 0.5); }
+    // 新鲜系数：24h×4 → 3天×3 → 7天×2 → 30天×1 → 更久×0.6
+    function __fresh(t) {
+      const age = __now - (t || 0);
+      if (!t || age < 0) return 1;
+      if (age < 86400) return 4;
+      if (age < 3 * 86400) return 3;
+      if (age < 7 * 86400) return 2;
+      if (age < 30 * 86400) return 1;
+      return 0.6;
+    }
+    // 新人系数：本坐标首次发布 ≤30 天 ×1.3（注册时间前端不可得，以首次发布近似）
+    function __newer(a) { const f = __st[a].first; return f && __now - f <= 30 * 86400 ? 1.3 : 1; }
+    function __paidScore(a) { return __st[a].likes * __breadth(__st[a].count); }
+    function __freeScore(a) { return __paidScore(a) * __fresh(__st[a].newest) * __newer(a); }
+    // 第一梯队 月卡层 / 第二梯队 周卡层：档内按公式分排（远程桶已按后端公式排好，
+    // 本地席位按公式补排序，同分后买靠前——start 倒序兜底）
+    let __mQ = [], __wQ = [];
     try {
       const __boosts = JSON.parse(localStorage.getItem('explore_boost_' + __coordKey) || '[]');
       const __live = __boosts.filter(b => Number(b.until) > __now);
-      const __byTier = (t) => __live.filter(b => (b.tier || 'week') === t).sort((a, b) => b.start - a.start).map(b => b.author);
+      const __byTier = (t) => __live.filter(b => (b.tier || 'week') === t)
+        .sort((a, b) => (__paidScore(b.author) - __paidScore(a.author)) || (b.start - a.start))
+        .map(b => b.author);
       // 远程席位（后端注入 {month:[],week:[]}）优先，本地演示/未同步席位补充
       const __rm = coord.boostAuthors && typeof coord.boostAuthors === 'object' ? coord.boostAuthors : null;
       const __rmM = __rm ? (__rm.month || []).filter(n => __st[n]) : [];
@@ -8226,63 +8248,40 @@
       __mQ = __rmM.concat(__byTier('month').filter(a => __rmM.indexOf(a) === -1)).filter(a => __st[a]);
       __wQ = __rmW.concat(__byTier('week').filter(a => __rmW.indexOf(a) === -1)).filter(a => __st[a]);
     } catch (e) { __mQ = []; __wQ = []; }
-    // 高赞席队列：总赞降序，平赞按最近发布降序（至少获赞1才入高赞席，与付费席真实作品原则呼应）
-    const __hotQ = __all.filter(g => __st[g.author].likes >= 1).sort((a, b) => {
-      const s = __st[b.author].likes - __st[a.author].likes;
-      return s !== 0 ? s : __st[b.author].newest - __st[a.author].newest;
-    }).map(g => g.author);
-    // 最新席队列：24h 内发过作品的作者，按入组时间倒序（后入组在上=新挤旧；重发不刷新=锁位）
-    // 霸榜惩罚：连续 72h 占最新席榜首 → 7 天内不得入最新席
-    let __crown = {};
-    try { __crown = JSON.parse(localStorage.getItem('explore_crown_' + __coordKey) || '{}'); } catch (e) { __crown = {}; }
-    const __newQ = __all
-      .filter(g => __st[g.author].entry && !(__crown[g.author] && Number(__crown[g.author].bannedUntil) > __now))
-      .sort((a, b) => __st[b.author].entry - __st[a.author].entry)
-      .map(g => g.author);
-    // 触发霸榜惩罚检查（针对当前最新席榜首）
-    if (__newQ.length) {
-      const __top = __newQ[0];
-      const __c = __crown[__top];
-      if (!__c || !Number(__c.since)) {
-        __crown[__top] = { since: __now };
-        try { localStorage.setItem('explore_crown_' + __coordKey, JSON.stringify(__crown)); } catch (e) {}
-      } else if (__now - Number(__c.since) > 72 * 3600) {
-        __crown[__top] = { bannedUntil: __now + 7 * 86400 };
-        try { localStorage.setItem('explore_crown_' + __coordKey, JSON.stringify(__crown)); } catch (e) {}
-        // 惩罚即刻生效：榜首逐出最新席（本轮落尾，按总赞排）
-        const __bi = __newQ.indexOf(__top);
-        if (__bi > -1) __newQ.splice(__bi, 1);
-      }
-    }
-    // 五席循环取人（月 → 周 → 高赞 → 最新 → 高赞，每轮各席取一名未用作者，队列空则跳过；王总 2026-08-31 定稿）
-    const __queues = { m: __mQ, w: __wQ, hot: __hotQ, neu: __newQ };
-    const __used = {};
-    const __ranked = [];
-    const __qi = { m: 0, w: 0, hot: 0, neu: 0 };
-    const __cycle = ['m', 'w', 'hot', 'neu', 'hot'];
-    while (__ranked.length < __all.length) {
-      let __took = false;
-      for (let __ci = 0; __ci < __cycle.length; __ci++) {
-        const __ln = __cycle[__ci];
-        const __q = __queues[__ln];
-        while (__qi[__ln] < __q.length) {
-          const a = __q[__qi[__ln]]; __qi[__ln]++;
-          if (!__used[a]) { __used[a] = true; __ranked.push(a); __took = true; break; }
-        }
-      }
-      if (!__took) break;
-    }
-    // 剩余作者（未入任何席位的：非 24h 内、被惩罚期等）按总赞排尾
-    __all.filter(g => !__used[g.author]).sort((a, b) => __st[b.author].likes - __st[a.author].likes)
-      .forEach(g => __ranked.push(g.author));
-    // 已关注作者整体置顶（保持三赛道相对顺序）
-    const __groupOf = {};
-    __all.forEach(g => { __groupOf[g.author] = g; });
-    const sortedAuthors = __ranked.map(a => __groupOf[a]).filter(Boolean)
+    const __paidSet = {};
+    __mQ.concat(__wQ).forEach(a => { __paidSet[a] = true; });
+    // 第三梯队 免费层：公式分（热度×广度×新鲜×新人）降序；已关注作者在免费层内置顶
+    const __freeQ = __all.filter(g => !__paidSet[g.author])
       .sort((a, b) => {
         const af = followedUsers.includes(a.author), bf = followedUsers.includes(b.author);
-        return af === bf ? 0 : (af ? -1 : 1);
-      });
+        if (af !== bf) return af ? -1 : 1;
+        return __freeScore(b.author) - __freeScore(a.author) || __st[b.author].newest - __st[a.author].newest;
+      })
+      .map(g => g.author);
+    // 保底穿插（王总定稿）：免费层每 6 席插 1 席「24h 内最新发表」，纯按时间不论赞数，零赞也露脸
+    const __freshPool = __all
+      .filter(g => !__paidSet[g.author] && __st[g.author].newest && __now - __st[g.author].newest < 86400)
+      .sort((a, b) => __st[b.author].newest - __st[a.author].newest)
+      .map(g => g.author);
+    const __freeRanked = [];
+    const __emitted = {};
+    let __fi = 0;
+    for (let i = 0; i < __freeQ.length; i++) {
+      const a = __freeQ[i];
+      if (__emitted[a]) continue; // 已借保底位提前露脸，主队列不再二刷
+      __emitted[a] = true;
+      __freeRanked.push(a);
+      if ((i + 1) % 6 === 0 && __fi < __freshPool.length) {
+        const f = __freshPool[__fi++];
+        if (!__emitted[f]) { __emitted[f] = true; __freeRanked.push(f); }
+      }
+    }
+    __freshPool.forEach(f => { if (!__emitted[f]) { __emitted[f] = true; __freeRanked.push(f); } });
+    // 三层合流：月卡层 → 周卡层 → 免费层（含保底穿插）；兜底漏网作者按总赞排尾
+    const __ranked = __mQ.concat(__wQ, __freeRanked);
+    __all.forEach(g => { if (__ranked.indexOf(g.author) === -1) __ranked.push(g.author); });
+    const sortedAuthors = __ranked.map(a => __groupOf[a]).filter(Boolean);
+    const __paidQ = __mQ.concat(__wQ);
     let html = '';
     // 自己是否已置顶中（三赛道付费席）
     const __myBoostActive = __paidQ.indexOf('@我') !== -1;
