@@ -7,10 +7,12 @@
 <script>
 import memoApi from '../../utils/memoApi'
 import { MEMO_HOME_URL } from '../../utils/config'
+import webviewBack from '../../utils/webview-back'
 
 // 首页：1:1 嵌入原型 memo-home.html（主地图）
 // 登录态由原型自身处理（未登录时原型内跳登录页），登录成功经 postMessage 同步回 App
 export default {
+  mixins: [webviewBack],
   data() {
     return {
       webSrc: '',
@@ -23,22 +25,7 @@ export default {
     this.buildWebSrc()
     uni.$emit('tab-change', 0)
   },
-  onBackPress() {
-    // Android 物理返回键：web-view 内部（H5 页面跳转历史）有可回退页时先回退 H5，
-    // 否则交给系统默认行为（首页即退出 App），避免返回键直接退出或行为错乱
-    // #ifdef APP-PLUS
-    try {
-      const wv = plus.webview.currentWebview().children()[0]
-      if (wv && wv.canBack && wv.canBack()) {
-        wv.back()
-        return true
-      }
-    } catch (e) {}
-    // #endif
-    return false
-  },
-
-  methods: {
+  methods: {  methods: {
     buildWebSrc() {
       const token = memoApi.getToken()
       const sep = MEMO_HOME_URL.indexOf('?') >= 0 ? '&' : '?'

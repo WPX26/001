@@ -1994,43 +1994,67 @@
     0%, 100% { transform: scale(1); opacity: 1; }
     50% { transform: scale(0.92); opacity: 0.75; }
   }
-  /* 雷达模式提示条（紫色系，区别于探索/灵感） */
+  /* 雷达模式提示条（深色科技扫描风，区别于探索/灵感） */
   .radar-banner {
     position: absolute;
     top: 80rem; left: 50%;
     transform: translateX(-50%);
-    background: linear-gradient(135deg, #7C4DFF, #4527A0);
-    color: white;
-    padding: 8rem 14rem;
+    background: linear-gradient(180deg, rgba(24,14,48,0.96), rgba(18,10,38,0.88));
+    color: #e8e0ff;
+    padding: 9rem 14rem;
     border-radius: 20rem;
+    border: 1rem solid rgba(159,107,255,0.45);
     font-size: 12rem;
-    font-weight: 600;
     z-index: 20;
-    box-shadow: 0 4rem 14rem rgba(124, 77, 255, 0.45);
+    box-shadow: 0 6rem 22rem rgba(0,0,0,0.55), 0 0 24rem rgba(124,77,255,0.28);
+    backdrop-filter: blur(10px);
     display: none;
     align-items: center;
-    gap: 6rem;
+    gap: 9rem;
     white-space: nowrap;
-    max-width: 78%;
+    max-width: 82%;
   }
   .radar-banner.show { display: flex; }
-  .radar-banner svg { width: 14rem; height: 14rem; flex-shrink: 0; }
-  .radar-banner span { overflow: hidden; text-overflow: ellipsis; }
+  /* 雷达图标：圆盘 + 扫描扇形旋转 */
+  .radar-ico {
+    position: relative;
+    width: 28rem; height: 28rem;
+    border-radius: 50%;
+    border: 2rem solid #9f6bff;
+    background: radial-gradient(circle at 50% 50%, #3a1f6e 0%, #180b33 72%);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .radar-ico::before {
+    content: ''; position: absolute; inset: 4rem;
+    border-radius: 50%;
+    border: 1rem solid rgba(159,107,255,0.55);
+  }
+  .radar-ico .sweep {
+    position: absolute; inset: 2rem;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(159,107,255,0.95), transparent 70deg, transparent);
+    animation: radarSweep 2.2s linear infinite;
+  }
+  @keyframes radarSweep { to { transform: rotate(360deg); } }
+  .radar-banner-txt { flex: 1; min-width: 0; line-height: 1.4; }
+  .radar-banner-t1 { font-size: 13.5rem; font-weight: 800; color: #efe8ff; letter-spacing: 0.5rem; }
+  .radar-banner-txt span { display: block; font-size: 10.5rem; color: #9f93c8; overflow: hidden; text-overflow: ellipsis; }
   .radar-banner-close {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 16rem; height: 16rem;
-    margin-left: 4rem;
+    width: 20rem; height: 20rem;
+    flex-shrink: 0;
     opacity: 0.7;
     cursor: pointer;
     border-radius: 50%;
+    background: rgba(255,255,255,0.08);
     transition: opacity 0.2s;
-    flex-shrink: 0;
   }
   .radar-banner-close:hover { opacity: 1; }
   .radar-banner-close svg { width: 12rem; height: 12rem; }
-  /* 雷达范围圈（Leaflet path 样式） */
+  /* 雷达范围圈（Leaflet path 样式，兼容保留；MapLibre 层由 geojson paint 控制） */
   .radar-range {
     stroke: #7C4DFF;
     stroke-dasharray: 8 6;
@@ -2038,7 +2062,62 @@
     fill: rgba(124, 77, 255, 0.08);
     pointer-events: none;
   }
-  /* 雷达在线摄影师标记：紫点 + 脉冲光晕（区别于探索纯色点） */
+  /* 方位刻度（N/E/S/W）与距离标签（1/3/5km）：地图上的文字小标记 */
+  .radar-dir-label {
+    font-size: 11rem;
+    font-weight: 700;
+    color: rgba(175,150,240,0.85);
+    text-align: center;
+    line-height: 1;
+    text-shadow: 0 1rem 4rem rgba(0,0,0,0.8);
+    pointer-events: none;
+    user-select: none;
+  }
+  .radar-dist-label {
+    font-size: 10rem;
+    color: rgba(159,107,255,0.8);
+    text-align: center;
+    line-height: 1;
+    text-shadow: 0 1rem 4rem rgba(0,0,0,0.8);
+    pointer-events: none;
+    user-select: none;
+  }
+  /* 圆心扫描扇形（装饰层，随圆心 marker 移动） */
+  .radar-fan {
+    position: relative;
+    width: 560px; height: 560px;
+    border-radius: 50%;
+    pointer-events: none;
+    user-select: none;
+  }
+  .radar-fan-sweep {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 280px; height: 280px;
+    transform-origin: 0 0;
+    border-radius: 50%;
+    background: conic-gradient(from 270deg, rgba(124,77,255,0.30), transparent 78deg, transparent);
+    animation: radarFanSweep 3.6s linear infinite;
+  }
+  @keyframes radarFanSweep { to { transform: rotate(360deg); } }
+  /* 雷达 HUD（左上角信息角标） */
+  .radar-hud {
+    position: absolute;
+    left: 14rem; top: 150rem;
+    z-index: 18;
+    font-size: 10.5rem;
+    line-height: 1.8;
+    color: rgba(160,200,255,0.9);
+    background: rgba(8,20,36,0.62);
+    border: 1rem solid rgba(80,160,255,0.25);
+    border-radius: 10rem;
+    padding: 7rem 11rem;
+    backdrop-filter: blur(6px);
+    display: none;
+  }
+  .radar-hud.show { display: block; }
+  .radar-hud b { color: #9fd8ff; }
+  /* 雷达在线摄影师标记：紫点 + 脉冲光晕 + 距离气泡（区别于探索纯色点） */
   .radar-marker-dot {
     position: relative;
     width: 30rem; height: 30rem;
@@ -2061,31 +2140,47 @@
     transform: translate(-50%, -50%);
     width: 14rem; height: 14rem;
     border-radius: 50%;
-    background: radial-gradient(circle, #B388FF 0%, #7C4DFF 60%, #4527A0 100%);
+    background: radial-gradient(circle, #c8a4ff 0%, #7C4DFF 55%, #4527A0 100%);
     border: 2.5rem solid #fff;
-    box-shadow: 0 0 12rem rgba(124, 77, 255, 0.9), 0 2rem 8rem rgba(0, 0, 0, 0.4);
+    box-shadow: 0 0 14rem rgba(124, 77, 255, 0.95), 0 2rem 8rem rgba(0, 0, 0, 0.4);
+  }
+  .radar-p-tag {
+    position: absolute;
+    left: 50%; bottom: 24rem;
+    transform: translateX(-50%);
+    font-size: 10rem;
+    color: #e6dcff;
+    background: rgba(20,10,40,0.78);
+    border: 1rem solid rgba(159,107,255,0.5);
+    padding: 2rem 7rem;
+    border-radius: 9rem;
+    white-space: nowrap;
+    backdrop-filter: blur(3px);
+    box-shadow: 0 3rem 10rem rgba(0,0,0,0.4);
+    pointer-events: none;
   }
   @keyframes radarRipple {
     0% { width: 22rem; height: 22rem; opacity: 0.9; }
     100% { width: 58rem; height: 58rem; opacity: 0; }
   }
   .radar-marker-dot:hover { transform: scale(1.25); z-index: 9; }
-  /* 雷达摄影师迷你卡片 */
+  /* 雷达摄影师迷你卡片（深色毛玻璃） */
   .radar-card {
     position: absolute;
     left: 50%; bottom: 108rem;
     transform: translateX(-50%) translateY(16rem);
-    background: #241438;
-    border: 1rem solid rgba(124, 77, 255, 0.55);
-    border-radius: 16rem;
-    padding: 10rem 14rem;
+    background: rgba(24,14,48,0.9);
+    border: 1rem solid rgba(159,107,255,0.45);
+    border-radius: 18rem;
+    padding: 13rem 15rem;
     display: none;
     align-items: center;
-    gap: 10rem;
+    gap: 12rem;
     z-index: 30;
-    box-shadow: 0 6rem 24rem rgba(0, 0, 0, 0.55), 0 0 20rem rgba(124, 77, 255, 0.35);
+    box-shadow: 0 14rem 40rem rgba(0, 0, 0, 0.6), 0 0 24rem rgba(124, 77, 255, 0.3);
+    backdrop-filter: blur(14px);
     transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
-    max-width: 82%;
+    max-width: 84%;
   }
   .radar-card.show { display: flex; transform: translateX(-50%) translateY(0); }
   .radar-card-close {
@@ -2103,28 +2198,40 @@
   .radar-card-close:hover { color: #fff; }
   .radar-card-close svg { width: 12rem; height: 12rem; }
   .radar-card-avatar {
-    width: 36rem; height: 36rem;
+    width: 46rem; height: 46rem;
     border-radius: 50%;
-    border: 2rem solid rgba(255, 255, 255, 0.35);
+    border: 2rem solid rgba(159,107,255,0.8);
     background: #4527A0 center/cover no-repeat;
+    box-shadow: 0 0 14rem rgba(124,77,255,0.5);
     flex-shrink: 0;
   }
   .radar-card-meta { min-width: 0; flex: 1; }
   .radar-card-name {
-    font-size: 13rem; font-weight: 600; color: #fff;
+    font-size: 14rem; font-weight: 700; color: #f0eaff;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .radar-card-dist { font-size: 11rem; color: #B388FF; margin-top: 2rem; }
+  .radar-card-dist { font-size: 11rem; color: #a99bd0; margin-top: 4rem; }
+  .radar-card-dist b { color: #d0bcff; font-size: 12.5rem; }
+  .radar-online-dot {
+    display: inline-block;
+    width: 7rem; height: 7rem;
+    border-radius: 50%;
+    background: #3ddc84;
+    margin-right: 5rem;
+    box-shadow: 0 0 6rem rgba(61,220,132,0.9);
+    vertical-align: 1rem;
+  }
   .radar-card-btn {
     flex-shrink: 0;
-    background: linear-gradient(135deg, #7C4DFF, #4527A0);
+    background: linear-gradient(135deg, #9f6bff, #6a3fd8);
     color: #fff;
     border: none;
     border-radius: 14rem;
-    padding: 8rem 14rem;
-    font-size: 12rem;
-    font-weight: 600;
+    padding: 9rem 15rem;
+    font-size: 12.5rem;
+    font-weight: 700;
     cursor: pointer;
+    box-shadow: 0 6rem 16rem rgba(124,77,255,0.45);
   }
   .radar-card-btn:active { transform: scale(0.95); }
 
@@ -3790,18 +3897,21 @@
             </svg>
           </div>
         </div>
-        <!-- 雷达模式提示条（2026-09-20 雷达一期） -->
+        <!-- 雷达模式提示条（2026-09-20 雷达一期 / v2 深色扫描风） -->
         <div class="radar-banner" id="radarBanner">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/><path d="M12 12 L12 2"/><path d="M12 12 L21 9"/>
-          </svg>
-          <span id="radarBannerText">雷达：扫描附近摄影师…</span>
+          <div class="radar-ico" aria-hidden="true"><div class="sweep"></div></div>
+          <div class="radar-banner-txt">
+            <div class="radar-banner-t1">雷达扫描中</div>
+            <span id="radarBannerText">扫描附近摄影师…</span>
+          </div>
           <div class="radar-banner-close" id="radarBannerClose">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </div>
         </div>
+        <!-- 雷达 HUD 角标（2026-09-20 v2） -->
+        <div class="radar-hud" id="radarHud"><b>5km</b> 搜索半径<br><b>10s</b> 位置刷新</div>
         <!-- 雷达摄影师迷你卡片（2026-09-20） -->
         <div class="radar-card" id="radarCard">
           <div class="radar-card-close" id="radarCardClose">
@@ -8390,6 +8500,7 @@
   var radarReportInFlight = false;
   var radarCenter = null;          // 雷达中心（我最后一次定位）
   var radarCardPerson = null;
+  var radarDecorMks = [];          // 方位刻度 / 距离标签 / 扫描扇形（随圆心，退出时移除）
   const RADAR_RADIUS = 5000;       // 一期固定 5km（方案已拍板）
   const RADAR_POLL_MS = 10000;     // 查看端轮询间隔
   const RADAR_REPORT_MS = 10000;   // 上报端节流间隔
@@ -8398,6 +8509,7 @@
   const radarBanner = document.getElementById('radarBanner');
   const radarBannerText = document.getElementById('radarBannerText');
   const radarBannerClose = document.getElementById('radarBannerClose');
+  const radarHud = document.getElementById('radarHud');
   const radarCard = document.getElementById('radarCard');
   const radarCardAvatar = document.getElementById('radarCardAvatar');
   const radarCardName = document.getElementById('radarCardName');
@@ -8447,45 +8559,117 @@
   function drawRadarRange() {
     if (!map || !map.__ml || !radarCenter) return;
     var ml = map.__ml;
-    // 半径换算：dLat/dLng 按地球近似（米→度）
-    var dLat = RADAR_RADIUS / 111320;
-    var dLng = RADAR_RADIUS / (111320 * Math.max(0.2, Math.cos(radarCenter.lat * Math.PI / 180)));
-    var coords = [];
-    for (var i = 0; i <= 64; i++) {
-      var a = i / 64 * Math.PI * 2;
-      coords.push([radarCenter.lng + dLng * Math.sin(a), radarCenter.lat + dLat * Math.cos(a)]);
+    var lat = radarCenter.lat, lng = radarCenter.lng;
+    var cosLat = Math.max(0.2, Math.cos(lat * Math.PI / 180));
+    // 米→度
+    function dLat(m) { return m / 111320; }
+    function dLng(m) { return m / (111320 * cosLat); }
+    function circlePolygon(m, seg) {
+      var coords = [];
+      for (var i = 0; i <= seg; i++) {
+        var a = i / seg * Math.PI * 2;
+        coords.push([lng + dLng(m) * Math.sin(a), lat + dLat(m) * Math.cos(a)]);
+      }
+      coords.push(coords[0]);
+      return coords;
     }
-    coords.push(coords[0]);
+    // 先清理旧层
     try {
       if (ml.getSource('radar-range')) {
-        ml.removeLayer('radar-range-fill');
-        ml.removeLayer('radar-range-line');
+        ['radar-range-fill','radar-range-line','radar-range-3k','radar-range-1k'].forEach(function (id) {
+          if (ml.getLayer(id)) ml.removeLayer(id);
+        });
         ml.removeSource('radar-range');
       }
     } catch (_) {}
     try {
+      // 三层同心圈：5km 实线 + 3km/1km 虚线，5km 内淡紫填充
       ml.addSource('radar-range', {
         type: 'geojson',
-        data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coords] } }
+        data: {
+          type: 'FeatureCollection',
+          features: [
+            { type: 'Feature', properties: { k: '5k' }, geometry: { type: 'Polygon', coordinates: [circlePolygon(5000, 64)] } },
+            { type: 'Feature', properties: { k: '3k' }, geometry: { type: 'Polygon', coordinates: [circlePolygon(3000, 48)] } },
+            { type: 'Feature', properties: { k: '1k' }, geometry: { type: 'Polygon', coordinates: [circlePolygon(1000, 32)] } }
+          ]
+        }
       });
       ml.addLayer({ id: 'radar-range-fill', type: 'fill', source: 'radar-range',
-        paint: { 'fill-color': '#7C4DFF', 'fill-opacity': 0.08 } });
+        filter: ['==', ['get', 'k'], '5k'],
+        paint: { 'fill-color': '#7C4DFF', 'fill-opacity': 0.06 } });
       ml.addLayer({ id: 'radar-range-line', type: 'line', source: 'radar-range',
-        paint: { 'line-color': '#7C4DFF', 'line-width': 2, 'line-dasharray': [4, 4] } });
+        filter: ['==', ['get', 'k'], '5k'],
+        paint: { 'line-color': 'rgba(159,107,255,0.9)', 'line-width': 2 } });
+      ml.addLayer({ id: 'radar-range-3k', type: 'line', source: 'radar-range',
+        filter: ['==', ['get', 'k'], '3k'],
+        paint: { 'line-color': 'rgba(124,77,255,0.5)', 'line-width': 1.5, 'line-dasharray': [3, 4] } });
+      ml.addLayer({ id: 'radar-range-1k', type: 'line', source: 'radar-range',
+        filter: ['==', ['get', 'k'], '1k'],
+        paint: { 'line-color': 'rgba(124,77,255,0.3)', 'line-width': 1.5, 'line-dasharray': [2, 4] } });
     } catch (e) {
       console.warn('[radar] 范围圈绘制失败：', e && e.message);
     }
+    // 方位刻度 N/E/S/W（5km 边缘）+ 距离标签 1/3/5km（圆内正下方）
+    clearRadarDecor();
+    function addDecorText(cls, t, plat, plng, size, anchor) {
+      var icon = L.divIcon({ html: '<div class="' + cls + '">' + t + '</div>', className: '', iconSize: size, iconAnchor: anchor || [size[0] / 2, size[1] / 2] });
+      var mk = L.marker([plat, plng], { icon: icon, interactive: false, zIndexOffset: 0 });
+      mk._type = 'radar_decor';
+      mk.addTo(map);
+      radarDecorMks.push(mk);
+    }
+    var s5 = { lat: dLat(5000), lng: dLng(5000) };
+    addDecorText('radar-dir-label', 'N', lat + s5.lat, lng, [20, 12]);
+    addDecorText('radar-dir-label', 'S', lat - s5.lat, lng, [20, 12]);
+    addDecorText('radar-dir-label', 'E', lat, lng + s5.lng, [20, 12]);
+    addDecorText('radar-dir-label', 'W', lat, lng - s5.lng, [20, 12]);
+    addDecorText('radar-dist-label', '1km', lat - dLat(1000), lng, [30, 12]);
+    addDecorText('radar-dist-label', '3km', lat - dLat(3000), lng, [30, 12]);
+    addDecorText('radar-dist-label', '5km', lat - dLat(5000), lng, [30, 12]);
+  }
+
+  /** 清理雷达装饰标记（方位/距离/扇形） */
+  function clearRadarDecor() {
+    radarDecorMks.forEach(function (mk) {
+      try { map.removeLayer(mk); } catch (_) {}
+    });
+    radarDecorMks = [];
+  }
+
+  /** 雷达补绘：等地图就绪后画圈/扇形/刷新（auto-entry 先于地图初始化时兜底） */
+  function ensureRadarRender() {
+    if (!radarMode || !radarCenter) return;
+    if (!map || !map.__ml) { setTimeout(ensureRadarRender, 250); return; }
+    drawRadarRange();
+    addRadarScanFan(radarCenter.lat, radarCenter.lng);
+    refreshRadarMarkers();
+  }
+
+  /** 圆心扫描扇形（装饰：紫色扇形旋转动画，随圆心 marker 移动） */
+  function addRadarScanFan(lat, lng) {
+    if (!map || !L || !L.divIcon) return;
+    var icon = L.divIcon({
+      html: '<div class="radar-fan"><div class="radar-fan-sweep"></div></div>',
+      className: '',
+      iconSize: [560, 560],
+      iconAnchor: [280, 280]
+    });
+    var mk = L.marker([lat, lng], { icon: icon, interactive: false, zIndexOffset: 0 });
+    mk._type = 'radar_decor';
+    try { mk.addTo(map); } catch (_) { return; }
+    radarDecorMks.push(mk);
   }
 
   /** 拉取附近并渲染（diff 更新：在线新增、离线移除、位移平滑） */
   function refreshRadarMarkers() {
     if (!radarMode || !map) return;
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
-      radarBannerText.textContent = '雷达：登录后可见附近摄影师';
+      radarBannerText.textContent = '登录后可见附近摄影师';
       return;
     }
     if (!radarCenter) {
-      radarBannerText.textContent = '雷达：等待定位…';
+      radarBannerText.textContent = '等待定位…';
       return;
     }
     MemoAPI.get('/radar/nearby?lng=' + radarCenter.lng + '&lat=' + radarCenter.lat + '&radius=' + RADAR_RADIUS)
@@ -8494,13 +8678,13 @@
         var list = (d && d.list) || [];
         renderRadarMarkers(list);
         radarBannerText.textContent = list.length
-          ? '雷达：附近 ' + list.length + ' 位摄影师在线'
-          : '雷达：附近暂无摄影师在线';
+          ? '附近 ' + list.length + ' 位摄影师在线 · 10s 刷新'
+          : '附近暂无摄影师在线';
       })
       .catch(function (e) {
         if (!radarMode) return;
         console.warn('[radar] nearby 失败：', e && e.message);
-        radarBannerText.textContent = '雷达：扫描失败，稍后重试';
+        radarBannerText.textContent = '扫描失败，稍后重试';
       });
   }
 
@@ -8522,9 +8706,28 @@
       if (existing) {
         existing._radarPerson = p;
         existing.setLatLng([p.lat, p.lng]); // 内部 _setPos 走 translate3d，CSS transition 平滑
+        // 刷新距离气泡文本
+        var el0 = existing.getElement && existing.getElement();
+        if (el0) {
+          var tagEl = el0.querySelector && el0.querySelector('.radar-p-tag');
+          if (tagEl) {
+            var dt2 = (p.distanceKm !== null && p.distanceKm !== undefined)
+              ? (p.distanceKm < 1 ? Math.max(1, Math.round(p.distanceKm * 1000)) + 'm' : (Math.round(p.distanceKm * 10) / 10) + 'km')
+              : '';
+            var nt2 = (p.nickname || '').length > 6 ? p.nickname.slice(0, 6) + '…' : (p.nickname || '');
+            tagEl.textContent = dt2 ? dt2 + ' · ' + nt2 : '';
+          }
+        }
         return;
       }
-      var htmlStr = '<div class="radar-marker-dot"><div class="radar-dot-core"></div></div>';
+      // 距离气泡：'1.2km · 昵称'（昵称超长截断）
+      var distTxt = (p.distanceKm !== null && p.distanceKm !== undefined)
+        ? (p.distanceKm < 1 ? Math.max(1, Math.round(p.distanceKm * 1000)) + 'm' : (Math.round(p.distanceKm * 10) / 10) + 'km')
+        : '';
+      var nickTxt = (p.nickname || '').length > 6 ? p.nickname.slice(0, 6) + '…' : (p.nickname || '');
+      var htmlStr = '<div class="radar-marker-dot"><div class="radar-dot-core"></div>'
+        + (distTxt ? '<div class="radar-p-tag">' + distTxt + ' · ' + nickTxt + '</div>' : '')
+        + '</div>';
       var icon = L.divIcon({ html: htmlStr, className: '', iconSize: [30, 30], iconAnchor: [15, 15] });
       var mk = L.marker([p.lat, p.lng], { icon: icon, zIndexOffset: 8, interactive: true });
       mk._type = 'radar_marker';
@@ -8549,11 +8752,13 @@
       ? 'url("' + p.avatar + '") center/cover no-repeat'
       : (typeof hashColor === 'function' ? hashColor(p.nickname) : '#4527A0');
     radarCardName.textContent = p.nickname;
-    radarCardDist.textContent = (p.distanceKm !== null && p.distanceKm !== undefined)
-      ? (p.distanceKm < 1
-          ? Math.max(1, Math.round(p.distanceKm * 1000)) + ' 米'
-          : p.distanceKm + ' km')
-      : '';
+    radarCardDist.innerHTML = (p.distanceKm !== null && p.distanceKm !== undefined)
+      ? '<span class="radar-online-dot"></span>工作模式 · 在线 · 距离 <b>'
+          + (p.distanceKm < 1
+              ? Math.max(1, Math.round(p.distanceKm * 1000)) + ' 米'
+              : p.distanceKm + ' km')
+          + '</b>'
+      : '<span class="radar-online-dot"></span>工作模式 · 在线';
     radarCard.classList.add('show');
   }
   function hideRadarCard() {
@@ -8572,7 +8777,8 @@
     if (typeof exploreMode !== 'undefined' && exploreMode) toggleExploreMode();
     phoneScreen.classList.add('radar-mode');
     radarBanner.classList.add('show');
-    radarBannerText.textContent = '雷达：扫描附近摄影师…';
+    radarBannerText.textContent = '扫描附近摄影师…';
+    if (radarHud) radarHud.classList.add('show');
     hideRadarCard();
     // 只保留雷达标记 + 我的位置，隐藏其余标记
     leafletMarkers.forEach(function (lm) {
@@ -8586,8 +8792,7 @@
       radarCenter = { lng: lng, lat: lat, time: Date.now() };
       if (map && map.setView) map.setView([lat, lng], 14);
       if (typeof updateUserLocationMarker === 'function') updateUserLocationMarker(lat, lng);
-      drawRadarRange();
-      refreshRadarMarkers();
+      ensureRadarRender(); // 等地图就绪后统一补绘（圈/扇形/刷新）
     }
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(function (pos) {
@@ -8609,16 +8814,19 @@
   function exitRadarMode() {
     phoneScreen.classList.remove('radar-mode');
     radarBanner.classList.remove('show');
+    if (radarHud) radarHud.classList.remove('show');
     hideRadarCard();
     clearInterval(radarPollTimer);
     radarPollTimer = null;
+    clearRadarDecor(); // 方位/距离/扇形
     // 移除 5km 范围圈（MapLibre geojson 层）
     if (map && map.__ml) {
       try {
         var ml = map.__ml;
         if (ml.getSource('radar-range')) {
-          ml.removeLayer('radar-range-fill');
-          ml.removeLayer('radar-range-line');
+          ['radar-range-fill','radar-range-line','radar-range-3k','radar-range-1k'].forEach(function (id) {
+            if (ml.getLayer(id)) ml.removeLayer(id);
+          });
           ml.removeSource('radar-range');
         }
       } catch (_) {}
@@ -10992,6 +11200,8 @@
       // 行政分级聚合：minZoom 3（看全国/全球）maxZoom 18（精确坐标）——适配器内同参构建 MapLibre
       window.L = buildLShim();
       map = buildMLAdapter();
+      // 雷达补绘兜底：若 ?radar=1 自动进入先于地图初始化，这里补画圈/扇形
+      try { ensureRadarRender(); } catch (_) {}
 
       // 不用 detectRetina：天地图无 Retina 版瓦片且最高只到 18 级；detectRetina 在 dpr>1 设备
       // （手机、Windows 125%+ 缩放）会把层 maxZoom 钳到 17 并请求 z19（z19 为空白占位图），
@@ -11083,75 +11293,6 @@
       // 浏览器缓存中，避免出现大片未加载空白，提升缩放流畅度。
       // v2：三层预载（zoomOffset -1/-2/-3 = 每张瓦片覆盖 400%/1600%/6400% 面积），
       // 覆盖细化控件一次跨多档缩小；瓦片 URL 与主层一致（同子域轮换），可直接命中浏览器缓存。
-      var PREFETCH_DEPTHS = [-1, -2, -3];
-      PREFETCH_DEPTHS.forEach(function (off) {
-        L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
-          zoomOffset: off,
-          opacity: 0,
-          interactive: false,
-          className: 'prefetch-tiles',
-          keepBuffer: 6,
-          updateWhenIdle: true,
-          minZoom: 6
-        })).addTo(map);
-      });
-      // 临时版本角标（验证 App 是否加载到新版用，验完可撤）——先建角标再做预载，
-      // 保证预载层任何异常都不会吞掉版本标识（v3 教训）。
-      var __pv = document.createElement('div');
-      __pv.className = 'map-prefetch-badge';
-      __pv.textContent = '预载v4';
-      var __pvHost = document.getElementById('amapContainer');
-      if (__pvHost) __pvHost.appendChild(__pv);
-
-      // v2：相邻级预载（zoomOffset -1..-6）：缩小 1-6 档的目标级瓦片随图自动进缓存。
-      var PREFETCH_DEPTHS = [-1, -2, -3, -4, -5, -6];
-      PREFETCH_DEPTHS.forEach(function (off) {
-        L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
-          zoomOffset: off,
-          opacity: 0,
-          interactive: false,
-          className: 'prefetch-tiles',
-          keepBuffer: off >= -3 ? 4 : 2,
-          updateWhenIdle: true,
-          minZoom: 6
-        })).addTo(map);
-      });
-
-      // v4：钉级宽区预载——修复 v3 的致命 bug（GridLayer 选项缺 subdomains，
-      // createTile 抛 TypeError 被 initLeafletMap 的 catch 吞掉后 map=null，
-      // 导致定位无响应且预载全没生效）。本层把网格坐标降采样到固定粗档请求瓦片。
-      var WidePrefetchLayer = L.GridLayer.extend({
-        initialize: function (urlTemplate, fixedZoom) {
-          this._tpl = urlTemplate;
-          this._fz = fixedZoom;
-          L.GridLayer.prototype.initialize.call(this, {
-            tileSize: 256, updateWhenIdle: true, keepBuffer: 0,
-            className: 'prefetch-tiles wide-prefetch',
-            subdomains: TILE_OPTS.subdomains
-          });
-        },
-        onAdd: function (m) {
-          L.GridLayer.prototype.onAdd.call(this, m);
-          this._container.style.opacity = '0';      // 只进缓存不显示
-          this._container.style.pointerEvents = 'none'; // 不拦截交互
-        },
-        createTile: function (coords) {
-          var scale = Math.pow(2, this._fz - coords.z);
-          var fx = Math.floor(coords.x * scale);
-          var fy = Math.floor(coords.y * scale);
-          var subs = this.options.subdomains || ['0'];
-          var sub = subs[(((fx + fy) % subs.length) + subs.length) % subs.length];
-          var img = document.createElement('img');
-          img.alt = '';
-          img.setAttribute('role', 'presentation');
-          img.src = L.Util.template(this._tpl, Object.assign({}, this.options, { s: sub, x: fx, y: fy, z: this._fz }));
-          return img;
-        }
-      });
-      [9, 10, 11, 12].forEach(function (fz) {
-        new WidePrefetchLayer(TDT_URL, fz).addTo(map);
-      });
-
       // v4：宽域直接预取——「视野锚定」预载盖不住跨档缩小（视野面积放大上千倍）。
       // 绕当前中心把 z9-z12 数十公里半径的瓦片用 Image() 直拉进浏览器缓存
       // （天地图 max-age 5 天）；中心移动超约 1 公里或换档才触发，URL 去重防重复。

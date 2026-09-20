@@ -7,9 +7,11 @@
 <script>
 import memoApi from '../../utils/memoApi'
 import { PROFILE_URL } from '../../utils/config'
+import webviewBack from '../../utils/webview-back'
 
 // 我的页：1:1 嵌入原型 profile-prototype.html
 export default {
+  mixins: [webviewBack],
   data() {
     return {
       webSrc: '',

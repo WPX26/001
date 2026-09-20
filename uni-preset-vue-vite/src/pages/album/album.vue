@@ -5,9 +5,11 @@
 <script>
 import memoApi from '../../utils/memoApi'
 import { ALBUM_URL } from '../../utils/config'
+import webviewBack from '../../utils/webview-back'
 
 // 相册页：1:1 嵌入原型 album-prototype.html（从我的页进入）
 export default {
+  mixins: [webviewBack],
   data() {
     return {
       webSrc: '',

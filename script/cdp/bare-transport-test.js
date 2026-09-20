@@ -1,4 +1,4 @@
-// CDP 裸传输对照实验（会话残留假设验证）——r25 实验版
+// CDP 裸传输对照实验（会话残留假设验证）——r25 实验版 v2（ZLP 空读 + 超时兜底 + 干净重开）
 // 用法：node script/cdp/drive.js <页面ws> script/cdp/bare-transport-test.js
 //
 // 目标链：裸传输 open/claim → OpenSession(0x1002) 成功 → 不发 CloseSession 直接关 USB
@@ -22,7 +22,7 @@
     dv.setUint32(0, 12 + n * 4, true);
     pkt[4] = 1; pkt[5] = 0;
     dv.setUint16(6, code, true);
-    dv.setUint32(8, 0, true); // OpenSession 必须 tid=0（gphoto2 语义）
+    dv.setUint32(8, 0, true);
     for (var i = 0; i < n; i++) dv.setUint32(12 + i * 4, params[i], true);
     return pkt;
   }
@@ -40,25 +40,57 @@
       });
     });
   }
+
   function xferIn(dev, ep, ms) {
+    // 双语义：① 0 字节 ZLP 不是错误，继续读（gphoto2）；② 单次 transferIn 可能永不返回（相机卡死）
+    // → 定时器兜底，总耗时不超过 ms（页面传输层 _withTimeout 同款语义，防实验挂死）
     return new Promise(function (resolve) {
-      var t0 = Date.now(), done = false;
-      var timer = setTimeout(function () { if (!done) { done = true; resolve({ timedOut: true, waitMs: Date.now() - t0 }); } }, ms);
-      dev.transferIn(ep, 16384).then(function (r) {
-        if (done) return; done = true; clearTimeout(timer);
-        var u8 = r.data ? new Uint8Array(r.data) : null;
-        resolve({ status: r.status, bytes: u8 ? u8.length : 0, hex: hex(u8, 16), code: codeOf(u8), codeName: codeName(codeOf(u8)), waitMs: Date.now() - t0 });
-      }).catch(function (e) {
-        if (done) return; done = true; clearTimeout(timer);
-        resolve({ err: e.message, waitMs: Date.now() - t0 });
-      });
+      var t0 = Date.now(), done = false, reads = 0, timer = null;
+      function arm() {
+        var remain = ms - (Date.now() - t0);
+        if (remain <= 0) { if (!done) { done = true; resolve({ timedOut: true, waitMs: Date.now() - t0, reads: reads }); } return; }
+        timer = setTimeout(function () { if (!done) { done = true; resolve({ timedOut: true, waitMs: Date.now() - t0, reads: reads }); } }, remain);
+      }
+      function pump() {
+        if (done) return;
+        arm();
+        dev.transferIn(ep, 16384).then(function (r) {
+          if (done) return;
+          clearTimeout(timer);
+          var u8 = r.data ? new Uint8Array(r.data) : null;
+          reads++;
+          if (r.status !== 'ok') { done = true; resolve({ status: r.status, bytes: u8 ? u8.length : 0, reads: reads, waitMs: Date.now() - t0 }); return; }
+          if (u8 && u8.length > 0) {
+            done = true;
+            resolve({ status: r.status, bytes: u8.length, hex: hex(u8, 16), code: codeOf(u8), codeName: codeName(codeOf(u8)), waitMs: Date.now() - t0, reads: reads });
+            return;
+          }
+          pump(); // ZLP 空读：继续
+        }).catch(function (e) {
+          if (done) return;
+          clearTimeout(timer);
+          done = true; resolve({ err: e.message, reads: reads, waitMs: Date.now() - t0 });
+        });
+      }
+      pump();
     });
   }
 
-  // 打开 + claim，返回端点（close 后可重复调用重开）
+  function safeClose(dev) {
+    return new Promise(function (resolve) {
+      if (!dev.opened) { resolve({ closed: true, already: true }); return; }
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; resolve({ closedTimeout: true }); } }, 5000);
+      dev.close().then(function () { if (!done) { done = true; clearTimeout(t); resolve({ closed: true }); } })
+        .catch(function (e) { if (!done) { done = true; clearTimeout(t); resolve({ closedErr: e.message }); } });
+    });
+  }
+
+  // 打开 + claim，返回端点。先清浏览器侧残留 opened 状态再 open（防上次进程被杀留下的脏状态）
   async function openDev(dev, tag) {
     var o = { tag: tag };
     try {
+      try { if (dev.opened) await dev.close(); } catch (e) { o.preCloseErr = e.message; }
       if (!dev.opened) await dev.open();
       if (!dev.configuration && dev.configurations && dev.configurations.length) {
         await dev.selectConfiguration(dev.configurations[0].configurationValue);
@@ -97,8 +129,7 @@
     out.phaseA = await openSessionOp(dev, out.open1);
 
     // 阶段B：制造残留——不发 CloseSession 直接关 USB（等价裸实验/页面断开）
-    try { await dev.close(); out.phaseB = { closed: true, openedAfter: dev.opened }; }
-    catch (e) { out.phaseB = { closedErr: e.message }; }
+    out.phaseB = await safeClose(dev);
 
     // 阶段C：重开 + OpenSession #2（残留下观察：超时=假设成立）
     out.open2 = await openDev(dev, 'open2');
@@ -107,7 +138,7 @@
     // 阶段C 超时后：pending 的 transferIn 会污染后续读——关掉重开再清理
     out.open3 = null;
     if (out.phaseC && out.phaseC.in && out.phaseC.in.timedOut && out.open2.claim === 'ok') {
-      try { await dev.close(); } catch (e) {}
+      await safeClose(dev);
       out.open3 = await openDev(dev, 'open3');
     }
     var cur = out.open3 || out.open2;
@@ -125,7 +156,7 @@
     }
 
     // 收尾：干净关闭
-    try { await dev.close(); } catch (e) {}
+    await safeClose(dev);
   } catch (e) { out.fatal = e.message; }
   return out;
 })()

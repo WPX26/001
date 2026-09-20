@@ -5,9 +5,11 @@
 <script>
 import memoApi from '../../utils/memoApi'
 import { REGISTER_URL } from '../../utils/config'
+import webviewBack from '../../utils/webview-back'
 
 // 注册页：1:1 嵌入原型 register-prototype.html
 export default {
+  mixins: [webviewBack],
   data() {
     return {
       webSrc: '',

@@ -5,9 +5,11 @@
 <script>
 import memoApi from '../../utils/memoApi'
 import { LOGIN_URL } from '../../utils/config'
+import webviewBack from '../../utils/webview-back'
 
 // 登录页：1:1 嵌入原型 login-prototype.html（登录成功 postMessage 同步登录态）
 export default {
+  mixins: [webviewBack],
   data() {
     return {
       webSrc: '',

@@ -1,4 +1,4 @@
-// CDP PtpCamera 全链路对照实验 + 会话残留/清理验证 —— r25 实验版
+// CDP PtpCamera 全链路对照实验 + 会话残留/清理验证 —— r25 实验版 v2（超时兜底 + 干净重开）
 // 用法：node script/cdp/drive.js <页面ws> script/cdp/protocol-full-test.js
 //
 // ① 与页面 connectDevice 同协议栈全链路：openSession → getDeviceInfo →
@@ -15,6 +15,16 @@
 (async () => {
   const out = {};
 
+  function safeClose(dev) {
+    return new Promise(function (resolve) {
+      if (!dev || !dev.opened) { resolve({ closed: true, already: true }); return; }
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; resolve({ closedTimeout: true }); } }, 5000);
+      dev.close().then(function () { if (!done) { done = true; clearTimeout(t); resolve({ closed: true }); } })
+        .catch(function (e) { if (!done) { done = true; clearTimeout(t); resolve({ closedErr: e.message }); } });
+    });
+  }
+
   function makeTransport(dev, epOut, epIn) {
     return {
       bulkOut: function (u8) {
@@ -23,18 +33,29 @@
           if (r.bytesWritten === 0) throw new Error('out:0bytes');
         });
       },
-      bulkIn: function (maxLen) {
+      bulkIn: function (maxLen, timeoutMs) {
         var size = Math.min(Math.max(maxLen || 512, 512), 16384);
-        return dev.transferIn(epIn, size).then(function (r) {
-          if (r.status !== 'ok') throw new Error('in:' + r.status);
-          return r.data ? new Uint8Array(r.data) : new Uint8Array(0);
+        // 与页面 WebUsbTransport._withTimeout 同款语义：单次 transferIn 可能永不返回（相机卡死）→ 定时兜底
+        return new Promise(function (resolve, reject) {
+          var done = false;
+          var t = setTimeout(function () { if (!done) { done = true; reject(new Error('in:timeout')); } }, (timeoutMs || 20000) + 2000);
+          dev.transferIn(epIn, size).then(function (r) {
+            if (done) return; done = true; clearTimeout(t);
+            if (r.status !== 'ok') reject(new Error('in:' + r.status));
+            else resolve(r.data ? new Uint8Array(r.data) : new Uint8Array(0));
+          }).catch(function (e) {
+            if (done) return; done = true; clearTimeout(t);
+            reject(new Error('in:' + e.message));
+          });
         });
       },
-      release: function () { try { if (dev.opened) dev.close().catch(function () {}); } catch (e) {} }
+      release: function () { safeClose(dev); }
     };
   }
 
+  // 打开 + claim。先清浏览器侧残留 opened 状态再 open（防上次进程被杀留下的脏状态）
   async function openDev(dev) {
+    try { if (dev.opened) await dev.close(); } catch (e) {}
     if (!dev.opened) await dev.open();
     if (!dev.configuration && dev.configurations && dev.configurations.length) {
       await dev.selectConfiguration(dev.configurations[0].configurationValue);
@@ -104,14 +125,13 @@
     var ptp1 = new PtpCamera(makeTransport(dev, eps1.epOut, eps1.epIn));
     out.chain1 = await runChain(ptp1);
     if (!out.chain1.ok) {
-      out.abort = '全链路失败，先解决该失败（见 chain1.stage/err）——与页面同源问题';
-      try { await dev.close(); } catch (e) {}
-      return out;
+      // chain1 失败不中止：这正是「页面首次 openSession 超时」的实况——
+      // 继续走页面修复路径（CloseSession 清理 → 重试 → 0x66 复位 → 重试），验证哪一步能恢复。
+      out.chain1Recoverable = true;
     }
 
     // ② 模拟页面断开：不发 CloseSession 直接关 USB（会话残留来源）
-    try { await dev.close(); out.simulateDisconnect = { closed: true }; }
-    catch (e) { out.simulateDisconnect = { closedErr: e.message }; }
+    out.simulateDisconnect = await safeClose(dev);
 
     // ③ 重开：等价页面再次 requestConnect 后直接 openSession（复现页面路径）
     var eps2 = await openDev(dev);
@@ -146,7 +166,7 @@
           out.reset66.in = await readIn(dev, eps2.epIn, 5000);
         } catch (e4) { out.reset66.err = e4.message; }
         // 0x66 后尝试重开（相机可能掉线；掉线则需重新授权/插拔）
-        try { await dev.close(); } catch (e) {}
+        await safeClose(dev);
         try {
           var eps3 = await openDev(dev);
           var ptp3 = new PtpCamera(makeTransport(dev, eps3.epOut, eps3.epIn));
@@ -160,7 +180,7 @@
 
     // 收尾：尽量干净
     try { if (ptp2 && ptp2.sessionOpen) await ptp2.closeSession().catch(function () {}); } catch (e) {}
-    try { await dev.close(); } catch (e) {}
+    await safeClose(dev);
     out.allDone = true;
   } catch (e) { out.fatal = e.message; }
   return out;

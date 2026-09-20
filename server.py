@@ -135,6 +135,10 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
         self.send_header('Pragma', 'no-cache')
         self.send_header('Expires', '0')
+        # r31：web-gphoto2 WASM（libapi）需要 SharedArrayBuffer → crossOriginIsolated
+        # COOP same-origin + COEP credentialless（Chrome 96+；credentialless 不阻断跨域图片/瓦片）
+        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        self.send_header('Cross-Origin-Embedder-Policy', 'credentialless')
         super().end_headers()
 
     def _send_json(self, data, status=200):
@@ -156,10 +160,10 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     import ssl
-    print(f'  ✓ http://localhost:{PORT}/memo-home.html')
-    print(f'  ✓ https://localhost:{PORT + 1}/memo-home.html （自签证书，手机定位需 HTTPS）')
-    print(f'  ✓ /api/geocode?address=地名 （正向）')
-    print(f'  ✓ /api/geocode?lng=120.38&lat=36.06 （反向）')
+    print(f'  [OK] http://localhost:{PORT}/memo-home.html')
+    print(f'  [OK] https://localhost:{PORT + 1}/memo-home.html （自签证书，手机定位需 HTTPS）')
+    print(f'  [OK] /api/geocode?address=地名 （正向）')
+    print(f'  [OK] /api/geocode?lng=120.38&lat=36.06 （反向）')
 
     # HTTP 服务（8080）
     httpd = http.server.ThreadingHTTPServer(('0.0.0.0', PORT), ProxyHandler)

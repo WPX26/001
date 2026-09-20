@@ -5,9 +5,11 @@
 <script>
 import memoApi from '../../utils/memoApi'
 import { SUBSCRIBE_URL } from '../../utils/config'
+import webviewBack from '../../utils/webview-back'
 
 // 订阅页：1:1 嵌入原型 photographer-payment.html
 export default {
+  mixins: [webviewBack],
   data() {
     return {
       webSrc: '',
