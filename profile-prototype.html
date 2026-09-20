@@ -244,6 +244,12 @@
   .menu-item:hover { background: rgba(240, 160, 64, 0.08); box-shadow: 0 0 12rem rgba(232, 144, 32, 0.35); }
   .menu-item:active { background: rgba(240, 160, 64, 0.15); box-shadow: 0 0 16rem rgba(232, 144, 32, 0.55); }
 
+  .menu-sub {
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.55);
+    margin-top: 2rem;
+  }
+
   .menu-item + .menu-item {
     border-top: 1rem solid rgba(212, 165, 116, 0.3);
   }
@@ -1653,6 +1659,52 @@
     transition: text-shadow 0.2s ease, color 0.2s ease;
   }
 
+  /* 坐标点三模式切换器（本地/灵感/探索；王总 2026-09-03 定） */
+  .myhome-mode-tabs {
+    display: flex;
+    gap: 10rem;
+    margin-bottom: 14rem;
+  }
+  .myhome-mode-tab {
+    flex: 1;
+    text-align: center;
+    padding: 10rem 0;
+    font-size: 13rem;
+    color: rgba(245, 223, 192, 0.6);
+    background: rgba(245, 223, 192, 0.06);
+    border: 1rem solid rgba(245, 223, 192, 0.12);
+    border-radius: 999rem;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    user-select: none;
+  }
+  .myhome-mode-tab.active {
+    color: #1c0f08;
+    background: #F0A040;
+    border-color: #F0A040;
+    font-weight: 700;
+  }
+  .myhome-coord-rank {
+    flex-shrink: 0;
+    margin-left: auto;
+    margin-right: 8rem;
+    padding: 3rem 10rem;
+    font-size: 11rem;
+    color: #B39DDB;
+    background: rgba(94, 53, 177, 0.12);
+    border: 1rem solid rgba(94, 53, 177, 0.3);
+    border-radius: 999rem;
+    white-space: nowrap;
+  }
+  .myhome-coord-ranked .myhome-coord-name {
+    max-width: 30%;
+  }
+  .myhome-coord-rank.dim {
+    color: rgba(245, 223, 192, 0.4);
+    background: transparent;
+    border-color: rgba(245, 223, 192, 0.12);
+  }
+
   /* 统计栏三视图容器（随 myhome-scroll 统一滚动；底部留白避开凸起相机按钮） */
   .myhome-tabview {
     padding: 10rem 16rem 96rem;
@@ -2033,7 +2085,7 @@
 <script>
 // 导航 active 兜底：页面加载时强制单一 active（防止任何路径导致多个键亮起）
 (function () {
-  var tabs = { 'memo-home.html': 'home', 'connect-prototype.html': 'market', 'message-prototype.html': 'message', 'profile-prototype.html': 'profile' };
+  var tabs = { 'memo-home.html': 'home', 'photographer-payment.html': 'promote', 'message-prototype.html': 'message', 'profile-prototype.html': 'profile' };
   var cur = tabs[(location.pathname.split('/').pop() || '')];
   document.querySelectorAll('.nav-item').forEach(function (i) {
     i.classList.toggle('active', !!cur && i.dataset.tab === cur);
@@ -2265,6 +2317,40 @@
           </div>
         </div>
 
+        <!-- 设置视图（王总 2026-09-03：演示模式开关，对外演示时恢复模拟信息） -->
+        <div class="view" id="viewSettings">
+          <div class="sub-header">
+            <div class="sub-back" id="settingsBack">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </div>
+            <div class="sub-title">设置</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-title">演示</div>
+            <div class="menu-card">
+              <div class="menu-item" id="demoModeEntry">
+                <div class="menu-item-left">
+                  <div class="menu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="menu-label">演示模式</div>
+                    <div class="menu-sub">恢复模拟信息，全站生效，仅用于演示</div>
+                  </div>
+                </div>
+                <div class="menu-item-right">
+                  <span class="menu-badge" id="demoModeBadge">未开启</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 我的主页视图（抖音式：头图+头像+统计三列+按钮行+作品三列网格，王总 2026-08-14 参考图定稿） -->
         <div class="view" id="viewMyProfile">
           <div class="myprofile-scroll">
@@ -2399,6 +2485,13 @@
 
             <!-- 视图一：坐标点列表（卡片 = 序号+名称+最新拍摄时间+定位键，下方三栏照片网格） -->
             <div class="myhome-tabview" id="myHomeTabCoord">
+              <!-- 三模式切换（王总 2026-09-03 定：本地坐标/灵感坐标/探索坐标；排名仅自己可见） -->
+              <div class="myhome-mode-tabs">
+                <div class="myhome-mode-tab active" data-mode="local">本地坐标</div>
+                <div class="myhome-mode-tab" data-mode="inspire">灵感坐标</div>
+                <div class="myhome-mode-tab" data-mode="explore">探索坐标</div>
+              </div>
+              <div id="myHomeModeLocal">
               <!-- 搜索栏：输入城市或准确地点 → 其他坐标点隐藏 -->
               <div class="myhome-search">
                 <svg class="myhome-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2409,6 +2502,13 @@
               </div>
               <div id="myHomeCoordsList">
                 <!-- 由JS动态生成 -->
+              </div>
+              </div>
+              <div id="myHomeModeInspire" style="display:none;">
+                <div id="myHomeInspireList"><!-- 灵感坐标由JS生成 --></div>
+              </div>
+              <div id="myHomeModeExplore" style="display:none;">
+                <div id="myHomeExploreList"><!-- 探索坐标由JS生成 --></div>
               </div>
             </div>
 
@@ -2666,7 +2766,7 @@
             <!-- 套餐卡片 -->
             <div class="plan-card">
               <div class="plan-name">月度会员</div>
-              <div class="plan-desc">解锁全部高级功能，可升级为认证摄影师，享受工作 / 生活双模式切换</div>
+              <div class="plan-desc">解锁全部高级功能，可加冕为王，享受工作 / 生活双模式切换</div>
               <div class="plan-price">
                 <span class="plan-price-symbol">¥</span>
                 <span class="plan-price-num">6</span>
@@ -2714,9 +2814,9 @@
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
                 </svg>
               </div>
-              <div class="photographer-title" id="photographerTitle">升级为认证摄影师</div>
-              <div class="photographer-desc" id="photographerDesc">订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换</div>
-              <button class="photographer-btn" id="upgradePhotographerBtn" disabled>升级摄影师</button>
+              <div class="photographer-title" id="photographerTitle">加冕为王</div>
+              <div class="photographer-desc" id="photographerDesc">订阅会员后可加冕为王，解锁工作 / 生活模式切换</div>
+              <button class="photographer-btn" id="upgradePhotographerBtn" disabled>加冕为王</button>
             </div>
 
             <!-- 权益列表 -->
@@ -2725,23 +2825,23 @@
               <div class="benefits-list">
                 <div class="benefit-item">
                   <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  <div class="benefit-text">解锁<strong>认证摄影师</strong>身份标识</div>
+                  <div class="benefit-text">获得<strong>工作生活</strong>双模式</div>
                 </div>
                 <div class="benefit-item">
                   <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  <div class="benefit-text">支持<strong>工作模式 / 生活模式</strong>自由切换</div>
+                  <div class="benefit-text">工作模式下，上传的作品出现在<strong>探索模式</strong></div>
                 </div>
                 <div class="benefit-item">
                   <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  <div class="benefit-text">无限量坐标点标记与照片上传</div>
+                  <div class="benefit-text">获得<strong>独立作品展示区</strong>，让顾客更容易找到你</div>
                 </div>
                 <div class="benefit-item">
                   <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  <div class="benefit-text">优先展示在附近摄影师推荐位</div>
+                  <div class="benefit-text"><strong>探索模式</strong>，专门为摄影师接单设计的模式</div>
                 </div>
                 <div class="benefit-item">
                   <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  <div class="benefit-text">专属客服与摄影社区准入资格</div>
+                  <div class="benefit-text">会员结束，探索区作品隐藏，<strong>续订直接复位</strong></div>
                 </div>
               </div>
             </div>
@@ -2756,11 +2856,11 @@
             </svg>
             <span class="nav-label">首页</span>
           </div>
-          <div class="nav-item" data-tab="market">
+          <div class="nav-item" data-tab="promote">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              <path d="M3 20h18"/><path d="M4 16V8l5 4 3-7 3 7 5-4v8"/>
             </svg>
-            <span class="nav-label">联机</span>
+            <span class="nav-label">加冕为王</span>
           </div>
           <div class="nav-center">
             <!-- 2026-09-20 雷达一期：中间键相机改雷达（点击进首页雷达模式；相机入口在本页最下方长条键） -->
@@ -2865,6 +2965,68 @@
   applyDataModeBadges();
   // == DATA-MODE-DEBUG 结束 ==
 
+  // ========== 设置·演示模式（王总 2026-09-03：一键恢复模拟信息，仅用于演示） ==========
+  var DEMO_MODE_KEY = 'memomap_demo_mode'; // 全站统一演示开关（王总 2026-09-03：所有模式可恢复演示；正式上线前删除）
+  function demoModeOn() { try { return localStorage.getItem(DEMO_MODE_KEY) === '1' || localStorage.getItem('profile_demo_mode') === '1'; } catch (e) { return false; } }
+  function updateDemoBadge() {
+    var b = document.getElementById('demoModeBadge');
+    if (b) b.textContent = demoModeOn() ? '开启中' : '未开启';
+  }
+  var DEMO_PROFILE_AVATAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+  function applyDemoProfile() {
+    serverCoordPhotos = null; // 演示模式：我的照片走本地模拟（myHomeCoords + 色块作品）
+    var name = '旅行者', bio = '记录旅途的每一个瞬间';
+    var pairs = [
+      [document.querySelector('.profile-name'), name],
+      [document.querySelector('.profile-desc'), bio],
+      [document.getElementById('myHomeName'), name],
+      [document.getElementById('myHomeBio'), bio],
+      [document.getElementById('myProfileName'), name],
+      [document.getElementById('myProfileBio'), bio]
+    ];
+    pairs.forEach(function (p) { if (p[0]) p[0].textContent = p[1]; });
+    [document.querySelector('.profile-avatar'), document.getElementById('myHomeAvatar'), document.getElementById('myProfileAvatar')].forEach(function (box) {
+      if (box) box.innerHTML = DEMO_PROFILE_AVATAR_SVG;
+    });
+    var badge = document.getElementById('myProfilePhotographerBadge');
+    if (badge) badge.classList.add('show');
+    var stats = { myProfileLikeCount: '128', myProfileMutualCount: '36', myProfileFollowingCount: '89', myProfileFollowerCount: '152' };
+    Object.keys(stats).forEach(function (id) { var el = document.getElementById(id); if (el) el.textContent = stats[id]; });
+    renderMyProfileGrid();
+    renderMyHomeCoordsList();
+  }
+  function resetRealProfile() {
+    serverCoordPhotos = null;
+    var name = '旅行者', bio = '记录旅途的每一个瞬间';
+    [['.profile-name', name], ['.profile-desc', bio], ['#myHomeName', name], ['#myHomeBio', bio], ['#myProfileName', name], ['#myProfileBio', bio]].forEach(function (p) {
+      var el = document.querySelector(p[0]); if (el) el.textContent = p[1];
+    });
+    var badge = document.getElementById('myProfilePhotographerBadge');
+    if (badge) badge.classList.remove('show');
+    ['myProfileLikeCount', 'myProfileMutualCount', 'myProfileFollowingCount', 'myProfileFollowerCount'].forEach(function (id) {
+      var el = document.getElementById(id); if (el) el.textContent = '0';
+    });
+    loadUserProfile();
+    loadMyCoordPhotos();
+    renderMyHomeCoordsList();
+  }
+  function toggleDemoMode() {
+    var on = !demoModeOn();
+    try { on ? localStorage.setItem(DEMO_MODE_KEY, '1') : localStorage.removeItem(DEMO_MODE_KEY); } catch (e) {}
+    updateDemoBadge();
+    if (on) { applyDemoProfile(); showToast('演示模式已开启'); }
+    else { resetRealProfile(); showToast('已恢复真实数据'); }
+  }
+  var settingsEntryEl = document.getElementById('settingsEntry');
+  if (settingsEntryEl) settingsEntryEl.addEventListener('click', function () { showView('settings'); });
+  var settingsBackEl = document.getElementById('settingsBack');
+  if (settingsBackEl) settingsBackEl.addEventListener('click', function () { showView('profile'); });
+  var demoModeEntryEl = document.getElementById('demoModeEntry');
+  if (demoModeEntryEl) demoModeEntryEl.addEventListener('click', toggleDemoMode);
+  updateDemoBadge();
+
+
+
   // 删除的坐标点数据
 
   let deletedMarkers = [
@@ -2907,6 +3069,7 @@
 
   // 拉取回收站（type=all 一次拉全，列表与统计共用；失败回退本地模拟）
   function loadTrash() {
+    if (demoModeOn()) return; // 演示模式：使用本地模拟回收站（正式上线前删除）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/photos/trash?type=all&pageSize=100').then(function (data) {
       if (!data) return;
@@ -3157,6 +3320,7 @@
   // ========== 我的主页（抖音式）渲染：头图+统计三列+按钮行+三列作品网格 ==========
   // 互关数 = 我的关注 ∩ 我的粉丝(前端算交集,王总 2026-08-14 新图要求 4 项统计)
   function loadMutualCount() {
+    if (demoModeOn()) return;
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     Promise.all([
       MemoAPI.get('/users/me/following?page=1&pageSize=100').catch(function () { return { list: [] }; }),
@@ -3174,6 +3338,7 @@
   }
 
   function renderMyProfile() {
+    if (demoModeOn()) { applyDemoProfile(); return; }
     if (serverProfile) {
       const d = serverProfile;
       const name = d.nickname || '旅行者';
@@ -3409,6 +3574,19 @@
     followListItems.innerHTML = '<div class="follow-list-empty">加载中...</div>';
     showView('followlist');
     refreshFollowBadges();
+    if (demoModeOn()) {
+      // 演示模式：内置演示名单（正式上线前删除）
+      followListUsers = [
+        { id: 'demo-u1', nickname: '山城光影', bio: '街头与人文，扫街十年', isPhotographer: true },
+        { id: 'demo-u2', nickname: '林间鹿', bio: '自然风光 | 徒步爱好者', isPhotographer: true },
+        { id: 'demo-u3', nickname: '海边拾光', bio: '大海与落日，常驻青岛', isPhotographer: false },
+        { id: 'demo-u4', nickname: '胶片老周', bio: '只用胶片机的老派摄影师', isPhotographer: true },
+        { id: 'demo-u5', nickname: '麦子', bio: '拍娃党，记录成长', isPhotographer: false }
+      ];
+      followListMyFollowIds = new Set(['demo-u1', 'demo-u2', 'demo-u3']);
+      renderFollowItems();
+      return;
+    }
     const me = (typeof MemoAPI !== 'undefined' && MemoAPI.isLoggedIn()) ? MemoAPI.getUser() : null;
     if (!me || !me.id) {
       followListItems.innerHTML = '<div class="follow-list-empty">请先登录</div>';
@@ -3470,6 +3648,7 @@
         const was = btn.classList.contains('followed');
         btn.classList.toggle('followed', !was);
         btn.querySelector('span').textContent = was ? '关注' : '已关注';
+        if (demoModeOn()) { showToast(was ? '已取消关注' : '已关注'); return; } // 演示模式：本地切换
         (was ? MemoAPI.del('/users/' + uid + '/follow') : MemoAPI.post('/users/' + uid + '/follow', {}))
           .then(function (res) {
             if (res && res.isFollowed !== undefined) {
@@ -3576,6 +3755,29 @@
     peerProfileCoords.innerHTML = '<div class="peer-profile-empty">加载中...</div>';
     setPeerFollowBtn(false);
     peerProfile.classList.add('show');
+    if (demoModeOn()) {
+      // 演示模式：内置演示资料与作品（正式上线前删除）
+      var demoThumb = function (c1, c2) {
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + c1 + '"/><stop offset="1" stop-color="' + c2 + '"/></linearGradient></defs><rect width="300" height="400" fill="url(#g)"/></svg>'); 
+      };
+      peerProfileBio.textContent = '坐标与光影记录者，走过 23 座城';
+      peerProfileLikeCount.textContent = '86';
+      peerProfileFollowingCount.textContent = '52';
+      peerProfileFollowerCount.textContent = '134';
+      setPeerFollowBtn(false);
+      var demoTitles = ['晨雾的山脊', '巷口的猫', '老城黄昏', '海边栈桥'];
+      var demoPairs = [['#F2B85C', '#A85628'], ['#7BC4A2', '#2E6E55'], ['#8FB8E8', '#3A5F8A'], ['#E8A0A8', '#8A3A4A']];
+      var grid = '';
+      demoTitles.forEach(function (t, i) {
+        var u = demoThumb(demoPairs[i][0], demoPairs[i][1]);
+        grid += '<div class="pp-card" data-img="' + u + '" data-title="' + t + '"><div class="pp-card-cover" style="background-image:url(\'' + u + '\');"></div><div class="pp-card-mask"></div><div class="pp-card-title">' + t + '</div><div class="pp-card-likes">♡ ' + (12 + i * 7) + '</div></div>';
+      });
+      peerProfileCoords.innerHTML = grid;
+      peerProfileCoords.querySelectorAll('.pp-card').forEach(function (el) {
+        el.addEventListener('click', function () { openPpPreview(el.dataset.img, el.dataset.title, ''); });
+      });
+      return;
+    }
 
     MemoAPI.get('/users/' + uid + '/profile').then(function (p) {
       if (!p || !p.id) return;
@@ -3690,6 +3892,7 @@
     setPeerFollowBtn(!was);
     const cur = parseInt(peerProfileFollowerCount.textContent, 10);
     if (!isNaN(cur)) peerProfileFollowerCount.textContent = Math.max(0, cur + (was ? -1 : 1));
+    if (demoModeOn()) { showToast(was ? '已取消关注' : '已关注'); return; } // 演示模式：本地切换
     (was ? MemoAPI.del('/users/' + currentPeer.id + '/follow') : MemoAPI.post('/users/' + currentPeer.id + '/follow', {}))
       .then(function (res) {
         if (res && res.isFollowed !== undefined) {
@@ -3703,10 +3906,11 @@
       });
   });
 
-  // 私信 → 消息页发起
+  // 私信 → 消息页发起（?peer= 深链直达会话；无 id 时退回普通跳转）
   document.getElementById('peerProfileMessageBtn').addEventListener('click', () => {
     showToast('前往消息页发起私信');
-    setTimeout(() => { window.location.href = 'message-prototype.html'; }, 600);
+    const pid = currentPeer && currentPeer.id ? encodeURIComponent(currentPeer.id) : '';
+    setTimeout(() => { window.location.href = 'message-prototype.html' + (pid ? '?peer=' + pid : ''); }, 600);
   });
 
   // 菜单入口
@@ -3758,8 +3962,8 @@
       if (tab === 'home') {
         window.location.href = 'memo-home.html';
         return;
-      } else if (tab === 'market') {
-        window.location.href = 'connect-prototype.html';
+      } else if (tab === 'promote') {
+        window.location.href = 'photographer-payment.html';
         return;
       } else if (tab === 'message') {
         window.location.href = 'message-prototype.html';
@@ -3916,6 +4120,7 @@
    * - 失败（服务不可达/业务错误）：保持本地模拟逻辑，页面不崩（按 api.js 约定只 console 提示）
    */
   function loadMemberStatus() {
+    if (demoModeOn()) { serverStatusLoaded = false; return; } // 演示模式：以本地模拟状态为准
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/member/status').then(function (data) {
       if (!data) return;
@@ -3948,6 +4153,7 @@
   let serverProfile = null;
 
   function loadUserProfile() {
+    if (demoModeOn()) { applyDemoProfile(); return; }
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/users/me').then(function (data) {
       if (!data) return;
@@ -3961,6 +4167,7 @@
 
   // 应用真实资料：昵称/简介/头像 + 统计（"已删除"统计来自回收站接口）
   function applyUserProfile() {
+    if (demoModeOn()) return;
     if (!serverProfile) return;
     const d = serverProfile;
     const name = d.nickname || '旅行者';
@@ -4011,6 +4218,7 @@
   let serverCoordPhotos = null;
 
   function loadMyCoordPhotos() {
+    if (demoModeOn()) return;
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     MemoAPI.get('/photos/mine?sortBy=coord&pageSize=100').then(function (data) {
       if (!data || !data.list || !data.list.length) return;
@@ -4061,16 +4269,16 @@
 
     if (isPhotographer) {
       photographerBlock.classList.add('active');
-      photographerTitle.textContent = '已升级认证摄影师';
+      photographerTitle.textContent = '已加冕为王';
       photographerDesc.textContent = '你已解锁工作 / 生活模式切换，可在我的主页顶部切换模式';
-      upgradePhotographerBtn.textContent = '已升级';
+      upgradePhotographerBtn.textContent = '已加冕';
     } else {
       photographerBlock.classList.remove('active');
-      photographerTitle.textContent = '升级为认证摄影师';
+      photographerTitle.textContent = '加冕为王';
       photographerDesc.textContent = isMember
-        ? '订阅会员后可升级为认证摄影师，解锁工作 / 生活模式切换'
-        : '请先订阅会员，再升级为认证摄影师';
-      upgradePhotographerBtn.textContent = '升级摄影师';
+        ? '订阅会员后可加冕为王，解锁工作 / 生活模式切换'
+        : '请先订阅会员，再行加冕';
+      upgradePhotographerBtn.textContent = '加冕为王';
     }
 
     // 我的主页头像区的摄影师徽章 & 模式切换栏
@@ -4101,6 +4309,23 @@
 
   // 订阅 / 取消订阅
   subscribeBtn.addEventListener('click', () => {
+    if (demoModeOn()) {
+      // 演示模式：一键模拟开通，不进支付页、不发真实订单（正式上线前删除）
+      if (!isMember) {
+        isMember = true;
+        memberMonths += 1;
+        isPhotographer = true;
+        serverStatusLoaded = false;
+        localStorage.setItem(MEMBER_KEY, '1');
+        localStorage.setItem(MEMBER_MONTHS_KEY, String(memberMonths));
+        localStorage.setItem(PHOTOGRAPHER_KEY, '1');
+        showToast('✓ 订阅成功，已开通月度会员');
+      } else {
+        showToast('您已是会员');
+      }
+      refreshMemberUI();
+      return;
+    }
     if (serverStatusLoaded) {
       // 真实模式（后端状态）：订阅=付费 → 跳转订阅支付页；取消订阅 → 关闭自动续费
       if (!isMember) {
@@ -4460,6 +4685,105 @@
   });
 
   // 统计栏三 tab 切换：点击项文字+数字泛起光晕（持续光晕=激活项），下方切换三视图
+  // 坐标点三模式（王总 2026-09-03 定：三模式均为自己上传的坐标、形式对标本地模式；区别仅在池归属过滤与探索排名）
+  const myHomeModeViews = { local: 'myHomeModeLocal', inspire: 'myHomeModeInspire', explore: 'myHomeModeExplore' };
+  function getMinePoolTitles(key) {
+    let snap = {};
+    try { snap = JSON.parse(localStorage.getItem('mine_pools_snapshot') || '{}'); } catch (e) { snap = {}; }
+    return Array.isArray(snap[key]) ? snap[key] : [];
+  }
+  function filterMineByPool(list, titles) {
+    if (!titles.length) return [];
+    return list.filter(cg => {
+      const full = (cg.cityPrefix ? cg.cityPrefix + '·' : '') + cg.title;
+      return titles.some(t => t === full || t === cg.title || t.indexOf(cg.title) !== -1 || full.indexOf(t) !== -1 || cg.title.indexOf(t) !== -1);
+    });
+  }
+  // 与本地模式同款卡片（序号+名称+最新时间+定位键+缩略图网格）；探索模式多一枚排名徽章（仅自己可见）
+  function renderMyHomePoolList(containerId, list, ranks) {
+    const container = document.getElementById(containerId);
+    if (!list.length) {
+      container.innerHTML = '<div style="text-align:center;color:rgba(245,223,192,0.5);padding:40px 0;font-size:13px;">暂无坐标点</div>';
+      return;
+    }
+    container.innerHTML = list.map((cg, i) => {
+      const thumbs = cg.photos.slice(0, 6).map(p => {
+        const bg = p.url
+          ? `background-image:url('${escapeHtml(p.url)}');background-size:cover;background-position:center;`
+          : 'background:linear-gradient(135deg,' + (p.color1 || '#F0A040') + ',' + (p.color2 || '#D4691C') + ');';
+        return `<div class="myhome-coord-thumb" style="${bg}"
+          data-lng="${cg.lng != null ? cg.lng : ''}" data-lat="${cg.lat != null ? cg.lat : ''}"
+          data-title="${escapeHtml(cg.title)}" data-time="${escapeHtml(p.timeLabel || '')}"
+          data-url="${escapeHtml(p.url)}" data-color1="${p.color1 || ''}" data-color2="${p.color2 || ''}"></div>`;
+      }).join('');
+      const fullTitle = (cg.cityPrefix ? cg.cityPrefix + '·' : '') + cg.title;
+      const rank = ranks ? ranks[cg.title] : null;
+      const timeLabel = ranks ? (cg.latestTs ? (new Date(cg.latestTs).getMonth() + 1) + '月' + new Date(cg.latestTs).getDate() + '日' : '') : formatLatestTime(cg.latestTs);
+      const rankHtml = ranks
+        ? (rank
+          ? '<div class="myhome-coord-rank" title="我在该坐标的探索排名">第 ' + rank + ' 位</div>'
+          : '<div class="myhome-coord-rank dim" title="打开地图探索弹窗后更新排名">待更新</div>')
+        : '';
+      return `
+        <div class="myhome-coord-card${ranks ? ' myhome-coord-ranked' : ''}">
+          <div class="myhome-coord-card-header">
+            <div class="myhome-coord-idx">${i + 1}</div>
+            <div class="myhome-coord-name" title="${escapeHtml(fullTitle)}">${escapeHtml(fullTitle)}</div>
+            <div class="myhome-coord-time">${ranks ? timeLabel : '最新 ' + timeLabel}</div>
+            ${rankHtml}
+            <button class="myhome-coord-locate" title="定位到此坐标">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'}</button>
+            <div class="myhome-coord-arrow">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'}</div>
+          </div>
+          <div class="myhome-coord-grid">${thumbs || '<div class="myhome-coord-empty" style="color:rgba(245,223,192,0.5);font-size:11px;padding:10px 0;text-align:center;">暂无照片</div>'}</div>
+        </div>`;
+    }).join('');
+    container.querySelectorAll('.myhome-coord-card').forEach((card, i) => {
+      const cg = list[i];
+      card.querySelector('.myhome-coord-locate').addEventListener('click', () => {
+        if (isFinite(cg.lng) && isFinite(cg.lat)) {
+          window.location.href = 'memo-home.html?locate=' + cg.lng + ',' + cg.lat + '&level=3';
+        }
+      });
+    });
+    container.querySelectorAll('.myhome-coord-thumb').forEach(thumb => {
+      thumb.addEventListener('click', () => {
+        showMyHomeViewer({
+          imageUrl: thumb.dataset.url,
+          color1: thumb.dataset.color1,
+          color2: thumb.dataset.color2,
+          title: thumb.dataset.title,
+          time: thumb.dataset.time,
+          lng: parseFloat(thumb.dataset.lng),
+          lat: parseFloat(thumb.dataset.lat)
+        });
+      });
+    });
+  }
+  function renderMyHomeInspireList() {
+    const list = filterMineByPool(getMyHomeData(), getMinePoolTitles('inspire'));
+    list.sort((a, b) => (b.latestTs || 0) - (a.latestTs || 0));
+    renderMyHomePoolList('myHomeInspireList', list, null);
+  }
+  function renderMyHomeExploreList() {
+    let ranks = {};
+    try { ranks = JSON.parse(localStorage.getItem('explore_myrank') || '{}'); } catch (e) { ranks = {}; }
+    const list = filterMineByPool(getMyHomeData(), getMinePoolTitles('explore'));
+    list.sort((a, b) => (b.latestTs || 0) - (a.latestTs || 0));
+    renderMyHomePoolList('myHomeExploreList', list, ranks);
+  }
+  document.querySelectorAll('.myhome-mode-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.myhome-mode-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const mode = tab.dataset.mode;
+      Object.keys(myHomeModeViews).forEach(k => {
+        document.getElementById(myHomeModeViews[k]).style.display = k === mode ? '' : 'none';
+      });
+      if (mode === 'inspire') renderMyHomeInspireList();
+      else if (mode === 'explore') renderMyHomeExploreList();
+    });
+  });
+
   const myHomeTabViews = { coord: 'myHomeTabCoord', photo: 'myHomeTabPhoto', like: 'myHomeTabLike' };
   document.querySelectorAll('.myhome-stat.clickable[data-tab]').forEach(stat => {
     stat.addEventListener('click', () => {
@@ -4540,6 +4864,7 @@
   // 已登录：拉取真实兑换记录与剩余时长（GET /invite/my-usage），覆盖邀请码区提示；
   // 失败/未登录保持本地"我的邀请码"逻辑（2026-08-14 真实化）
   function loadInviteUsage() {
+    if (demoModeOn()) return; // 演示模式：使用本地邀请码（正式上线前删除）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
     // 我的普通邀请码（每用户唯一，真实后端生成；替换本地哈希造码）
     MemoAPI.post('/invite/my-code', {}).then(function (mine) {
@@ -4627,6 +4952,7 @@
    * - 服务不可达（err.network）→ 回退本地模拟，保证原型可离线演示
    */
   function redeemInviteCodeReal(code, isVip, fallback) {
+    if (demoModeOn()) { fallback(); return; } // 演示模式：走本地模拟兑换（正式上线前删除）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.getToken()) {
       // App 内置浏览器（web-view）内：显式 full=1 全屏打开登录页；Web 端不带参
       window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
@@ -4837,12 +5163,12 @@
   // 从订阅支付页（photographer-payment.html）支付成功返回：提示已升级
   // 支付页已写入 localStorage 兜底，另拉取后端真实状态覆盖（后端确认后会员/摄影师已激活）
   if (location.search.indexOf('upgraded=1') !== -1) {
-    showToast('🎉 支付成功，你已升级为认证摄影师');
+    showToast('🎉 支付成功，你已加冕为王');
   }
   // 已登录时拉取真实会员/摄影师状态；未登录或接口失败自动回退 localStorage 逻辑（页面不崩）
   loadMemberStatus();
   // 已登录时拉取真实用户资料 / 我的照片 / 回收站；未登录或接口失败自动回退本地模拟（页面不崩）
-  loadUserProfile();
+  if (demoModeOn()) { applyDemoProfile(); } else { loadUserProfile(); }
   loadMyCoordPhotos();
   loadTrash();
 </script>

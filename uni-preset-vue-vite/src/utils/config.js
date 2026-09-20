@@ -24,6 +24,14 @@ export const MEMO_HOME_URL = import.meta.env.VITE_MEMO_HOME_URL || DEFAULT_MEMO_
 /** 各原型页 web-view 地址（App 内 1:1 嵌入对应原型） */
 export const ALBUM_URL = import.meta.env.VITE_ALBUM_URL || DEFAULT_ALBUM_URL
 export const MESSAGE_URL = import.meta.env.VITE_MESSAGE_URL || DEFAULT_MESSAGE_URL
+
+/**
+ * 消息页双轨开关（王总 2026-08-29 旨意：演示版/应用版随时切换）
+ * - 'demo' → 演示版：web-view 1:1 嵌入 message-prototype.html（现状）
+ * - 'app'  → 应用版：原生 uni-app 聊天页（pages/message/chat-native.vue）
+ * 改这一个词即完成切换；也可用环境变量 VITE_MESSAGE_MODE 覆盖
+ */
+export const MESSAGE_MODE = import.meta.env.VITE_MESSAGE_MODE || 'demo'
 export const PROFILE_URL = import.meta.env.VITE_PROFILE_URL || DEFAULT_PROFILE_URL
 export const CONNECT_URL = import.meta.env.VITE_CONNECT_URL || DEFAULT_CONNECT_URL
 export const LOGIN_URL = import.meta.env.VITE_LOGIN_URL || DEFAULT_LOGIN_URL

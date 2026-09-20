@@ -17,3 +17,4 @@ export { default as VerificationCode } from './verification-code.model.js';
 export { default as RefreshToken } from './refresh-token.model.js';
 export { default as PhonelinkPair } from './phonelink-pair.model.js';
 export { default as RadarLocation } from './radar-location.model.js';
+export { default as ExploreBoost } from './explore-boost.model.js';

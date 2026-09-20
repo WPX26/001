@@ -336,6 +336,12 @@
     connect();
 
     return {
+      // 上行通用发送（typing 等；未连接时静默丢弃）
+      send: function (obj) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          try { ws.send(JSON.stringify(obj)); } catch (e) { /* 忽略 */ }
+        }
+      },
       close: function () {
         closedByUser = true;
         clearInterval(heartbeatTimer);

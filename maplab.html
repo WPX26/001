@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>引擎手感对比实验室</title>
+<link rel="stylesheet" href="lib/leaflet/leaflet.css">
+<link rel="stylesheet" href="lib/maplibre/maplibre-gl.css">
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#111;color:#eee;font-family:-apple-system,sans-serif;overflow:hidden}
+  #map{position:absolute;inset:0}
+  .bar{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:1200;pointer-events:none}
+  .bar button{pointer-events:auto;border:0;border-radius:18px;padding:8px 14px;font-size:13px;background:rgba(0,0,0,.55);color:#bbb}
+  .bar button.on{background:#e8833a;color:#fff}
+  #fps{position:fixed;top:calc(env(safe-area-inset-top) + 48px);right:10px;z-index:1200;background:rgba(0,0,0,.5);padding:4px 8px;border-radius:8px;font-size:11px;color:#9f9}
+  #tip{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,.5);z-index:1200;pointer-events:none}
+  .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(0.88) contrast(0.88) saturate(0.65)}
+  .leaflet-container{background:#1c1c1c}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="bar">
+  <button id="btnML" class="on" onclick="useML()">MapLibre·GPU(新)</button>
+  <button id="btnLF" onclick="useLF()">Leaflet·现状</button>
+</div>
+<div id="fps">fps --</div>
+<div id="tip">双指捏合缩放 / 单指拖动 / 双击缩放，两个引擎各试 30 秒感受差别</div>
+<script src="lib/leaflet/leaflet.js"></script>
+<script src="lib/maplibre/maplibre-gl.js"></script>
+<script>
+  var C=[36.0671,120.3826], Z=15;
+  var TDT='https://t{s}.tianditu.gov.cn/vec_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=vec&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=ee36c38eb7777006970a6e5597f7bae9';
+  var SUB=['0','1','2','3','4','5','6','7'];
+  // MapLibre raster source: 不支持 {s}，枚举 8 个子域由引擎轮换
+  var MLTILES=SUB.map(function(s){return TDT.replace('{s}',s);});
+  var ML=null, LF=null, mode='ml';
+  // ---- MapLibre: WebGL 合成, 捏合缩放=GPU 纹理重采样, 瓦片淡入 ----
+  ML=new maplibregl.Map({container:'map',style:{version:8,sources:{vec:{type:'raster',tiles:MLTILES,tileSize:256,maxzoom:18}},layers:[{id:'vec',type:'raster',source:'vec',paint:{'raster-brightness-min':0,'raster-brightness-max':0.72,'raster-saturation':-0.35,'raster-contrast':0.12}}]},center:[C[1],C[0]],zoom:Z,attributionControl:false,interactive:true});
+  ML.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-right');
+  // ---- Leaflet: 备用对照(切换时才建) ----
+  function buildLF(c,z){
+    if(LF){LF.remove();LF=null;}
+    var d=document.createElement('div');d.id='lfmap';d.style.cssText='position:absolute;inset:0;display:none';document.body.appendChild(d);
+    LF=L.map('lfmap',{center:c,zoom:z,zoomSnap:0.5,zoomControl:false,attributionControl:false,minZoom:3,maxZoom:18});
+    L.tileLayer(TDT,{subdomains:SUB,maxZoom:18,maxNativeZoom:18,updateWhenZooming:false,updateWhenIdle:false,keepBuffer:4}).addTo(LF);
+  }
+  function syncFromML(){var c=ML.getCenter(),z=ML.getZoom();return {c:[c.lat,c.lng],z:z};}
+  function useML(){
+    if(mode==='ml')return;mode='ml';
+    var st=LF?syncFromLF():null;
+    if(LF){LF.remove();LF=null;var d=document.getElementById('lfmap');if(d)d.remove();}
+    document.getElementById('map').style.display='block';
+    if(st)ML.jumpTo({center:[st.c[1],st.c[0]],zoom:st.z});
+    ML.resize();
+    btn('btnML');
+  }
+  function useLF(){
+    if(mode==='lf')return;mode='lf';
+    var c0=ML.getCenter(),z0=ML.getZoom();
+    document.getElementById('map').style.display='none';
+    buildLF([c0.lat,c0.lng],z0);
+    LF.invalidateSize();
+    btn('btnLF');
+  }
+  function syncFromLF(){var c=LF.getCenter(),z=LF.getZoom();return {c:[c.lat,c.lng],z:z};}
+  function btn(id){document.getElementById('btnML').className=id==='btnML'?'on':'';document.getElementById('btnLF').className=id==='btnLF'?'on':'';}
+  // ---- FPS 计 ----
+  var fr=[],fpsEl=document.getElementById('fps');
+  (function loop(t){fr.push(t);if(fr.length>61)fr.shift();if(fr.length>2){var dt=(fr[fr.length-1]-fr[0])/1000;fpsEl.textContent='fps '+Math.round((fr.length-1)/dt);}requestAnimationFrame(loop);})(0);
+</script>
+</body>
+</html>

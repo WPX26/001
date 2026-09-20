@@ -403,6 +403,49 @@ try {
   await new Promise((r) => setTimeout(r, 100));
   check('全部断开 → 在线表清空', onlineUserCount() === 0);
 
+  // ============ 私信图片上传（/upload/file chat 场景）+ 图片消息全链路 ============
+  /** multipart 上传（fetch FormData，Node 18+ 原生） */
+  async function uploadChat(token, blob, filename) {
+    const form = new FormData();
+    form.append('scene', 'chat');
+    form.append('file', blob, filename);
+    const res = await fetch(base + '/api/v1/upload/file', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    let json = null;
+    try { json = await res.json(); } catch { /* 非 JSON */ }
+    return { status: res.status, body: json };
+  }
+
+  const png1x1 = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+  );
+  const upOk = await uploadChat(tokenA, new Blob([png1x1], { type: 'image/png' }), 'a.png');
+  check('chat 场景上传 PNG → 200 且 url 含 /uploads/chat/',
+    upOk.status === 200 && /\/uploads\/chat\//.test(upOk.body?.data?.url || ''),
+    'status=' + upOk.status + ' body=' + JSON.stringify(upOk.body));
+
+  const upBadType = await uploadChat(tokenA, new Blob([png1x1], { type: 'image/bmp' }), 'a.bmp');
+  check('chat 场景非 JPG/PNG/WebP → 400', upBadType.status === 400, 'status=' + upBadType.status);
+
+  const upBig = await uploadChat(tokenA, new Blob([Buffer.alloc(10 * 1024 * 1024 + 1, 1)], { type: 'image/jpeg' }), 'big.jpg');
+  check('chat 场景 >10MB → 400', upBig.status === 400, 'status=' + upBig.status);
+
+  const imgMsgReal = await call('POST', `/api/v1/chat/conversations/${convAB}/messages`,
+    { body: { type: 'image', imageUrl: upOk.body?.data?.url || '' }, token: tokenA });
+  check('A 发图片消息（真实上传 url）→ 200',
+    imgMsgReal.status === 200 && imgMsgReal.body?.data?.imageUrl === upOk.body?.data?.url,
+    'status=' + imgMsgReal.status + ' data=' + JSON.stringify(imgMsgReal.body?.data));
+
+  const convListAfter = await call('GET', '/api/v1/chat/conversations', { token: tokenB });
+  const convABRow = convListAfter.body?.data?.list?.find((c) => c.conversationId === convAB);
+  check('图片消息会话列表快照同步 lastImageUrl',
+    convABRow?.lastImageUrl === upOk.body?.data?.url,
+    JSON.stringify(convABRow));
+
   // ============ 清理 ============
   await mongoose.connection.dropDatabase();
   await mongoose.disconnect();

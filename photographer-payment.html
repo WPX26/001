@@ -6,7 +6,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>摄影师升级支付</title>
+<title>充钱使我变强</title>
 <style>  /* ===== 屏宽等比缩放基准（王总 2026-08-13）：1rem = 屏宽/375 px，元素长宽只与屏宽成比例，与屏高无关 ===== */
   html { font-size: 0.2667vw; }
 
@@ -14,7 +14,7 @@
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: linear-gradient(135deg, #F4E8D6 0%, #EBC9A0 100%);
+    background: #1C0F08;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -62,7 +62,7 @@
     border-radius: 0;
     overflow: hidden;
     position: relative;
-    background: #FFF5E6;
+    background: #1C0F08;
     display: flex;
     flex-direction: column;
   }
@@ -73,7 +73,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 14rem 20rem 6rem;
-    color: #1C0F08;
+    color: #F5DFC0;
     font-size: 13rem;
     font-weight: 600;
     flex-shrink: 0;
@@ -81,12 +81,13 @@
   .status-icons { display: flex; gap: 5rem; align-items: center; }
   .status-icons svg { width: 14rem; height: 11rem; }
 
-  /* 顶部导航 */
+  /* 顶部导航（照搬会员中心 sub-header） */
   .pay-header {
     display: flex;
     align-items: center;
-    padding: 10rem 16rem 12rem;
-    background: #FFF5E6;
+    padding: 12rem 16rem;
+    background: rgba(28, 15, 8, 0.5);
+    border-bottom: 1rem solid rgba(212, 165, 116, 0.15);
     flex-shrink: 0;
   }
   .pay-back {
@@ -95,7 +96,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #5C3D2E;
+    color: rgba(245, 223, 192, 0.85);
     border-radius: 8rem;
     transition: background 0.2s;
   }
@@ -104,108 +105,324 @@
   .pay-title {
     font-size: 16rem;
     font-weight: 700;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-left: 4rem;
   }
 
-  /* 内容滚动区 */
+  /* 内容滚动区（照搬会员中心 member-scroll） */
   .pay-scroll {
     flex: 1;
     overflow-y: auto;
-    background: #FFF5E6;
-    padding: 0 16rem 16rem;
+    background: #1C0F08;
+    padding: 0 16rem 20rem;
   }
   .pay-scroll::-webkit-scrollbar { width: 3rem; }
-  .pay-scroll::-webkit-scrollbar-thumb { background: #D4B896; border-radius: 2rem; }
+  .pay-scroll::-webkit-scrollbar-thumb { background: rgba(212, 165, 116, 0.3); border-radius: 2rem; }
 
-  /* 套餐卡片 */
-  .package-card {
-    background: linear-gradient(135deg, #2A2018 0%, #0F0A06 100%);
-    border-radius: 16rem;
-    padding: 22rem 18rem;
-    color: #FAF5EC;
+  /* 套餐卡片（照搬会员中心 plan-card） */
+  .plan-card {
+    background: linear-gradient(135deg, #1C1C1E 0%, #F4E8D6 100%);
+    border: 1.5rem solid rgba(240, 160, 64, 0.35);
+    border-radius: 18rem;
+    padding: 20rem 18rem;
+    margin-top: 16rem;
+    box-shadow: 0 6rem 20rem rgba(28, 15, 8, 0.08);
     position: relative;
     overflow: hidden;
-    margin-bottom: 16rem;
-    box-shadow: 0 8rem 24rem rgba(28, 15, 8, 0.25);
   }
-  /* 金色光晕装饰 */
-  .package-card::before {
-    content: '';
+  .plan-card::before {
+    content: '推荐';
     position: absolute;
-    top: -40rem; right: -40rem;
-    width: 140rem; height: 140rem;
-    background:
-      radial-gradient(ellipse 29% 42% at 50% 24%, rgba(232, 180, 80, 0.35) 0%, transparent 70%),
-      radial-gradient(ellipse 29% 42% at 74.7% 42%, rgba(232, 180, 80, 0.35) 0%, transparent 70%),
-      radial-gradient(ellipse 29% 42% at 65.3% 71%, rgba(232, 180, 80, 0.35) 0%, transparent 70%),
-      radial-gradient(ellipse 29% 42% at 34.7% 71%, rgba(232, 180, 80, 0.35) 0%, transparent 70%),
-      radial-gradient(ellipse 29% 42% at 25.3% 42%, rgba(232, 180, 80, 0.35) 0%, transparent 70%),
-      radial-gradient(circle 26% at 50% 50%, rgba(232, 180, 80, 0.35) 0%, transparent 70%);
-    border-radius: 50%;
-    pointer-events: none;
+    top: 12rem; right: 12rem;
+    padding: 2rem 8rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 10rem;
+    font-weight: 700;
+    border-radius: 6rem;
+    letter-spacing: 0.5rem;
   }
-  .package-emblem {
-    width: 48rem; height: 48rem;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #FFD98A 0%, #E8B450 50%, #C08020 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 12rem;
-    box-shadow: 0 4rem 14rem rgba(232, 180, 80, 0.5);
-    position: relative;
-    z-index: 1;
-  }
-  .package-emblem svg { width: 24rem; height: 24rem; color: white; }
-  .package-title {
-    font-size: 19rem;
-    font-weight: 800;
+  .plan-name {
+    font-size: 16rem;
+    font-weight: 700;
+    color: #F5DFC0;
     margin-bottom: 6rem;
-    position: relative;
-    z-index: 1;
   }
-  .package-subtitle {
-    font-size: 11rem;
-    color: rgba(255, 217, 138, 0.75);
+  .plan-desc {
+    font-size: 12rem;
+    color: rgba(245, 223, 192, 0.85);
     margin-bottom: 14rem;
-    position: relative;
-    z-index: 1;
+    line-height: 1.5;
   }
-  .package-price {
+  .plan-price {
     display: flex;
     align-items: baseline;
     gap: 4rem;
-    position: relative;
-    z-index: 1;
+    margin-bottom: 16rem;
   }
-  .price-currency {
-    font-size: 16rem;
-    font-weight: 600;
-    color: #FFD98A;
-  }
-  .price-amount {
-    font-size: 32rem;
-    font-weight: 800;
-    color: #FFD98A;
-    letter-spacing: -0.5rem;
-  }
-  .price-period {
-    font-size: 12rem;
-    color: rgba(255, 217, 138, 0.6);
-    margin-left: 4rem;
-  }
+  .plan-price-symbol { font-size: 16rem; font-weight: 700; color: #D4691C; }
+  .plan-price-num { font-size: 36rem; font-weight: 800; color: #D4691C; line-height: 1; }
+  .plan-price-unit { font-size: 13rem; color: rgba(245, 223, 192, 0.85); }
   .price-original {
     font-size: 12rem;
-    color: rgba(255, 255, 255, 0.35);
+    color: rgba(245, 223, 192, 0.4);
     text-decoration: line-through;
     margin-left: 8rem;
   }
 
+  /* 权益列表（照搬会员中心 benefits） */
+  .benefits-section { margin-top: 18rem; }
+  .benefits-title {
+    font-size: 12rem;
+    font-weight: 700;
+    color: rgba(245, 223, 192, 0.5);
+    padding: 8rem 4rem;
+    letter-spacing: 0.5rem;
+  }
+  .benefits-list {
+    background: rgba(28, 15, 8, 0.5);
+    border: 1rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 14rem;
+    overflow: hidden;
+  }
+  .benefit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10rem;
+    padding: 12rem 14rem;
+  }
+  .benefit-item + .benefit-item { border-top: 1rem solid rgba(212, 165, 116, 0.3); }
+  .benefit-check {
+    width: 18rem; height: 18rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1rem;
+  }
+  .benefit-check svg { width: 10rem; height: 10rem; color: white; stroke-width: 3; }
+  .benefit-text {
+    font-size: 13rem;
+    color: #F5DFC0;
+    line-height: 1.5;
+  }
+  .benefit-text strong { color: #D4691C; }
+
+  .plan-btn {
+    width: 100%;
+    padding: 13rem;
+    border: none;
+    border-radius: 12rem;
+    font-size: 14rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6rem;
+  }
+  .plan-btn.subscribe {
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    box-shadow: 0 4rem 14rem rgba(240, 160, 64, 0.4);
+  }
+  .plan-btn.subscribe:hover { transform: translateY(-1rem); box-shadow: 0 6rem 18rem rgba(240, 160, 64, 0.5); }
+  .plan-btn.subscribe:active { transform: scale(0.97); }
+  .plan-btn.cancel {
+    background: rgba(232, 83, 83, 0.1);
+    color: #E85353;
+    border: 1rem solid rgba(232, 83, 83, 0.3);
+  }
+  .plan-btn.cancel:hover { background: rgba(232, 83, 83, 0.18); }
+  .plan-btn.cancel:active { transform: scale(0.97); }
+  .plan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* 摄影师升级区块（照搬会员中心） */
+  .photographer-block {
+    margin-top: 18rem;
+    padding: 16rem;
+    border-radius: 14rem;
+    background: linear-gradient(135deg, rgba(240, 160, 64, 0.12) 0%, rgba(212, 105, 28, 0.08) 100%);
+    border: 1rem dashed rgba(240, 160, 64, 0.4);
+    text-align: center;
+  }
+  .photographer-block.active {
+    background: linear-gradient(135deg, rgba(46, 125, 50, 0.1) 0%, rgba(102, 187, 106, 0.08) 100%);
+    border: 1rem solid rgba(46, 125, 50, 0.35);
+  }
+  .photographer-icon {
+    width: 40rem; height: 40rem;
+    margin: 0 auto 8rem;
+    border-radius: 50%;
+    background: rgba(240, 160, 64, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .photographer-block.active .photographer-icon {
+    background: linear-gradient(135deg, #66BB6A 0%, #2E7D32 100%);
+  }
+  .photographer-icon svg { width: 20rem; height: 20rem; color: #D4691C; }
+  .photographer-block.active .photographer-icon svg { color: white; }
+  .photographer-title {
+    font-size: 14rem;
+    font-weight: 700;
+    color: #F5DFC0;
+    margin-bottom: 4rem;
+  }
+  .photographer-desc {
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.85);
+    margin-bottom: 12rem;
+    line-height: 1.5;
+  }
+  .photographer-btn {
+    padding: 8rem 20rem;
+    border: none;
+    border-radius: 10rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 12rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .photographer-btn:hover { transform: translateY(-1rem); box-shadow: 0 4rem 12rem rgba(240, 160, 64, 0.4); }
+  .photographer-btn:active { transform: scale(0.96); }
+  .photographer-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none; }
+
+  /* 邀请卡（照搬会员中心） */
+  .invite-card {
+    margin-top: 14rem;
+    padding: 16rem 18rem;
+    border-radius: 16rem;
+    background: linear-gradient(135deg, rgba(240, 160, 64, 0.14) 0%, rgba(212, 105, 28, 0.06) 100%);
+    border: 1.5rem solid rgba(240, 160, 64, 0.35);
+    box-shadow: 0 4rem 14rem rgba(28, 15, 8, 0.06);
+  }
+  .invite-title {
+    display: flex;
+    align-items: center;
+    gap: 8rem;
+    font-size: 15rem;
+    font-weight: 700;
+    color: #F5DFC0;
+    margin-bottom: 6rem;
+  }
+  .invite-title svg { width: 18rem; height: 18rem; color: #D4691C; }
+  .invite-desc {
+    font-size: 12rem;
+    color: rgba(245, 223, 192, 0.85);
+    line-height: 1.5;
+    margin-bottom: 12rem;
+  }
+  .invite-desc strong { color: #D4691C; }
+  .invite-input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10rem;
+    margin-bottom: 10rem;
+  }
+  .invite-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12rem 14rem;
+    border: 1.5rem solid rgba(212, 165, 116, 0.3);
+    border-radius: 10rem;
+    background: #0a0a0a;
+    font-size: 14rem;
+    font-weight: 600;
+    color: #F5DFC0;
+    outline: none;
+    letter-spacing: 1.5rem;
+    text-transform: uppercase;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .invite-input::placeholder {
+    color: rgba(245, 223, 192, 0.6);
+    font-weight: 400;
+    letter-spacing: 0.5rem;
+    text-transform: none;
+  }
+  .invite-input:focus {
+    border-color: #F0A040;
+    box-shadow: 0 0 0 3rem rgba(240, 160, 64, 0.18);
+  }
+  .invite-btn {
+    width: 100%;
+    padding: 12rem 0;
+    border: none;
+    border-radius: 10rem;
+    background: linear-gradient(135deg, #F0A040 0%, #D4691C 100%);
+    color: white;
+    font-size: 15rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 3rem 10rem rgba(240, 160, 64, 0.35);
+    flex-shrink: 0;
+  }
+  .invite-btn:hover { transform: translateY(-1rem); box-shadow: 0 5rem 14rem rgba(240, 160, 64, 0.45); }
+  .invite-btn:active { transform: scale(0.96); }
+  .invite-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .invite-tip {
+    font-size: 11rem;
+    color: rgba(245, 223, 192, 0.5);
+    text-align: center;
+    padding-top: 8rem;
+    border-top: 1rem dashed rgba(212, 165, 116, 0.3);
+  }
+  .invite-tip span {
+    font-weight: 700;
+    color: #D4691C;
+    letter-spacing: 1rem;
+    user-select: all;
+    cursor: pointer;
+  }
+  .invite-tip.success { color: #2E7D32; }
+  .vip-invite-card {
+    background: linear-gradient(135deg, rgba(220, 180, 80, 0.15) 0%, rgba(180, 140, 50, 0.08) 100%);
+    border-color: rgba(220, 180, 80, 0.4);
+  }
+  .vip-invite-card .invite-title svg { color: #DCB450; }
+  .vip-invite-card .invite-desc strong { color: #C89B32; }
+  .vip-invite-card .invite-input:focus { border-color: #DCB450; box-shadow: 0 0 0 3rem rgba(220, 180, 80, 0.18); }
+  .vip-btn {
+    background: linear-gradient(135deg, #E6C864 0%, #C89B32 100%);
+    box-shadow: 0 3rem 10rem rgba(220, 180, 80, 0.35);
+  }
+  .vip-btn:hover { box-shadow: 0 5rem 14rem rgba(220, 180, 80, 0.45); }
+
+  /* 操作提示 toast（会员中心同款） */
+  .toast {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(28, 15, 8, 0.95);
+    backdrop-filter: blur(10rem);
+    padding: 16rem 28rem;
+    border-radius: 14rem;
+    box-shadow: 0 10rem 40rem rgba(28, 15, 8, 0.4);
+    font-size: 14rem;
+    color: #F5DFC0;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 200;
+    text-align: center;
+    white-space: nowrap;
+    border: 1rem solid rgba(240, 160, 64, 0.3);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
   /* 订单详情 */
   .order-section {
-    background: rgba(250, 245, 236, 0.95);
-    border: 1rem solid rgba(212, 165, 116, 0.2);
+    background: rgba(245, 223, 192, 0.05);
+    border: 1rem solid rgba(212, 165, 116, 0.3);
     border-radius: 14rem;
     padding: 14rem 16rem;
     margin-bottom: 16rem;
@@ -217,22 +434,22 @@
     padding: 7rem 0;
     font-size: 13rem;
   }
-  .order-row + .order-row { border-top: 1rem dashed rgba(212, 165, 116, 0.2); }
+  .order-row + .order-row { border-top: 1rem dashed rgba(212, 165, 116, 0.25); }
   .order-label {
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.6);
   }
   .order-value {
-    color: #1C0F08;
+    color: #F5DFC0;
     font-weight: 600;
   }
   .order-row.total {
     margin-top: 4rem;
     padding-top: 10rem;
-    border-top: 1.5rem solid rgba(212, 165, 116, 0.3);
+    border-top: 1.5rem solid rgba(212, 165, 116, 0.35);
     font-size: 15rem;
   }
   .order-row.total .order-value {
-    color: #D4691C;
+    color: #F0A040;
     font-size: 18rem;
     font-weight: 800;
   }
@@ -241,13 +458,13 @@
   .pay-section-title {
     font-size: 12rem;
     font-weight: 700;
-    color: #9B7B5A;
-    padding: 4rem 4rem 10rem;
+    color: rgba(245, 223, 192, 0.5);
+    padding: 8rem 4rem;
     letter-spacing: 0.5rem;
   }
   .pay-methods {
-    background: rgba(250, 245, 236, 0.95);
-    border: 1rem solid rgba(212, 165, 116, 0.2);
+    background: rgba(28, 15, 8, 0.5);
+    border: 1rem solid rgba(212, 165, 116, 0.3);
     border-radius: 14rem;
     overflow: hidden;
     margin-bottom: 20rem;
@@ -261,8 +478,8 @@
     transition: background 0.18s;
     position: relative;
   }
-  .pay-method:hover { background: rgba(240, 160, 64, 0.06); }
-  .pay-method + .pay-method { border-top: 1rem solid rgba(212, 165, 116, 0.12); }
+  .pay-method:hover { background: rgba(240, 160, 64, 0.08); }
+  .pay-method + .pay-method { border-top: 1rem solid rgba(212, 165, 116, 0.25); }
   .pay-method-icon {
     width: 36rem; height: 36rem;
     border-radius: 10rem;
@@ -288,17 +505,17 @@
   .pay-method-name {
     font-size: 14rem;
     font-weight: 600;
-    color: #1C0F08;
+    color: #F5DFC0;
     margin-bottom: 2rem;
   }
   .pay-method-desc {
     font-size: 11rem;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.6);
   }
   .pay-method-radio {
     width: 20rem; height: 20rem;
     border-radius: 50%;
-    border: 2rem solid #D4B896;
+    border: 2rem solid rgba(212, 165, 116, 0.5);
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -320,8 +537,8 @@
   /* 底部支付按钮 */
   .pay-footer {
     padding: 12rem 16rem 18rem;
-    background: #FFF5E6;
-    border-top: 1rem solid rgba(212, 165, 116, 0.2);
+    background: rgba(28, 15, 8, 0.5);
+    border-top: 1rem solid rgba(212, 165, 116, 0.15);
     flex-shrink: 0;
   }
   .pay-confirm {
@@ -347,7 +564,7 @@
 
   .home-indicator {
     width: 100rem; height: 4rem;
-    background: rgba(28, 15, 8, 0.4);
+    background: rgba(245, 223, 192, 0.4);
     border-radius: 2rem;
     margin: 10rem auto;
   }
@@ -355,16 +572,16 @@
   /* 收款码面板（下单成功后显示，新增业务元素，不改动原有样式） */
   .qr-panel {
     display: none;
-    background: rgba(250, 245, 236, 0.95);
-    border: 1rem solid rgba(212, 165, 116, 0.2);
+    background: rgba(245, 223, 192, 0.05);
+    border: 1rem solid rgba(212, 165, 116, 0.3);
     border-radius: 14rem;
     padding: 18rem 16rem;
     margin-bottom: 16rem;
     text-align: center;
   }
   .qr-panel.show { display: block; }
-  .qr-title { font-size: 14rem; font-weight: 800; color: #1C0F08; margin-bottom: 4rem; }
-  .qr-subtitle { font-size: 11rem; color: #8B5E3C; margin-bottom: 12rem; line-height: 1.7; }
+  .qr-title { font-size: 14rem; font-weight: 800; color: #F5DFC0; margin-bottom: 4rem; }
+  .qr-subtitle { font-size: 11rem; color: rgba(245, 223, 192, 0.6); margin-bottom: 12rem; line-height: 1.7; }
   .qr-order-id {
     display: inline-block;
     font-size: 11rem;
@@ -392,28 +609,28 @@
   }
   .qr-img-wrap img { width: 100%; height: 100%; object-fit: contain; border-radius: 8rem; }
   .qr-img-placeholder {
-    color: #9B7B5A;
+    color: rgba(245, 223, 192, 0.6);
     font-size: 12rem;
     line-height: 1.8;
     padding: 10rem;
   }
   .qr-tip {
     font-size: 12rem;
-    color: #D4691C;
+    color: #F0A040;
     font-weight: 700;
     line-height: 1.7;
   }
   .qr-waiting {
     font-size: 12rem;
-    color: #8B5E3C;
+    color: rgba(245, 223, 192, 0.7);
     margin-top: 12rem;
     line-height: 1.8;
   }
   .qr-waiting .spin {
     display: inline-block;
     width: 14rem; height: 14rem;
-    border: 2rem solid #E8D3B4;
-    border-top-color: #D4691C;
+    border: 2rem solid rgba(212, 165, 116, 0.4);
+    border-top-color: #F0A040;
     border-radius: 50%;
     animation: spin 0.9s linear infinite;
     vertical-align: -2rem;
@@ -424,8 +641,8 @@
     padding: 8rem 18rem;
     border: 1rem solid rgba(240, 160, 64, 0.5);
     border-radius: 10rem;
-    background: #FFFDF7;
-    color: #D4691C;
+    background: rgba(245, 223, 192, 0.08);
+    color: #F0A040;
     font-size: 13rem;
     font-weight: 700;
     cursor: pointer;
@@ -508,6 +725,7 @@
 
 </head>
 <body>
+<div class="toast" id="toast"></div>
 <div class="container">
   <div class="phone-wrapper">
     <div class="phone-frame">
@@ -524,38 +742,59 @@
 
         <!-- 顶部导航 -->
         <div class="pay-header">
-          <div class="pay-back" id="payBack" onclick="window.location.href='profile-prototype.html'">
+          <div class="pay-back" id="payBack" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href = 'memo-home.html'; }">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
           </div>
-          <div class="pay-title">升级认证摄影师</div>
+          <div class="pay-title">充钱使我变强</div>
         </div>
 
         <!-- 内容滚动区 -->
         <div class="pay-scroll">
-          <!-- 套餐卡片 -->
-          <div class="package-card">
-            <div class="package-emblem">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <g>
-                  <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z"/>
-                  <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(72 12 12)"/>
-                  <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(144 12 12)"/>
-                  <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(216 12 12)"/>
-                  <path d="M12 11.6 C10.3 10.1 9.8 8.3 10.6 6.9 C11.3 5.6 12.7 5.6 13.4 6.9 C14.2 8.3 13.7 10.1 12 11.6 Z" transform="rotate(288 12 12)"/>
-                </g>
-                <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+          <!-- 套餐卡片（照搬会员中心 plan-card） -->
+          <div class="plan-card">
+            <div class="plan-name">月度会员</div>
+            <div class="plan-desc">解锁全部高级功能，可加冕为王，享受工作 / 生活双模式切换</div>
+            <div class="plan-price">
+              <span class="plan-price-symbol">¥</span>
+              <span class="plan-price-num price-amount">6</span>
+              <span class="plan-price-unit">/ 月</span>
+              <span class="price-original" style="display:none;">¥12</span>
+            </div>
+            <button class="plan-btn subscribe" id="subscribeBtn">立即订阅</button>
+          </div>
+
+          <!-- 邀请码兑换区块（照搬会员中心） -->
+          <div class="invite-card" id="inviteCard">
+            <div class="invite-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
               </svg>
+              邀请码兑换
             </div>
-            <div class="package-title">认证摄影师</div>
-            <div class="package-subtitle">解锁工作 / 生活模式切换 · 作品优先展示</div>
-            <div class="package-price">
-              <span class="price-currency">¥</span>
-              <span class="price-amount">6</span>
-              <span class="price-period">/ 月</span>
-              <span class="price-original">¥12</span>
+            <div class="invite-desc">输入好友的邀请码，双方均可获得 <strong>1 个月会员</strong></div>
+            <div class="invite-input-row">
+              <input type="text" id="inviteInput" class="invite-input" placeholder="请输入 8 位邀请码" maxlength="8">
+              <button id="inviteBtn" class="invite-btn">兑换</button>
             </div>
+            <div class="invite-tip" id="inviteTip">我的邀请码：<span id="myInviteCode">PHOTO268</span></div>
+          </div>
+
+          <!-- VIP邀请码兑换区块（照搬会员中心） -->
+          <div class="invite-card vip-invite-card" id="vipInviteCard">
+            <div class="invite-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              VIP邀请码兑换
+            </div>
+            <div class="invite-desc">输入VIP专属邀请码，获得 <strong>1 个月会员（可无限叠加）</strong></div>
+            <div class="invite-input-row">
+              <input type="text" id="vipInviteInput" class="invite-input" placeholder="请输入 VIP 邀请码">
+              <button id="vipInviteBtn" class="invite-btn vip-btn">兑换VIP</button>
+            </div>
+            <div class="invite-tip" id="vipInviteTip"></div>
           </div>
 
           <!-- 订单详情 -->
@@ -568,10 +807,6 @@
               <span class="order-label">有效期</span>
               <span class="order-value">1个月</span>
             </div>
-            <div class="order-row">
-              <span class="order-label">优惠</span>
-              <span class="order-value">-¥6</span>
-            </div>
             <div class="order-row total">
               <span class="order-label">合计</span>
               <span class="order-value">¥6</span>
@@ -583,7 +818,7 @@
           <div class="pay-methods" id="payMethods">
             <div class="pay-method selected" data-method="wechat" onclick="selectPayMethod(this)">
               <div class="pay-method-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.582.582 0 0 1-.023-.156.49.49 0 0 1 .201-.398C23.024 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-6.656-6.088V8.89c-.135-.01-.27-.027-.407-.03zm-2.53 3.274c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.97-.982zm4.844 0c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.969-.982z"/></svg>
               </div>
               <div class="pay-method-info">
                 <div class="pay-method-name">微信支付</div>
@@ -595,7 +830,7 @@
             </div>
             <div class="pay-method" data-method="alipay" onclick="selectPayMethod(this)">
               <div class="pay-method-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.5 14h-1.25c-.414 0-.75-.336-.75-.75v-6.5c0-.414.336-.75.75-.75H16.5c.414 0 .75.336.75.75v6.5c0 .414-.336.75-.75.75zm-8.75 0H6.5c-.414 0-.75-.336-.75-.75v-6.5c0-.414.336-.75.75-.75H7.75c.414 0 .75.336.75.75v6.5c0 .414-.336.75-.75.75zm4.25 0h-1.25c-.414 0-.75-.336-.75-.75v-6.5c0-.414.336-.75.75-.75H12c.414 0 .75.336.75.75v6.5c0 .414-.336.75-.75.75z"/></svg>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.695 15.07c3.426 1.158 4.203 1.22 4.203 1.22V3.846c0-2.124-1.705-3.845-3.81-3.845H3.914C1.808.001.102 1.722.102 3.846v16.31c0 2.123 1.706 3.845 3.813 3.845h16.173c2.105 0 3.81-1.722 3.81-3.845v-.157s-6.19-2.602-9.315-4.119c-2.096 2.602-4.8 4.181-7.607 4.181-4.75 0-6.361-4.19-4.112-6.949.49-.602 1.324-1.175 2.617-1.497 2.025-.502 5.247.313 8.266 1.317a16.796 16.796 0 0 0 1.341-3.302H5.781v-.952h4.799V6.975H4.77v-.953h5.81V3.591s0-.409.411-.409h2.347v2.84h5.744v.951h-5.744v1.704h4.69a19.453 19.453 0 0 1-1.986 5.06c1.424.52 2.702 1.011 3.654 1.333m-13.81-2.032c-.596.06-1.71.325-2.321.869-1.83 1.608-.735 4.55 2.968 4.55 2.151 0 4.301-1.388 5.99-3.61-2.403-1.182-4.438-2.028-6.637-1.809"/></svg>
               </div>
               <div class="pay-method-info">
                 <div class="pay-method-name">支付宝</div>
@@ -603,6 +838,45 @@
               </div>
               <div class="pay-method-radio">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- 摄影师升级区块（照搬会员中心） -->
+          <div class="photographer-block" id="photographerBlock">
+            <div class="photographer-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+            <div class="photographer-title" id="photographerTitle">加冕为王</div>
+            <div class="photographer-desc" id="photographerDesc">订阅会员后可加冕为王，解锁工作 / 生活模式切换</div>
+            <button class="photographer-btn" id="upgradePhotographerBtn" disabled>加冕为王</button>
+          </div>
+
+          <!-- 会员权益（照搬会员中心） -->
+          <div class="benefits-section">
+            <div class="benefits-title">会员权益</div>
+            <div class="benefits-list">
+              <div class="benefit-item">
+                <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="benefit-text">获得<strong>工作生活</strong>双模式</div>
+              </div>
+              <div class="benefit-item">
+                <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="benefit-text">工作模式下，上传的作品出现在<strong>探索模式</strong></div>
+              </div>
+              <div class="benefit-item">
+                <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="benefit-text">获得<strong>独立作品展示区</strong>，让顾客更容易找到你</div>
+              </div>
+              <div class="benefit-item">
+                <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="benefit-text"><strong>探索模式</strong>，专门为摄影师接单设计的模式</div>
+              </div>
+              <div class="benefit-item">
+                <div class="benefit-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="benefit-text">会员结束，探索区作品隐藏，<strong>续订直接复位</strong></div>
               </div>
             </div>
           </div>
@@ -718,16 +992,25 @@
   }
 
   /* 本地模拟成功（仅服务不可达时的兜底，保持原型可离线演示） */
-  function mockPaySuccess() {
+  function mockPaySuccess(demo) {
     setTimeout(function () {
       localStorage.setItem('profile_photographer', '1');
-      alert('✅ 支付成功！你已升级为认证摄影师');
+      if (demo) {
+        localStorage.setItem('profile_member', '1');
+        localStorage.setItem('profile_member_months', '1');
+      }
+      alert('✅ 支付成功！你已加冕为王');
       window.location.href = 'profile-prototype.html?upgraded=1';
-    }, 2000);
+    }, demo ? 300 : 2000);
   }
 
   /* ========== 下单：POST /member/order ========== */
   function confirmPayment() {
+    if (localStorage.getItem('memomap_demo_mode') === '1' || localStorage.getItem('profile_demo_mode') === '1') {
+      // 演示模式：不真实下单，直接模拟支付成功（正式上线前删除）
+      mockPaySuccess(true);
+      return;
+    }
     // 已登录校验：未登录 → 跳登录页（真实对接要求）
     if (typeof MemoAPI === 'undefined' || !MemoAPI.getToken()) {
       window.location.href = 'login-prototype.html';
@@ -858,7 +1141,7 @@
     clearInterval(pollTimer);
     // 原型阶段：本地标记摄影师身份兜底（真实状态由后端 GET /member/status 下发，见 profile-prototype.html）
     localStorage.setItem('profile_photographer', '1');
-    alert('✅ 支付成功！你已升级为认证摄影师');
+    alert('✅ 支付成功！你已加冕为王');
     window.location.href = 'profile-prototype.html?upgraded=1';
   }
 
@@ -879,6 +1162,374 @@
   });
 
   // 初始化：进页拉套餐价格渲染（未登录时由 confirmPayment 统一拦截跳登录页）
+  // ========== 邀请码系统（照搬会员中心：同接口 / 同 localStorage 键 / 同文案） ==========
+  const MEMBER_KEY = 'profile_member';
+  const MEMBER_MONTHS_KEY = 'profile_member_months';
+  const PHOTOGRAPHER_KEY = 'profile_photographer';
+
+  const toast = document.getElementById('toast');
+  const showToast = (msg) => {
+    // 与会员中心同一规则：仅保留错误/警示类提示
+    if (msg && !/⚠️|失败|错误|无效|不可达|请输入|需为|不能|重复|请稍后|手动/.test(String(msg))) return;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove('show'), 2000);
+  };
+
+  function generateInviteCode() {
+    var seed = localStorage.getItem('profile_invite_seed');
+    if (!seed) {
+      seed = String(Date.now()) + '_' + String(Math.random()).slice(2, 8);
+      localStorage.setItem('profile_invite_seed', seed);
+    }
+    var hash = 0;
+    for (var i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+      hash |= 0;
+    }
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var code = '';
+    for (var i = 0; i < 8; i++) {
+      code += chars[Math.abs((hash * (i + 7)) % chars.length)];
+    }
+    return code;
+  }
+
+  function getMyInviteCode() {
+    var saved = localStorage.getItem('profile_my_code');
+    if (!saved) {
+      saved = generateInviteCode();
+      localStorage.setItem('profile_my_code', saved);
+    }
+    return saved;
+  }
+
+  function isMyCodeUsed() {
+    return localStorage.getItem('profile_my_code_used') === '1';
+  }
+
+  function refreshInviteUI() {
+    var codeEl = document.getElementById('myInviteCode');
+    var tip = document.getElementById('inviteTip');
+    if (isMyCodeUsed()) {
+      codeEl.style.textDecoration = 'line-through';
+      codeEl.style.opacity = '0.5';
+      tip.classList.add('success');
+      tip.innerHTML = '你的邀请码已被使用（已失效）';
+    } else {
+      codeEl.textContent = getMyInviteCode();
+      codeEl.style.textDecoration = 'none';
+      codeEl.style.opacity = '1';
+      tip.classList.remove('success');
+      tip.innerHTML = '我的邀请码：<span id="myInviteCode">' + getMyInviteCode() + '</span>';
+      var span = tip.querySelector('#myInviteCode');
+      if (span) {
+        span.addEventListener('click', copyInviteCode);
+      }
+    }
+  }
+
+  function loadInviteUsage() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.post('/invite/my-code', {}).then(function (mine) {
+      if (!mine || !mine.code) return;
+      myCode = mine.code;
+      var codeEl = document.getElementById('myInviteCode');
+      if (codeEl) {
+        if (mine.used) {
+          codeEl.style.textDecoration = 'line-through';
+          codeEl.style.opacity = '0.5';
+        } else {
+          codeEl.style.textDecoration = 'none';
+          codeEl.style.opacity = '1';
+        }
+      }
+    }).catch(function (e) {
+      console.warn('[invite/my-code] 拉取失败，保持本地邀请码：', e && e.message);
+    });
+    MemoAPI.get('/invite/my-usage').then(function (data) {
+      if (!data) return;
+      var tip = document.getElementById('inviteTip');
+      if (!tip) return;
+      var parts = [];
+      if (data.totalRedeemed > 0) {
+        parts.push('已兑换 ' + data.totalRedeemed + ' 次');
+        var latest = data.records && data.records[0];
+        if (latest && latest.code) parts.push('最近码 ' + latest.code);
+      } else {
+        parts.push('尚未兑换邀请码');
+      }
+      if (data.remainingDays != null) parts.push('会员剩余 ' + data.remainingDays + ' 天');
+      tip.classList.remove('success');
+      tip.innerHTML = '<span id="myInviteCode" style="display:none">' + getMyInviteCode() + '</span>' + parts.join(' · ');
+      if (data.records && data.records.length) {
+        var rows = data.records.slice(0, 3).map(function (r) {
+          var d = r.createdAt ? new Date(r.createdAt) : null;
+          var t = d && !isNaN(d.getTime())
+            ? (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+            : '';
+          return '<div style="font-size:11px;color:rgba(245,223,192,0.6);margin-top:3px;">' + (r.code || '') + ' · ' + t + '</div>';
+        }).join('');
+        tip.innerHTML += rows;
+      }
+    }).catch(function (e) {
+      console.warn('[invite/my-usage] 拉取失败，保持本地邀请码逻辑：', e && e.message);
+    });
+  }
+
+  function copyInviteCode(e) {
+    var code = getMyInviteCode();
+    navigator.clipboard.writeText(code).then(function() {
+      e && e.stopPropagation && e.stopPropagation();
+    });
+  }
+
+  const inviteInput = document.getElementById('inviteInput');
+  const inviteBtn = document.getElementById('inviteBtn');
+  const inviteTip = document.getElementById('inviteTip');
+  var myCode = getMyInviteCode();
+
+  var redeemedCodes = [];
+  try { redeemedCodes = JSON.parse(localStorage.getItem('profile_redeemed_codes') || '[]'); } catch(e) { redeemedCodes = []; }
+
+  var knownValidCodes = JSON.parse(localStorage.getItem('profile_known_codes') || '["DEMOCODE"]');
+
+  function redeemInviteCodeReal(code, isVip, fallback) {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.getToken()) {
+      window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
+      return;
+    }
+    MemoAPI.post('/invite/redeem', { code: code }).then(function (data) {
+      var days = data && data.remainingDays != null ? Math.max(0, Number(data.remainingDays)) : 0;
+      var expireText = '';
+      if (data && data.memberExpireAt) {
+        var d = new Date(data.memberExpireAt);
+        if (!isNaN(d.getTime())) {
+          var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+          expireText = '，会员至 ' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' 到期';
+        }
+      }
+
+      if (isVip) {
+        vipInviteTip.classList.add('success');
+        vipInviteTip.innerHTML = '✓ VIP激活成功，剩余 ' + days + ' 天会员（可无限叠加）' + expireText;
+      } else {
+        inviteTip.classList.add('success');
+        inviteTip.innerHTML = '✓ 兑换成功！你和邀请人都获得了 1 个月会员（剩余 ' + days + ' 天）' + expireText;
+      }
+      inviteInput.value = '';
+      vipInviteInput.value = '';
+
+      serverStatusLoaded = true;
+      serverRemainingDays = days;
+      isMember = true;
+      isPhotographer = !!(data && data.isPhotographer);
+      localStorage.setItem(MEMBER_KEY, '1');
+      localStorage.setItem(PHOTOGRAPHER_KEY, isPhotographer ? '1' : '0');
+      localStorage.setItem(MEMBER_MONTHS_KEY, String(Math.max(1, Math.ceil(days / 30))));
+      refreshMemberUI();
+
+      showToast('🎉 兑换成功，会员时长已顺延' + (days ? ' ' + days + ' 天' : ''));
+    }).catch(function (err) {
+      if (err && err.network) {  // 服务不可达 → 回退本地模拟
+        if (fallback) fallback();
+        return;
+      }
+      if (err && err.code === 1002) {  // Token 过期/无效 → 重新登录
+        if (typeof MemoAPI !== 'undefined') MemoAPI.clearAuth();
+        window.location.href = 'login-prototype.html' + ((window.uni && uni.postMessage) ? '?full=1' : '');
+        return;
+      }
+      showToast(err && err.message ? err.message : '兑换失败，请重试');
+    });
+  }
+
+  inviteBtn.addEventListener('click', function() {
+    var code = inviteInput.value.trim().toUpperCase();
+    if (!code) { showToast('请输入邀请码', 'warning'); return; }
+
+    function localRedeem() {
+      var memberMonths = parseInt(localStorage.getItem(MEMBER_MONTHS_KEY) || '0', 10);
+      if (code.length !== 8) { showToast('邀请码需为 8 位', 'warning'); return; }
+      if (code === myCode) { showToast('不能使用自己的邀请码', 'warning'); return; }
+      if (redeemedCodes.length >= 1) { showToast('你已兑换过邀请码，不可重复兑换', 'warning'); return; }
+
+      if (!knownValidCodes.includes(code)) {
+        knownValidCodes.push(code);
+        localStorage.setItem('profile_known_codes', JSON.stringify(knownValidCodes));
+      }
+
+      redeemedCodes.push(code);
+      localStorage.setItem('profile_redeemed_codes', JSON.stringify(redeemedCodes));
+      isMember = true;
+      localStorage.setItem(MEMBER_KEY, '1');
+      localStorage.setItem(MEMBER_MONTHS_KEY, (memberMonths + 1).toString());
+
+      var benefitKey = 'profile_benefit_' + code;
+      if (localStorage.getItem(benefitKey) !== '1') {
+        localStorage.setItem(benefitKey, '1');
+        var inviteBenefitMap = JSON.parse(localStorage.getItem('profile_invite_benefits') || '{}');
+        if (!inviteBenefitMap[code]) inviteBenefitMap[code] = 0;
+        inviteBenefitMap[code] += 1;
+        localStorage.setItem('profile_invite_benefits', JSON.stringify(inviteBenefitMap));
+      }
+
+      inviteInput.value = '';
+      inviteBtn.disabled = true;
+      inviteTip.classList.add('success');
+      inviteTip.innerHTML = '✓ 兑换成功！你和邀请人都获得了 1 个月会员';
+
+      showToast('🎉 兑换成功，双方各得 1 个月会员');
+      refreshInviteUI();
+
+      setTimeout(function() { inviteBtn.disabled = false; }, 1500);
+    }
+
+    redeemInviteCodeReal(code, false, localRedeem);
+  });
+
+  // -- VIP 邀请码兑换 --
+  var VALID_VIP_CODES = [];
+  try { VALID_VIP_CODES = JSON.parse(localStorage.getItem('profile_vip_codes') || '["BETA2026"]'); } catch(e) { VALID_VIP_CODES = ['BETA2026']; }
+
+  const vipInviteBtn = document.getElementById('vipInviteBtn');
+  const vipInviteInput = document.getElementById('vipInviteInput');
+  const vipInviteTip = document.getElementById('vipInviteTip');
+
+  vipInviteBtn.addEventListener('click', function() {
+    var code = vipInviteInput.value.trim().toUpperCase();
+    if (!code) { showToast('请输入VIP邀请码', 'warning'); return; }
+
+    function localRedeem() {
+      var memberMonths = parseInt(localStorage.getItem(MEMBER_MONTHS_KEY) || '0', 10);
+      if (!VALID_VIP_CODES.includes(code)) { showToast('VIP邀请码无效', 'warning'); return; }
+      isMember = true;
+      localStorage.setItem(MEMBER_KEY, '1');
+      localStorage.setItem(MEMBER_MONTHS_KEY, (memberMonths + 1).toString());
+
+      vipInviteInput.value = '';
+      vipInviteTip.classList.add('success');
+      vipInviteTip.innerHTML = '✓ VIP激活成功，已累计 ' + (memberMonths + 1) + ' 个月会员（可无限叠加）';
+
+      showToast('🎉 VIP码兑换成功，已累计 ' + (memberMonths + 1) + ' 个月会员');
+    }
+
+    redeemInviteCodeReal(code, true, localRedeem);
+  });
+
+  // 添加 VIP 码（管理功能：浏览器控制台调用，与会员中心一致）
+  window.addVipCode = function(code) {
+    if (VALID_VIP_CODES.includes(code)) { showToast('该VIP码已存在'); return; }
+    VALID_VIP_CODES.push(code);
+    localStorage.setItem('profile_vip_codes', JSON.stringify(VALID_VIP_CODES));
+    showToast('VIP码 ' + code + ' 已添加');
+  };
+
+  // 输入恢复 + 只允许字母数字
+  inviteInput.addEventListener('input', function() {
+    inviteTip.classList.remove('success');
+    refreshInviteUI();
+  });
+  vipInviteInput.addEventListener('input', function() {
+    vipInviteTip.classList.remove('success');
+    vipInviteTip.innerHTML = '';
+  });
+  inviteInput.addEventListener('input', function() {
+    inviteInput.value = inviteInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  });
+
+  refreshInviteUI();
+  loadInviteUsage();
+
+  // ========== 会员状态联动（照搬会员中心：同接口 / 同状态机） ==========
+  var serverStatusLoaded = false;
+  var serverRemainingDays = 0;
+  var isMember = localStorage.getItem(MEMBER_KEY) === '1';
+  var isPhotographer = localStorage.getItem(PHOTOGRAPHER_KEY) === '1';
+  var memberMonths = parseInt(localStorage.getItem(MEMBER_MONTHS_KEY) || '0', 10);
+
+  const subscribeBtn = document.getElementById('subscribeBtn');
+  const photographerBlock = document.getElementById('photographerBlock');
+  const photographerTitle = document.getElementById('photographerTitle');
+  const photographerDesc = document.getElementById('photographerDesc');
+  const upgradePhotographerBtn = document.getElementById('upgradePhotographerBtn');
+
+  function refreshMemberUI() {
+    // 订阅按钮：未订阅显示"立即订阅"，已订阅显示"取消订阅"
+    if (isMember) {
+      subscribeBtn.textContent = '取消订阅';
+      subscribeBtn.classList.remove('subscribe');
+      subscribeBtn.classList.add('cancel');
+    } else {
+      subscribeBtn.textContent = '立即订阅';
+      subscribeBtn.classList.add('subscribe');
+      subscribeBtn.classList.remove('cancel');
+    }
+
+    // 摄影师升级区块：必须先订阅才能升级
+    upgradePhotographerBtn.disabled = !isMember || isPhotographer;
+
+    if (isPhotographer) {
+      photographerBlock.classList.add('active');
+      photographerTitle.textContent = '已加冕为王';
+      photographerDesc.textContent = '你已解锁工作 / 生活模式切换，可在我的主页顶部切换模式';
+      upgradePhotographerBtn.textContent = '已加冕';
+    } else {
+      photographerBlock.classList.remove('active');
+      photographerTitle.textContent = '加冕为王';
+      photographerDesc.textContent = isMember
+        ? '订阅会员后可加冕为王，解锁工作 / 生活模式切换'
+        : '请先订阅会员，再行加冕';
+      upgradePhotographerBtn.textContent = '加冕为王';
+    }
+  }
+
+  function loadMemberStatus() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    MemoAPI.get('/member/status').then(function (data) {
+      if (!data) return;
+      serverStatusLoaded = true;
+      isMember = data.memberStatus === 'active';
+      isPhotographer = !!data.isPhotographer;
+      serverRemainingDays = Math.max(0, Number(data.remainingDays) || 0);
+      // 回写 localStorage 兜底（离线打开/接口失败时保持一致）
+      localStorage.setItem(MEMBER_KEY, isMember ? '1' : '0');
+      localStorage.setItem(PHOTOGRAPHER_KEY, isPhotographer ? '1' : '0');
+      localStorage.setItem(MEMBER_MONTHS_KEY, isMember ? String(Math.max(1, Math.ceil(serverRemainingDays / 30))) : '0');
+      refreshMemberUI();
+    }).catch(function (e) {
+      console.warn('[member status] 拉取失败，使用本地会员状态：', e && e.message);
+    });
+  }
+
+  // 订阅 / 取消订阅（本页即支付页：订阅=发起支付；取消=关闭自动续费，与会员中心一致）
+  subscribeBtn.addEventListener('click', function () {
+    if (serverStatusLoaded || isMember) {
+      if (!isMember) { confirmPayment(); return; }
+      if (!confirm('确定要取消订阅吗？取消后将关闭自动续费，会员到期后失效并收回摄影师认证。')) return;
+      MemoAPI.post('/member/cancel-renewal').then(function () {
+        showToast('已取消订阅，会员到期后将自动失效');
+        loadMemberStatus();
+      }).catch(function (err) {
+        if (err && err.network) { showToast('服务不可达，请稍后重试'); return; }
+        showToast(err && err.message ? err.message : '取消订阅失败，请重试');
+      });
+      return;
+    }
+    // 未登录 / 服务不可达兜底：直接发起支付
+    confirmPayment();
+  });
+
+  // 升级摄影师（本页即支付页：点击=发起支付）
+  upgradePhotographerBtn.addEventListener('click', function () {
+    if (isPhotographer) return;
+    confirmPayment();
+  });
+
+  refreshMemberUI();
+  loadMemberStatus();
+
   loadPlans();
 </script>
 </body>

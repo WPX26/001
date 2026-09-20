@@ -3,7 +3,7 @@
  * 用法：node scripts/smoke-inspire-explore.js
  *
  * 覆盖（对应 api.md 第 4/5 章）：
- * - 灵感列表：半径过滤（米/度）、sortBy=hot/time/followed、排除自己、非公开/工作池排除、
+ * - 灵感列表：半径过滤（米/度）、sortBy=hot/time/followed、含自己（王总2026-09-03拍板）、非公开/工作池排除、
  *   照片按时间分组（组内关注优先+热度排序、每组上限 9 张）、isCollected/isLiked 透出
  * - 收藏：多选合并、原子 push+inc、重复 1005、不存在 404、取消收藏、重复取消 1005
  * - 探索列表：作者分组、已关注优先 → 作品数 → 热度、非摄影师（含会员到期收回）作品隐藏
@@ -28,6 +28,7 @@ let uidA = '', uidB = '', uidC = '', uidD = '', uidV = '';
 let tokenV = '';
 // 坐标 ID
 let L1 = '', L2 = '', L3 = '', L7 = '', L6 = '', L4 = '', L5 = '', W_A1 = '', W_B1 = '';
+let Own = ''; // V 自己的生活坐标（王总2026-09-03拍板：列表含自己）
 let p1 = ''; // L1 的第一张照片（isLiked 断言用）
 
 function check(name, pass, detail = '') {
@@ -159,8 +160,9 @@ try {
   const cL5 = await makeCoord({ authorId: uidA, title: 'L5非公开', lng: 120.38, lat: 36.06, isPublic: false, photoCount: 1 });
   L5 = String(cL5._id);
   // 工作坐标不进灵感池的验证由探索池的 W_A1/W_A2（同在中心点）承担
-  // V 自己的生活坐标 → 列表排除自己
-  await makeCoord({ authorId: uidV, title: 'V自己的坐标', lng: 120.38, lat: 36.06, photoCount: 1, createdAt: new Date('2026-08-06T00:00:00Z') });
+  // V 自己的生活坐标 → 王总2026-09-03拍板：列表含自己（无照片0热度+最旧时间 → 排末位）
+  const cOwn = await makeCoord({ authorId: uidV, title: 'V自己的坐标', lng: 120.38, lat: 36.06, createdAt: new Date('2026-07-01T00:00:00Z') });
+  Own = String(cOwn._id);
 
   // ============ 前置：探索池数据（工作坐标） ============
   // A：3 个工作坐标（1 个远处），照片 10+5+2+0 → 热度 17
@@ -208,16 +210,16 @@ try {
   const iList = inspBase.body?.data?.list || [];
   const iIds = iList.map((x) => x.coordInfo.id);
   check(
-    '灵感列表(2000米) → 含 L1/L2/L3/L7，排除 L4(远)/L6(>2km)/L5(非公开)/工作池/自己的坐标',
+    '灵感列表(2000米) → 含 L1/L2/L3/L7/自己的坐标，排除 L4(远)/L6(>2km)/L5(非公开)/工作池',
     inspBase.status === 200 &&
-      inspBase.body?.data?.total === 4 &&
-      [L1, L2, L3, L7].every((id) => iIds.includes(id)) &&
+      inspBase.body?.data?.total === 5 &&
+      [L1, L2, L3, L7, Own].every((id) => iIds.includes(id)) &&
       !iIds.includes(L4) && !iIds.includes(L6) && !iIds.includes(L5),
     `实际 ${JSON.stringify(iIds)}`
   );
   check(
-    '灵感列表默认 followed → 已关注作者(B)优先，再热度倒序 [L2,L1,L3,L7]',
-    iIds[0] === L2 && iIds[1] === L1 && iIds[2] === L3 && iIds[3] === L7,
+    '灵感列表默认 followed → 已关注作者(B)优先，再热度倒序 [L2,L1,L3,L7,自己(0热度最旧)]',
+    iIds[0] === L2 && iIds[1] === L1 && iIds[2] === L3 && iIds[3] === L7 && iIds[4] === Own,
     `实际 ${JSON.stringify(iIds)}`
   );
   check(

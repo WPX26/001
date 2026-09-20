@@ -1,17 +1,24 @@
 <template>
   <view class="tab-page">
-  <web-view :src="webSrc" @message="handleMessage" style="width:100%;height:100vh;"></web-view>
+    <chat-native v-if="MESSAGE_MODE === 'app'" />
+    <web-view v-else :src="webSrc" @message="handleMessage" style="width:100%;height:100vh;"></web-view>
   </view>
 </template>
 
 <script>
 import memoApi from '../../utils/memoApi'
-import { MESSAGE_URL } from '../../utils/config'
+import { MESSAGE_URL, MESSAGE_MODE } from '../../utils/config'
+import webviewBack from '../../utils/webview-back'
+import chatNative from './chat-native.vue'
 
-// 消息页：1:1 嵌入原型 message-prototype.html（full-embed 全屏，导航由 App tabBar 承担）
+// 消息页双轨：MESSAGE_MODE='demo' → 1:1 嵌入原型 message-prototype.html（tabBar 承担导航）
+//             MESSAGE_MODE='app'  → 原生 uni-app 聊天页 chat-native.vue（应用版）
 export default {
+  components: { chatNative },
+  mixins: [webviewBack],
   data() {
     return {
+      MESSAGE_MODE,
       webSrc: '',
     }
   },

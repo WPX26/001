@@ -8,11 +8,11 @@
  * 管理端确认/列表（/member/order/:orderId/confirm、/member/orders）在 routes 中复用 admin.controller
  */
 import env from '../config/env.js';
-import { ERR, MEMBER_PLAN, MEMBER_PENDING_EXPIRE_MS } from '../config/constants.js';
+import { ERR, MEMBER_PLAN, MEMBER_PENDING_EXPIRE_MS, BOOST_PLANS } from '../config/constants.js';
 import { AppError } from '../utils/errors.js';
 import { ok } from '../utils/response.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { MemberOrder } from '../models/index.js';
+import { MemberOrder, Coord, ExploreBoost } from '../models/index.js';
 import { genOrderId, genOrderNo, refreshMembership } from '../services/membership.service.js';
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -134,8 +134,71 @@ export const getOrder = asyncHandler(async (req, res) => {
     confirmedAt: order.confirmedAt || null,
     paidAt: order.paidAt || null,
     expireAt: order.expireAt || null,
+    coordKey: order.coordKey || '',
     createdAt: order.createdAt,
   });
+});
+
+/**
+ * POST /explore/boost/order 购买坐标置顶（王总 2026-08-31 定稿：周卡7元/7天、月卡60元/30天，持卡期间不可叠加再买）
+ * - coordKey 校验（坐标须存在）；活跃席位拒绝重复购买（409）
+ * - 与会员下单共用全局待确认幂等（一人一笔 pending）
+ */
+export const createBoostOrder = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const coordKey = String(req.body.coordKey || '').trim();
+  if (!coordKey) throw new AppError(ERR.VALIDATE, '缺少 coordKey', 400);
+  const tier = req.body.tier === 'month' ? 'month' : 'week';
+  const boostPlan = BOOST_PLANS[tier];
+
+  const coord = await Coord.findOne({ title: coordKey, deletedAt: null });
+  if (!coord) throw new AppError(ERR.NOT_FOUND, '坐标不存在', 404);
+
+  // 已有活跃席位：同档续买被拒（持卡期间不可叠加）；周卡期内可升级月卡
+  // （tier 升档 + until 顺延在管理端确认时发生——王总 2026-09-02 定稿）
+  const activeBoost = await ExploreBoost.findOne({
+    coordKey,
+    authorId: userId,
+    until: { $gt: new Date() },
+  })
+    .select('tier')
+    .lean();
+  if (activeBoost && !(activeBoost.tier === 'week' && tier === 'month')) {
+    throw new AppError(ERR.DUPLICATE, '该坐标已置顶中，无需重复购买', 409);
+  }
+
+  // 惰性过期：超 48h 未确认的旧单置 expired
+  await expireStaleOrders(userId);
+
+  const existing = await MemberOrder.findOne({ userId, status: 'pending_confirm' }).sort({ createdAt: -1 });
+  if (existing) {
+    return ok(res, { ...toCreateResponse(existing), coordKey: existing.coordKey || '' }, '已有待确认订单，请勿重复下单');
+  }
+
+  let order = null;
+  for (let i = 0; i < 3; i++) {
+    try {
+      order = await MemberOrder.create({
+        orderId: genOrderId(),
+        orderNo: genOrderNo(),
+        userId,
+        planId: boostPlan.planId,
+        planName: boostPlan.planName,
+        amount: boostPlan.amount,
+        period: boostPlan.period,
+        coordKey,
+        paymentMethod: 'wechat',
+        status: 'pending_confirm',
+      });
+      break;
+    } catch (err) {
+      if (err && err.code === 11000) continue;
+      throw err;
+    }
+  }
+  if (!order) throw new AppError(ERR.DUPLICATE, '订单创建失败，请重试', 409);
+
+  ok(res, { ...toCreateResponse(order), coordKey }, '置顶订单创建成功，请扫码付款并备注订单号');
 });
 
 /** GET /member/status 实时会员状态（读前懒检查：自动续费模拟顺延 / 到期收回认证） */
