@@ -2031,12 +2031,8 @@
     border: 1rem solid rgba(159,107,255,0.55);
   }
   .radar-ico .sweep {
-    position: absolute; inset: 2rem;
-    border-radius: 50%;
-    background: conic-gradient(from 0deg, rgba(159,107,255,0.95), transparent 70deg, transparent);
-    animation: radarSweep 2.2s linear infinite;
+    display: none; /* 王总拍板：去掉一直转动的扫描特效 */
   }
-  @keyframes radarSweep { to { transform: rotate(360deg); } }
   .radar-banner-txt { flex: 1; min-width: 0; line-height: 1.4; }
   .radar-banner-t1 { font-size: 13.5rem; font-weight: 800; color: #efe8ff; letter-spacing: 0.5rem; }
   .radar-banner-txt span { display: block; font-size: 10.5rem; color: #9f93c8; overflow: hidden; text-overflow: ellipsis; }
@@ -2082,24 +2078,6 @@
     pointer-events: none;
     user-select: none;
   }
-  /* 圆心扫描扇形（装饰层，随圆心 marker 移动） */
-  .radar-fan {
-    position: relative;
-    width: 560px; height: 560px;
-    border-radius: 50%;
-    pointer-events: none;
-    user-select: none;
-  }
-  .radar-fan-sweep {
-    position: absolute;
-    left: 50%; top: 50%;
-    width: 280px; height: 280px;
-    transform-origin: 0 0;
-    border-radius: 50%;
-    background: conic-gradient(from 270deg, rgba(124,77,255,0.30), transparent 78deg, transparent);
-    animation: radarFanSweep 3.6s linear infinite;
-  }
-  @keyframes radarFanSweep { to { transform: rotate(360deg); } }
   /* 雷达 HUD（左上角信息角标） */
   .radar-hud {
     position: absolute;
@@ -8637,28 +8615,12 @@
     radarDecorMks = [];
   }
 
-  /** 雷达补绘：等地图就绪后画圈/扇形/刷新（auto-entry 先于地图初始化时兜底） */
+  /** 雷达补绘：等地图就绪后画圈/刷新（auto-entry 先于地图初始化时兜底） */
   function ensureRadarRender() {
     if (!radarMode || !radarCenter) return;
     if (!map || !map.__ml) { setTimeout(ensureRadarRender, 250); return; }
     drawRadarRange();
-    addRadarScanFan(radarCenter.lat, radarCenter.lng);
     refreshRadarMarkers();
-  }
-
-  /** 圆心扫描扇形（装饰：紫色扇形旋转动画，随圆心 marker 移动） */
-  function addRadarScanFan(lat, lng) {
-    if (!map || !L || !L.divIcon) return;
-    var icon = L.divIcon({
-      html: '<div class="radar-fan"><div class="radar-fan-sweep"></div></div>',
-      className: '',
-      iconSize: [560, 560],
-      iconAnchor: [280, 280]
-    });
-    var mk = L.marker([lat, lng], { icon: icon, interactive: false, zIndexOffset: 0 });
-    mk._type = 'radar_decor';
-    try { mk.addTo(map); } catch (_) { return; }
-    radarDecorMks.push(mk);
   }
 
   /** 拉取附近并渲染（diff 更新：在线新增、离线移除、位移平滑） */
