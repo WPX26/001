@@ -8551,6 +8551,11 @@
       coords.push(coords[0]);
       return coords;
     }
+    // 王总拍板：同一时刻只显一圈，随缩放联动——放大(z≥14)显 1km，缩小(z≥12)显 3km，再缩小显 5km
+    var z = (map.getZoom ? map.getZoom() : 14) || 14;
+    var radius = z >= 14 ? 1000 : (z >= 12 ? 3000 : 5000);
+    var label = (radius / 1000) + 'km';
+    var seg = radius >= 5000 ? 64 : (radius >= 3000 ? 48 : 32);
     // 先清理旧层
     try {
       if (ml.getSource('radar-range')) {
@@ -8561,34 +8566,24 @@
       }
     } catch (_) {}
     try {
-      // 三层同心圈：5km 实线 + 3km/1km 虚线，5km 内淡紫填充
+      // 单圈：当前缩放对应半径，实线 + 淡紫填充
       ml.addSource('radar-range', {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
           features: [
-            { type: 'Feature', properties: { k: '5k' }, geometry: { type: 'Polygon', coordinates: [circlePolygon(5000, 64)] } },
-            { type: 'Feature', properties: { k: '3k' }, geometry: { type: 'Polygon', coordinates: [circlePolygon(3000, 48)] } },
-            { type: 'Feature', properties: { k: '1k' }, geometry: { type: 'Polygon', coordinates: [circlePolygon(1000, 32)] } }
+            { type: 'Feature', properties: { k: 'cur' }, geometry: { type: 'Polygon', coordinates: [circlePolygon(radius, seg)] } }
           ]
         }
       });
       ml.addLayer({ id: 'radar-range-fill', type: 'fill', source: 'radar-range',
-        filter: ['==', ['get', 'k'], '5k'],
         paint: { 'fill-color': '#7C4DFF', 'fill-opacity': 0.06 } });
       ml.addLayer({ id: 'radar-range-line', type: 'line', source: 'radar-range',
-        filter: ['==', ['get', 'k'], '5k'],
         paint: { 'line-color': 'rgba(159,107,255,0.9)', 'line-width': 2 } });
-      ml.addLayer({ id: 'radar-range-3k', type: 'line', source: 'radar-range',
-        filter: ['==', ['get', 'k'], '3k'],
-        paint: { 'line-color': 'rgba(124,77,255,0.5)', 'line-width': 1.5, 'line-dasharray': [3, 4] } });
-      ml.addLayer({ id: 'radar-range-1k', type: 'line', source: 'radar-range',
-        filter: ['==', ['get', 'k'], '1k'],
-        paint: { 'line-color': 'rgba(124,77,255,0.3)', 'line-width': 1.5, 'line-dasharray': [2, 4] } });
     } catch (e) {
       console.warn('[radar] 范围圈绘制失败：', e && e.message);
     }
-    // 方位刻度 N/E/S/W（5km 边缘）+ 距离标签 1/3/5km（圆内正下方）
+    // 方位刻度 N/E/S/W（当前圈边缘）+ 距离标签（当前半径，圆内正下方）
     clearRadarDecor();
     function addDecorText(cls, t, plat, plng, size, anchor) {
       var icon = L.divIcon({ html: '<div class="' + cls + '">' + t + '</div>', className: '', iconSize: size, iconAnchor: anchor || [size[0] / 2, size[1] / 2] });
@@ -8597,14 +8592,12 @@
       mk.addTo(map);
       radarDecorMks.push(mk);
     }
-    var s5 = { lat: dLat(5000), lng: dLng(5000) };
-    addDecorText('radar-dir-label', 'N', lat + s5.lat, lng, [20, 12]);
-    addDecorText('radar-dir-label', 'S', lat - s5.lat, lng, [20, 12]);
-    addDecorText('radar-dir-label', 'E', lat, lng + s5.lng, [20, 12]);
-    addDecorText('radar-dir-label', 'W', lat, lng - s5.lng, [20, 12]);
-    addDecorText('radar-dist-label', '1km', lat - dLat(1000), lng, [30, 12]);
-    addDecorText('radar-dist-label', '3km', lat - dLat(3000), lng, [30, 12]);
-    addDecorText('radar-dist-label', '5km', lat - dLat(5000), lng, [30, 12]);
+    var sr = { lat: dLat(radius), lng: dLng(radius) };
+    addDecorText('radar-dir-label', 'N', lat + sr.lat, lng, [20, 12]);
+    addDecorText('radar-dir-label', 'S', lat - sr.lat, lng, [20, 12]);
+    addDecorText('radar-dir-label', 'E', lat, lng + sr.lng, [20, 12]);
+    addDecorText('radar-dir-label', 'W', lat, lng - sr.lng, [20, 12]);
+    addDecorText('radar-dist-label', label, lat - dLat(radius * 0.5), lng, [30, 12]);
   }
 
   /** 清理雷达装饰标记（方位/距离/扇形） */
@@ -8616,9 +8609,18 @@
   }
 
   /** 雷达补绘：等地图就绪后画圈/刷新（auto-entry 先于地图初始化时兜底） */
+  var __radarZoomBound = false;
   function ensureRadarRender() {
     if (!radarMode || !radarCenter) return;
     if (!map || !map.__ml) { setTimeout(ensureRadarRender, 250); return; }
+    if (!__radarZoomBound && map.on) {
+      __radarZoomBound = true;
+      // 王总拍板：圈随缩放联动切换（1km→3km→5km），zoomend 后按当前级重画
+      map.on('zoomend', function () {
+        if (!radarMode || !radarCenter) return;
+        drawRadarRange();
+      });
+    }
     drawRadarRange();
     refreshRadarMarkers();
   }
