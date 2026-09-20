@@ -54,6 +54,7 @@ export const getMe = asyncHandler(async (req, res) => {
     avatar: user.avatar || '',
     bio: user.bio || '',
     mode: user.mode,
+    radarHidden: !!user.radarHidden,
     isPhotographer: user.isPhotographer,
     memberStatus: user.memberStatus,
     memberExpireAt: user.memberExpireAt || null,

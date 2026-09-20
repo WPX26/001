@@ -1639,8 +1639,9 @@
             <span class="nav-label">联机</span>
           </div>
           <div class="nav-center">
+            <!-- 2026-09-20 雷达一期：中间键相机改雷达（点击进首页雷达模式；相机入口在「我的」页长条键） -->
             <button class="nav-center-btn" id="cameraBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 12 L12 3"/><path d="M12 12 L19.5 7.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
             </button>
           </div>
           <div class="nav-item" data-tab="message">
@@ -3295,10 +3296,13 @@
     var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
     return isNaN(d.getTime()) ? null : d;
   }
-  // 相机按钮 — 点击一律直接调起系统相机（去掉长按跳转 camera-prototype，避免手机误触跳页）
+  // 中心键 — 2026-09-20 雷达一期：相机改雷达（点击进首页雷达模式，相机入口在「我的」页长条键）
   (function() {
     var camBtn = document.getElementById('cameraBtn');
-    camBtn.addEventListener('click', function(e) { captureWithSystemCamera(); });
+    camBtn.addEventListener('click', function(e) {
+      var qs = location.search && location.search.length > 1 ? '&' + location.search.slice(1) : '';
+      window.location.href = 'memo-home.html?radar=1' + qs;
+    });
   })();
 
   // 客服

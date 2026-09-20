@@ -710,8 +710,9 @@
             </div>
 
             <div class="nav-center">
+              <!-- 2026-09-20 雷达一期：中间键相机改雷达（点击进首页雷达模式；相机入口在「我的」页长条键） -->
               <button class="nav-center-btn" id="cameraBtn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 12 L12 3"/><path d="M12 12 L19.5 7.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg>
               </button>
             </div>
 
@@ -1227,10 +1228,13 @@
       window.location.href = 'memo-home.html';
     });
   }
-  // 相机按钮 — 点击一律直接调起系统相机（去掉长按跳转 camera-prototype，避免手机误触跳页）
+  // 中心键 — 2026-09-20 雷达一期：相机改雷达（点击进首页雷达模式，相机入口在「我的」页长条键）
   (function() {
     var camBtn = document.getElementById('cameraBtn');
-    camBtn.addEventListener('click', function(e) { captureWithSystemCamera(); });
+    camBtn.addEventListener('click', function(e) {
+      var qs = location.search && location.search.length > 1 ? '&' + location.search.slice(1) : '';
+      window.location.href = 'memo-home.html?radar=1' + qs;
+    });
   })();
 
   // Toast
@@ -1460,6 +1464,21 @@
   renderMessages();
   loadRealNotifications();
   ensureChatSocket();
+</script>
+<script>
+// ====== 物理返回键桥接（王总 2026-08-20 批准）：关闭聊天面板，与「软件返回」一致 ======
+window.__memomapBack = function () {
+  try {
+    var panel = document.getElementById('chatPanel');
+    if (panel && panel.classList && panel.classList.contains('show')) {
+      panel.classList.remove('show');
+      try { if (typeof chatInput !== 'undefined' && chatInput.blur) chatInput.blur(); } catch (e) {}
+      try { chatConvId = null; } catch (e) {}
+      return true;
+    }
+  } catch (e) {}
+  return false;
+};
 </script>
 </body>
 </html>

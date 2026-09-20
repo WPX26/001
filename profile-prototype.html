@@ -892,8 +892,65 @@
     letter-spacing: 0.5rem;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 6rem;
   }
+  .mode-switcher-label-left {
+    display: flex;
+    align-items: center;
+    gap: 6rem;
+  }
+  /* 雷达隐身开关（2026-09-20 一期） */
+  .stealth-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .stealth-toggle-text {
+    font-size: 11rem;
+    font-weight: 600;
+    color: rgba(245, 223, 192, 0.45);
+    letter-spacing: 0.5rem;
+  }
+  .stealth-switch {
+    width: 38rem; height: 22rem;
+    border-radius: 11rem;
+    background: rgba(212, 165, 116, 0.28);
+    position: relative;
+    transition: background 0.25s;
+  }
+  .stealth-switch.on { background: #7C4DFF; }
+  .stealth-knob {
+    position: absolute;
+    top: 3rem; left: 3rem;
+    width: 16rem; height: 16rem;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.35);
+    transition: left 0.25s;
+  }
+  .stealth-switch.on .stealth-knob { left: 19rem; }
+  /* 相机入口长条键（2026-09-20 一期：中间键相机改雷达后，相机入口迁至此处） */
+  .long-camera-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8rem;
+    margin: 0 16rem 12rem;
+    padding: 15rem;
+    border-radius: 14rem;
+    background: linear-gradient(135deg, #E89020, #D4691C);
+    color: #fff;
+    font-size: 14rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4rem 14rem rgba(232, 144, 32, 0.4);
+    flex-shrink: 0;
+  }
+  .long-camera-bar svg { width: 18rem; height: 18rem; }
+  .long-camera-bar:active { transform: scale(0.97); }
   .mode-switcher-label svg { width: 12rem; height: 12rem; color: #D4691C; }
   .mode-switcher-tabs {
     display: flex;
@@ -2030,10 +2087,17 @@
           <!-- 模式切换栏（仅摄影师可见） -->
           <div class="mode-switcher" id="modeSwitcher">
             <div class="mode-switcher-label">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
-              拍摄模式
+              <div class="mode-switcher-label-left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                拍摄模式
+              </div>
+              <!-- 雷达隐身开关（2026-09-20 一期：开启后不出现在雷达附近列表） -->
+              <div class="stealth-toggle" id="stealthToggle" title="雷达隐身：开启后不出现在雷达附近列表">
+                <span class="stealth-toggle-text">雷达隐身</span>
+                <div class="stealth-switch" id="stealthSwitch"><div class="stealth-knob"></div></div>
+              </div>
             </div>
             <div class="mode-switcher-tabs">
               <div class="mode-tab active" data-mode="life">
@@ -2174,7 +2238,7 @@
             <div class="menu-section">
               <div class="menu-title">其他</div>
               <div class="menu-card">
-                <div class="menu-item">
+                <div class="menu-item" id="settingsEntry">
                   <div class="menu-item-left">
                     <div class="menu-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2191,6 +2255,13 @@
                 </div>
               </div>
             </div>
+          </div>
+          <!-- 相机入口长条键（2026-09-20 雷达一期：中间键相机改雷达后，相机入口迁至此处；位于菜单最下方、底部导航上方） -->
+          <div class="long-camera-bar" id="longCameraBar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+            </svg>
+            <span>拍摄照片</span>
           </div>
         </div>
 
@@ -2526,6 +2597,60 @@
           </div>
         </div>
 
+        <!-- == DATA-MODE-DEBUG 开始（调试脚手架：设置视图 + 灵感/探索数据源切换；后续连同本块整体删除） == -->
+        <div class="view" id="viewSettings">
+          <div class="sub-header">
+            <div class="sub-back" id="settingsBack">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </div>
+            <div class="sub-title">设置</div>
+          </div>
+
+          <div class="menu-section">
+            <div class="menu-title">灵感 / 探索数据源</div>
+            <div class="menu-card">
+              <div class="menu-item" id="dataModeDemoEntry">
+                <div class="menu-item-left">
+                  <div class="menu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+                    </svg>
+                  </div>
+                  <span class="menu-label">演示版</span>
+                </div>
+                <div class="menu-item-right">
+                  <span class="menu-badge" id="dataModeDemoBadge">当前</span>
+                  <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="menu-item" id="dataModeAppEntry">
+                <div class="menu-item-left">
+                  <div class="menu-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="5" y="2" width="14" height="20" rx="2"/>
+                      <line x1="9" y1="18" x2="15" y2="18"/>
+                    </svg>
+                  </div>
+                  <span class="menu-label">应用版</span>
+                </div>
+                <div class="menu-item-right">
+                  <span class="menu-badge" id="dataModeAppBadge"></span>
+                  <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div class="menu-title">演示版使用内置演示数据；应用版读取真实后端数据（需登录且后端可达）。切换后重新打开地图页生效。</div>
+          </div>
+        </div>
+        <!-- == DATA-MODE-DEBUG 结束 == -->
+
         <!-- 会员中心视图 -->
         <div class="view" id="viewMember">
           <div class="sub-header">
@@ -2638,9 +2763,10 @@
             <span class="nav-label">联机</span>
           </div>
           <div class="nav-center">
+            <!-- 2026-09-20 雷达一期：中间键相机改雷达（点击进首页雷达模式；相机入口在本页最下方长条键） -->
             <button class="nav-center-btn" id="cameraBtn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 12 L12 3"/><path d="M12 12 L19.5 7.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>
               </svg>
             </button>
           </div>
@@ -2690,6 +2816,7 @@
   const viewMyProfile = document.getElementById('viewMyProfile');
   const viewEditProfile = document.getElementById('viewEditProfile');
   const viewFollowList = document.getElementById('viewFollowList');
+  const viewSettings = document.getElementById('viewSettings'); // == DATA-MODE-DEBUG ==
 
   function showView(view) {
     viewProfile.classList.toggle('active', view === 'profile');
@@ -2699,9 +2826,47 @@
     viewMyProfile.classList.toggle('active', view === 'myprofile');
     viewEditProfile.classList.toggle('active', view === 'editprofile');
     viewFollowList.classList.toggle('active', view === 'followlist');
+    viewSettings.classList.toggle('active', view === 'settings'); // DATA-MODE-DEBUG
   }
+  // == DATA-MODE-DEBUG 开始（设置页：灵感/探索数据源切换；与 memo-home.html 的数据模式脚手架配套，后续连同本块整体删除） ==
+  const DATA_MODE_KEY = 'memo.dataMode';
+  function getCurrentDataMode() {
+    try {
+      const v = localStorage.getItem(DATA_MODE_KEY);
+      if (v === 'app' || v === 'demo') return v;
+    } catch (e) {}
+    return 'demo'; // 默认演示版（调试期约定）
+  }
+  function applyDataModeBadges() {
+    const m = getCurrentDataMode();
+    const demoBadge = document.getElementById('dataModeDemoBadge');
+    const appBadge = document.getElementById('dataModeAppBadge');
+    if (demoBadge) demoBadge.textContent = m === 'demo' ? '当前' : '';
+    if (appBadge) appBadge.textContent = m === 'app' ? '当前' : '';
+  }
+  function setDataMode(mode) {
+    if (mode !== 'app' && mode !== 'demo') return;
+    if (getCurrentDataMode() === mode) return;
+    try { localStorage.setItem(DATA_MODE_KEY, mode); } catch (e) {}
+    applyDataModeBadges();
+    showToast('⚠️ 已切换为' + (mode === 'app' ? '应用版（真实数据）' : '演示版') + '，重新打开地图页生效');
+  }
+  const settingsEntry = document.getElementById('settingsEntry');
+  if (settingsEntry) settingsEntry.addEventListener('click', () => {
+    applyDataModeBadges();
+    showView('settings');
+  });
+  const settingsBack = document.getElementById('settingsBack');
+  if (settingsBack) settingsBack.addEventListener('click', () => showView('profile'));
+  const dataModeDemoEntry = document.getElementById('dataModeDemoEntry');
+  if (dataModeDemoEntry) dataModeDemoEntry.addEventListener('click', () => setDataMode('demo'));
+  const dataModeAppEntry = document.getElementById('dataModeAppEntry');
+  if (dataModeAppEntry) dataModeAppEntry.addEventListener('click', () => setDataMode('app'));
+  applyDataModeBadges();
+  // == DATA-MODE-DEBUG 结束 ==
 
   // 删除的坐标点数据
+
   let deletedMarkers = [
     { title: '雷峰塔', lng: 120.1489, lat: 30.2435, date: '2026年7月4日', deletedDate: '2026年8月3日', color: '#B85E3C' },
     { title: '净慈寺', lng: 120.1475, lat: 30.2420, date: '2026年7月4日', deletedDate: '2026年8月2日', color: '#D4A870' },
@@ -3662,10 +3827,60 @@
       window.location.href = 'memo-home.html';
     });
   }
-  // 相机按钮 — 点击一律直接调起系统相机（去掉长按跳转 camera-prototype，避免手机误触跳页）
+  // 中心键 — 2026-09-20 雷达一期：相机改雷达（点击进首页雷达模式，相机入口在本页最下方长条键）
   (function() {
     var camBtn = document.getElementById('cameraBtn');
-    camBtn.addEventListener('click', function(e) { captureWithSystemCamera(); });
+    camBtn.addEventListener('click', function(e) {
+      var qs = location.search && location.search.length > 1 ? '&' + location.search.slice(1) : '';
+      window.location.href = 'memo-home.html?radar=1' + qs;
+    });
+  })();
+
+  // 长条相机键（2026-09-20 雷达一期：相机入口迁至「我的」页最下方）
+  (function() {
+    var longCameraBar = document.getElementById('longCameraBar');
+    if (longCameraBar) {
+      longCameraBar.addEventListener('click', function(e) {
+        if (typeof captureWithSystemCamera === 'function') captureWithSystemCamera();
+      });
+    }
+  })();
+
+  // 雷达隐身开关（2026-09-20 一期）：本地态 + 登录时同步后端 /radar/visibility
+  // 注意：模式切换 JS 区也定义 const MODE_KEY 等，此处独立命名避免冲突
+  (function() {
+    const RADAR_HIDDEN_KEY = 'profile_radar_hidden';
+    const stealthToggle = document.getElementById('stealthToggle');
+    const stealthSwitch = document.getElementById('stealthSwitch');
+    if (!stealthToggle || !stealthSwitch) return;
+    let radarHidden = localStorage.getItem(RADAR_HIDDEN_KEY) === '1';
+    function applyStealthUI() {
+      stealthSwitch.classList.toggle('on', radarHidden);
+    }
+    function setRadarHidden(v) {
+      radarHidden = v;
+      localStorage.setItem(RADAR_HIDDEN_KEY, radarHidden ? '1' : '0');
+      applyStealthUI();
+      showToast(radarHidden ? '🕶️ 已开启雷达隐身' : '📡 已关闭雷达隐身');
+      // 登录态同步后端（失败静默：本地态先生效，后端为权威再做兜底）
+      if (typeof MemoAPI !== 'undefined' && MemoAPI.isLoggedIn()) {
+        MemoAPI.put('/radar/visibility', { hidden: radarHidden }).catch(function (e) {
+          console.warn('[radar] 隐身状态同步失败：', e && e.message);
+        });
+      }
+    }
+    applyStealthUI();
+    // 登录时以后端为准覆盖本地（如另一台设备已切换隐身）
+    if (typeof MemoAPI !== 'undefined' && MemoAPI.isLoggedIn()) {
+      MemoAPI.get('/users/me').then(function (d) {
+        if (d && typeof d.radarHidden === 'boolean') {
+          radarHidden = d.radarHidden;
+          localStorage.setItem(RADAR_HIDDEN_KEY, radarHidden ? '1' : '0');
+          applyStealthUI();
+        }
+      }).catch(function () {});
+    }
+    stealthToggle.addEventListener('click', function() { setRadarHidden(!radarHidden); });
   })();
 
   // ================= 会员中心 / 摄影师 / 模式切换 =================
@@ -4681,6 +4896,32 @@
     btn.addEventListener('click', function (e) { e.stopPropagation(); fileInput.click(); });
   });
 })();
+</script>
+<script>
+// ====== 物理返回键桥接（王总 2026-08-20 批准）：关闭头像预览/子视图回主视图，与「软件返回」一致 ======
+window.__memomapBack = function () {
+  try {
+    var pp = document.getElementById('ppPreview');
+    if (pp && pp.classList && pp.classList.contains('show')) {
+      try { if (typeof closePpPreview === 'function') { closePpPreview(); } else { pp.classList.remove('show'); } } catch (e) { pp.classList.remove('show'); }
+      return true;
+    }
+    var subViews = ['viewDeleted','viewMember','viewMyProfile','viewMyHome','viewEditProfile','viewFollowList'];
+    var inSub = false;
+    for (var i = 0; i < subViews.length; i++) {
+      var v = document.getElementById(subViews[i]);
+      if (v && v.classList && v.classList.contains('active')) { inSub = true; break; }
+    }
+    if (inSub) {
+      try { if (typeof showView === 'function') { showView('profile'); return true; } } catch (e) {}
+      var viewIds = ['viewProfile','viewDeleted','viewMember','viewMyHome','viewMyProfile','viewEditProfile','viewFollowList'];
+      for (var k = 0; k < viewIds.length; k++) { var vk = document.getElementById(viewIds[k]); if (vk && vk.classList) vk.classList.remove('active'); }
+      var vp = document.getElementById('viewProfile'); if (vp && vp.classList) vp.classList.add('active');
+      return true;
+    }
+  } catch (e) {}
+  return false;
+};
 </script>
 </body>
 </html>

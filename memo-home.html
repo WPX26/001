@@ -102,7 +102,10 @@
   .leaflet-container { background: #E8EEE8; }
   /* Retina 2x 瓦片按 512rem 显示时插值锐化（Chromium 优化对比度，文字边缘更实） */
   .leaflet-tile { image-rendering: -webkit-optimize-contrast; image-rendering: optimize-contrast; }
-  /* 暗色地图模式：天地图瓦片反相（invert+hue-rotate），深色底图与深色 UI 风格统一；仅瓦片层，标记点不受影响 */
+  /* 400% 预载层：透明瓦片仅作缓存预热，穿透点击且不可见 */
+.prefetch-tiles { pointer-events: none !important; opacity: 0 !important; }
+.map-prefetch-badge { position: absolute; left: 10rem; bottom: 150rem; z-index: 5; pointer-events: none; background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.85); font-size: 10rem; line-height: 1; padding: 3rem 7rem; border-radius: 10rem; }
+/* 暗色地图模式：天地图瓦片反相（invert+hue-rotate），深色底图与深色 UI 风格统一；仅瓦片层，标记点不受影响 */
   .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.88) contrast(0.88) saturate(0.65); }
 
   /* 地图标记点 */
@@ -1980,6 +1983,150 @@
   .explore-banner-close:hover { opacity: 1; }
   .explore-banner-close svg { width: 12rem; height: 12rem; }
 
+  /* ===== 雷达模式（2026-09-20 一期）===== */
+  /* 中间键雷达图标扫描动画 */
+  .nav-center-btn .radar-btn-icon {
+    animation: radarIconPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes radarIconPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(0.92); opacity: 0.75; }
+  }
+  /* 雷达模式提示条（紫色系，区别于探索/灵感） */
+  .radar-banner {
+    position: absolute;
+    top: 80rem; left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #7C4DFF, #4527A0);
+    color: white;
+    padding: 8rem 14rem;
+    border-radius: 20rem;
+    font-size: 12rem;
+    font-weight: 600;
+    z-index: 20;
+    box-shadow: 0 4rem 14rem rgba(124, 77, 255, 0.45);
+    display: none;
+    align-items: center;
+    gap: 6rem;
+    white-space: nowrap;
+    max-width: 78%;
+  }
+  .radar-banner.show { display: flex; }
+  .radar-banner svg { width: 14rem; height: 14rem; flex-shrink: 0; }
+  .radar-banner span { overflow: hidden; text-overflow: ellipsis; }
+  .radar-banner-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16rem; height: 16rem;
+    margin-left: 4rem;
+    opacity: 0.7;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
+  }
+  .radar-banner-close:hover { opacity: 1; }
+  .radar-banner-close svg { width: 12rem; height: 12rem; }
+  /* 雷达范围圈（Leaflet path 样式） */
+  .radar-range {
+    stroke: #7C4DFF;
+    stroke-dasharray: 8 6;
+    stroke-opacity: 0.85;
+    fill: rgba(124, 77, 255, 0.08);
+    pointer-events: none;
+  }
+  /* 雷达在线摄影师标记：紫点 + 脉冲光晕（区别于探索纯色点） */
+  .radar-marker-dot {
+    position: relative;
+    width: 30rem; height: 30rem;
+    pointer-events: auto;
+    transition: transform 0.8s linear;
+  }
+  .phone-screen.radar-mode.radar-zooming .radar-marker-dot { transition: none; }
+  .radar-marker-dot::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 26rem; height: 26rem;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: rgba(124, 77, 255, 0.35);
+    animation: radarRipple 2s ease-out infinite;
+  }
+  .radar-marker-dot .radar-dot-core {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14rem; height: 14rem;
+    border-radius: 50%;
+    background: radial-gradient(circle, #B388FF 0%, #7C4DFF 60%, #4527A0 100%);
+    border: 2.5rem solid #fff;
+    box-shadow: 0 0 12rem rgba(124, 77, 255, 0.9), 0 2rem 8rem rgba(0, 0, 0, 0.4);
+  }
+  @keyframes radarRipple {
+    0% { width: 22rem; height: 22rem; opacity: 0.9; }
+    100% { width: 58rem; height: 58rem; opacity: 0; }
+  }
+  .radar-marker-dot:hover { transform: scale(1.25); z-index: 9; }
+  /* 雷达摄影师迷你卡片 */
+  .radar-card {
+    position: absolute;
+    left: 50%; bottom: 108rem;
+    transform: translateX(-50%) translateY(16rem);
+    background: #241438;
+    border: 1rem solid rgba(124, 77, 255, 0.55);
+    border-radius: 16rem;
+    padding: 10rem 14rem;
+    display: none;
+    align-items: center;
+    gap: 10rem;
+    z-index: 30;
+    box-shadow: 0 6rem 24rem rgba(0, 0, 0, 0.55), 0 0 20rem rgba(124, 77, 255, 0.35);
+    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+    max-width: 82%;
+  }
+  .radar-card.show { display: flex; transform: translateX(-50%) translateY(0); }
+  .radar-card-close {
+    position: absolute;
+    top: 6rem; right: 6rem;
+    width: 18rem; height: 18rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: opacity 0.2s;
+  }
+  .radar-card-close:hover { color: #fff; }
+  .radar-card-close svg { width: 12rem; height: 12rem; }
+  .radar-card-avatar {
+    width: 36rem; height: 36rem;
+    border-radius: 50%;
+    border: 2rem solid rgba(255, 255, 255, 0.35);
+    background: #4527A0 center/cover no-repeat;
+    flex-shrink: 0;
+  }
+  .radar-card-meta { min-width: 0; flex: 1; }
+  .radar-card-name {
+    font-size: 13rem; font-weight: 600; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .radar-card-dist { font-size: 11rem; color: #B388FF; margin-top: 2rem; }
+  .radar-card-btn {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #7C4DFF, #4527A0);
+    color: #fff;
+    border: none;
+    border-radius: 14rem;
+    padding: 8rem 14rem;
+    font-size: 12rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .radar-card-btn:active { transform: scale(0.95); }
+
   /* 探索弹窗（复用 inspire-popup 结构，紫蓝色调） */
   .explore-popup {
     position: absolute;
@@ -3450,7 +3597,6 @@
           <div class="splash-brand">工一堂</div>
         </div>
 
-
         <div class="map-container">
           <!-- 真实高德地图容器 -->
           <div id="amapContainer"></div>
@@ -3580,6 +3726,32 @@
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </div>
+        </div>
+        <!-- 雷达模式提示条（2026-09-20 雷达一期） -->
+        <div class="radar-banner" id="radarBanner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/><path d="M12 12 L12 2"/><path d="M12 12 L21 9"/>
+          </svg>
+          <span id="radarBannerText">雷达：扫描附近摄影师…</span>
+          <div class="radar-banner-close" id="radarBannerClose">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+        </div>
+        <!-- 雷达摄影师迷你卡片（2026-09-20） -->
+        <div class="radar-card" id="radarCard">
+          <div class="radar-card-close" id="radarCardClose">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+          <div class="radar-card-avatar" id="radarCardAvatar"></div>
+          <div class="radar-card-meta">
+            <div class="radar-card-name" id="radarCardName"></div>
+            <div class="radar-card-dist" id="radarCardDist"></div>
+          </div>
+          <button class="radar-card-btn" id="radarCardBtn">查看主页</button>
         </div>
         <!-- 探索模式提示条 -->
         <div class="explore-banner" id="exploreBanner">
@@ -3799,10 +3971,14 @@
           </div>
 
           <div class="nav-center">
+            <!-- 2026-09-20 雷达一期：中间键由相机改为雷达（相机入口迁至「我的」页最下方长条键） -->
             <button class="nav-center-btn" id="centerBtn">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
+              <svg class="radar-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M12 12 L12 3"/>
+                <path d="M12 12 L19.5 7.5"/>
+                <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>
               </svg>
             </button>
           </div>
@@ -5156,7 +5332,6 @@
     updateDetailControl();
   }
 
-
   // 更新细化程度控件状态（档位数量由 DETAIL_LEVEL_ZOOMS 常量数组长度驱动）
   function updateDetailControl() {
     document.getElementById('detailLevelText').textContent = currentDetailLevel;
@@ -5749,23 +5924,21 @@
         showToast('⚠️ 定位失败，请检查定位权限');
       }
     }
+    // v4：即时反馈 + 高精度首发——webview 下网络定位（enableHighAccuracy:false）
+    // 常不可用，首发仍走高精度但超时收紧到 6 秒；按下先给提示，成功即跳转；
+    // 精度不足（>30 米）再后台补一轮校准：只挪蓝点，不再阻塞。
+    if (manual) showToast('📍 正在定位…');
     navigator.geolocation.getCurrentPosition(function (pos) {
-      // 第一轮精度不足（>20 米）时，静默追加高精度确认；取两轮中 accuracy 更小者
-      if (pos.coords.accuracy > 20) {
+      applyPosition(pos.coords.latitude, pos.coords.longitude);
+      if (pos.coords.accuracy > 30) {
         navigator.geolocation.getCurrentPosition(function (pos2) {
           if (pos2.coords.accuracy < pos.coords.accuracy) {
-            applyPosition(pos2.coords.latitude, pos2.coords.longitude);
-          } else {
-            applyPosition(pos.coords.latitude, pos.coords.longitude);
+            lastKnownLocation = { lng: pos2.coords.longitude, lat: pos2.coords.latitude, time: Date.now() };
+            updateUserLocationMarker(pos2.coords.latitude, pos2.coords.longitude);
           }
-        }, function () {
-          // 第二轮失败：用第一轮结果兜底
-          applyPosition(pos.coords.latitude, pos.coords.longitude);
-        }, { timeout: 5000, enableHighAccuracy: true, maximumAge: 0 });
-      } else {
-        applyPosition(pos.coords.latitude, pos.coords.longitude);
+        }, function () {}, { timeout: 8000, enableHighAccuracy: true, maximumAge: 0 });
       }
-    }, onLocateError, { timeout: 8000, enableHighAccuracy: true, maximumAge: 0 });
+    }, onLocateError, { timeout: 6000, enableHighAccuracy: true, maximumAge: 10000 });
   }
   document.getElementById('locateBtn').addEventListener('click', () => { locateToCurrent(true); });
 
@@ -6335,11 +6508,15 @@
     });
   }
 
-  // 中心按钮 — 点击一律直接调起系统相机（去掉长按跳转 camera-prototype，避免手机误触跳页）
+  // 中心按钮 — 2026-09-20 雷达一期：相机改雷达（相机入口迁至「我的」页最下方长条键）
   (function() {
     var centerBtn = document.getElementById('centerBtn');
     centerBtn.addEventListener('click', function(e) {
-      captureWithSystemCamera();
+      if (typeof toggleRadarMode === 'function') {
+        toggleRadarMode();
+      } else {
+        captureWithSystemCamera();
+      }
     });
   })();
 
@@ -6789,8 +6966,6 @@
     localUploadPopup.classList.remove('show');
     localUploadTargetMarker = null;
   });
-
-
 
   // ========== 上传模式 ==========
   let uploadMode = false;
@@ -7382,8 +7557,9 @@
   function toggleInspireMode() {
     inspireMode = !inspireMode;
     if (inspireMode) {
-      // 互斥：关闭探索模式
+      // 互斥：关闭探索模式、雷达模式
       if (exploreMode) toggleExploreMode();
+      if (radarMode) toggleRadarMode();
       phoneScreen.classList.add('inspire-mode');
       inspireBtn.classList.add('inspire-active');
       inspireBanner.classList.add('show');
@@ -7517,6 +7693,56 @@
   let exploreData = exploreFallbackData;
   let exploreDataIsRemote = false;   // true = 真实后端数据接管（空列表→空态提示）；false = 演示数据
 
+  /* == DATA-MODE-DEBUG 开始（调试脚手架：灵感/探索「演示版/应用版」数据模式） ==
+     王总指示：调试期默认演示版；设置页（profile-prototype.html）可切换，URL 参数 ?datamode=app|demo 可临时覆盖。
+     删除方式：整块删除即可恢复原行为（登录 + 后端可达 → 真实数据，失败自动降级演示数据）。 */
+  (function () {
+    var KEY = 'memo.dataMode';
+    var mode = 'demo'; // 默认：演示版（调试期约定）
+    try {
+      var p = new URLSearchParams(window.location.search).get('datamode');
+      if (p === 'app' || p === 'demo') {
+        mode = p; // URL 参数一次性覆盖，不写回 localStorage
+      } else {
+        var v = localStorage.getItem(KEY);
+        if (v === 'app' || v === 'demo') mode = v;
+      }
+    } catch (e) {}
+    window.memoDataMode = mode;
+    console.log('[data-mode] 当前数据模式：' + mode + '（调试脚手架，后续删除）');
+
+    if (mode === 'demo') {
+      // 演示版：完全不请求后端，保持演示数据（阻断下方真实数据加载入口）
+      loadInspireExploreFromBackend = function () {};
+      return;
+    }
+
+    // 应用版：起始即视为「远端接管」的空数据——请求失败时不再静默回退演示数据（空态 + 网络异常提示）
+    inspireData = { coordinates: [] };
+    exploreData = { coordinates: [] };
+    inspireDataIsRemote = true;
+    exploreDataIsRemote = true;
+
+    // 网络异常提示：memoApiGet 仅被下方两个真实数据加载使用，包一层做失败弹窗（去重，只弹一次）
+    var _netErrToasted = false;
+    var _origMemoApiGet = memoApiGet;
+    memoApiGet = function (path) {
+      return _origMemoApiGet(path).catch(function (e) {
+        if (!_netErrToasted) {
+          _netErrToasted = true;
+          showToast('⚠️ 网络异常，真实数据加载失败', 'warning', 2500);
+        }
+        throw e;
+      });
+    };
+
+    // 应用版：未登录也尝试拉取（失败即网络异常提示，不静默回退演示数据）
+    loadInspireExploreFromBackend = function () {
+      loadInspireDataFromBackend();
+      loadExploreDataFromBackend();
+    };
+  })();
+  /* == DATA-MODE-DEBUG 结束 == */
   // ========== 灵感/探索真实数据加载（登录 + 后端可达 → 真实数据；接口失败/未登录 → 自动降级演示数据） ==========
   // 与 api.js 的请求封装并行存在：本页内直接 fetch（避免其他会话同改 api.js 冲突），
   // 沿用 MemoAPI 的 baseUrl / token / 登录态约定；失败时保持现有演示降级行为（console 提示、不弹 UI）。
@@ -7896,8 +8122,9 @@
   function toggleExploreMode() {
     exploreMode = !exploreMode;
     if (exploreMode) {
-      // 互斥：关闭灵感模式
+      // 互斥：关闭灵感模式、雷达模式
       if (inspireMode) toggleInspireMode();
+      if (radarMode) toggleRadarMode();
       phoneScreen.classList.add('explore-mode');
       exploreBtn.classList.add('explore-active');
       exploreBanner.classList.add('show');
@@ -7951,6 +8178,265 @@
     e.stopPropagation();
     toggleExploreMode();
   });
+
+  // ========== 雷达模式（2026-09-20 一期，与探索/灵感三互斥）==========
+  // 查看端：中心键进入 → 定位 → 画 5km 范围圈 → 轮询附近在线摄影师（紫点+脉冲，可点进主页）
+  // 上报端：登录 + 工作模式 + 未隐身 + 前台时，10 秒一轮上报位置（独立于雷达模式开关）
+  var radarMode = false;
+  var radarPollTimer = null;
+  var radarReportTimer = null;
+  var radarRangeLayer = null;
+  var radarMe = null;              // 我的 mode/radarHidden 缓存
+  var radarMeFetchedAt = 0;
+  var radarLastReportAt = 0;
+  var radarReportInFlight = false;
+  var radarCenter = null;          // 雷达中心（我最后一次定位）
+  var radarCardPerson = null;
+  const RADAR_RADIUS = 5000;       // 一期固定 5km（方案已拍板）
+  const RADAR_POLL_MS = 10000;     // 查看端轮询间隔
+  const RADAR_REPORT_MS = 10000;   // 上报端节流间隔
+  const RADAR_ME_TTL_MS = 60000;   // /users/me 缓存时长
+
+  const radarBanner = document.getElementById('radarBanner');
+  const radarBannerText = document.getElementById('radarBannerText');
+  const radarBannerClose = document.getElementById('radarBannerClose');
+  const radarCard = document.getElementById('radarCard');
+  const radarCardAvatar = document.getElementById('radarCardAvatar');
+  const radarCardName = document.getElementById('radarCardName');
+  const radarCardDist = document.getElementById('radarCardDist');
+  const radarCardBtn = document.getElementById('radarCardBtn');
+  const radarCardClose = document.getElementById('radarCardClose');
+
+  /** 获取我的 mode/radarHidden（缓存 60 秒；未登录返回 null） */
+  function fetchRadarMe() {
+    return new Promise(function (resolve) {
+      var now = Date.now();
+      if (radarMe && now - radarMeFetchedAt < RADAR_ME_TTL_MS) return resolve(radarMe);
+      if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return resolve(null);
+      MemoAPI.get('/users/me').then(function (d) {
+        radarMe = { mode: d.mode, radarHidden: !!d.radarHidden };
+        radarMeFetchedAt = now;
+        resolve(radarMe);
+      }).catch(function () { resolve(radarMe); });
+    });
+  }
+
+  /** 上报端：条件满足（登录+工作模式+未隐身+前台）时上报当前位置 */
+  function reportRadarPosition() {
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) return;
+    if (document.hidden || radarReportInFlight) return;
+    fetchRadarMe().then(function (me) {
+      if (!me || me.mode !== 'work' || me.radarHidden) return; // 仅工作模式且未隐身才上报
+      if (!navigator.geolocation) return;
+      radarReportInFlight = true;
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        radarReportInFlight = false;
+        radarCenter = { lng: pos.coords.longitude, lat: pos.coords.latitude, time: Date.now() };
+        var now = Date.now();
+        if (now - radarLastReportAt < 9000) return; // 客户端再兜一层节流
+        radarLastReportAt = now;
+        MemoAPI.post('/radar/report', {
+          lng: pos.coords.longitude,
+          lat: pos.coords.latitude,
+          accuracy: pos.coords.accuracy || 0
+        }).catch(function () { /* accepted:false（隐身/限流/跳变）与网络失败均静默 */ });
+      }, function () { radarReportInFlight = false; },
+        { timeout: 8000, enableHighAccuracy: false, maximumAge: 5000 });
+    });
+  }
+
+  /** 画 5km 范围圈（以雷达中心为圆心，紫色虚线） */
+  function drawRadarRange() {
+    if (!map || !radarCenter) return;
+    if (radarRangeLayer) map.removeLayer(radarRangeLayer);
+    radarRangeLayer = L.circle([radarCenter.lat, radarCenter.lng], {
+      radius: RADAR_RADIUS,
+      className: 'radar-range',
+      interactive: false
+    }).addTo(map);
+  }
+
+  /** 拉取附近并渲染（diff 更新：在线新增、离线移除、位移平滑） */
+  function refreshRadarMarkers() {
+    if (!radarMode || !map) return;
+    if (typeof MemoAPI === 'undefined' || !MemoAPI.isLoggedIn()) {
+      radarBannerText.textContent = '雷达：登录后可见附近摄影师';
+      return;
+    }
+    if (!radarCenter) {
+      radarBannerText.textContent = '雷达：等待定位…';
+      return;
+    }
+    MemoAPI.get('/radar/nearby?lng=' + radarCenter.lng + '&lat=' + radarCenter.lat + '&radius=' + RADAR_RADIUS)
+      .then(function (d) {
+        if (!radarMode) return;
+        var list = (d && d.list) || [];
+        renderRadarMarkers(list);
+        radarBannerText.textContent = list.length
+          ? '雷达：附近 ' + list.length + ' 位摄影师在线'
+          : '雷达：附近暂无摄影师在线';
+      })
+      .catch(function (e) {
+        if (!radarMode) return;
+        console.warn('[radar] nearby 失败：', e && e.message);
+        radarBannerText.textContent = '雷达：扫描失败，稍后重试';
+      });
+  }
+
+  /** 渲染雷达标记（紫点+脉冲；复用 leafletMarkers 数组，_type='radar_marker'） */
+  function renderRadarMarkers(list) {
+    var newIds = new Set(list.map(function (p) { return 'radar_' + p.userId; }));
+    // 移除已离线
+    leafletMarkers = leafletMarkers.filter(function (lm) {
+      if (lm._type === 'radar_marker' && !newIds.has(lm._clusterId)) {
+        map.removeLayer(lm);
+        return false;
+      }
+      return true;
+    });
+    // 新增/位移
+    list.forEach(function (p) {
+      var cid = 'radar_' + p.userId;
+      var existing = leafletMarkers.find(function (lm) { return lm._clusterId === cid; });
+      if (existing) {
+        existing._radarPerson = p;
+        existing.setLatLng([p.lat, p.lng]); // 内部 _setPos 走 translate3d，CSS transition 平滑
+        return;
+      }
+      var htmlStr = '<div class="radar-marker-dot"><div class="radar-dot-core"></div></div>';
+      var icon = L.divIcon({ html: htmlStr, className: '', iconSize: [30, 30], iconAnchor: [15, 15] });
+      var mk = L.marker([p.lat, p.lng], { icon: icon, zIndexOffset: 8, interactive: true });
+      mk._type = 'radar_marker';
+      mk._clusterId = cid;
+      mk._radarPerson = p;
+      mk.addTo(map);
+      leafletMarkers.push(mk);
+      mk.on('click', function (e) {
+        L.DomEvent.stopPropagation(e);
+        if (!radarMode) return;
+        showRadarCard(mk._radarPerson);
+      });
+    });
+    // 卡片对象已离线 → 收起卡片
+    if (radarCardPerson && !newIds.has('radar_' + radarCardPerson.userId)) hideRadarCard();
+  }
+
+  /** 雷达迷你卡片：头像 + 昵称 + 距离 + 查看主页 */
+  function showRadarCard(p) {
+    radarCardPerson = p;
+    radarCardAvatar.style.background = p.avatar
+      ? 'url("' + p.avatar + '") center/cover no-repeat'
+      : (typeof hashColor === 'function' ? hashColor(p.nickname) : '#4527A0');
+    radarCardName.textContent = p.nickname;
+    radarCardDist.textContent = (p.distanceKm !== null && p.distanceKm !== undefined)
+      ? (p.distanceKm < 1
+          ? Math.max(1, Math.round(p.distanceKm * 1000)) + ' 米'
+          : p.distanceKm + ' km')
+      : '';
+    radarCard.classList.add('show');
+  }
+  function hideRadarCard() {
+    radarCard.classList.remove('show');
+    radarCardPerson = null;
+  }
+  radarCardBtn.addEventListener('click', function () {
+    if (!radarCardPerson) return;
+    openUserProfileById(radarCardPerson.userId, radarCardPerson.nickname, radarCardPerson.avatar);
+  });
+  if (radarCardClose) radarCardClose.addEventListener('click', hideRadarCard);
+
+  /** 进入雷达模式：互斥关闭探索/灵感，定位、画圈、开始轮询 */
+  function enterRadarMode() {
+    if (typeof inspireMode !== 'undefined' && inspireMode) toggleInspireMode();
+    if (typeof exploreMode !== 'undefined' && exploreMode) toggleExploreMode();
+    phoneScreen.classList.add('radar-mode');
+    radarBanner.classList.add('show');
+    radarBannerText.textContent = '雷达：扫描附近摄影师…';
+    hideRadarCard();
+    // 只保留雷达标记 + 我的位置，隐藏其余标记
+    leafletMarkers.forEach(function (lm) {
+      if (lm._type !== 'radar_marker' && lm.getElement) {
+        var el = lm.getElement();
+        if (el) el.style.display = 'none';
+      }
+    });
+    // 定位到我（雷达中心）
+    function useCenter(lat, lng) {
+      radarCenter = { lng: lng, lat: lat, time: Date.now() };
+      if (map && map.setView) map.setView([lat, lng], 14);
+      if (typeof updateUserLocationMarker === 'function') updateUserLocationMarker(lat, lng);
+      drawRadarRange();
+      refreshRadarMarkers();
+    }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        useCenter(pos.coords.latitude, pos.coords.longitude);
+      }, function () {
+        if (lastKnownLocation) useCenter(lastKnownLocation.lat, lastKnownLocation.lng);
+      }, { timeout: 8000, enableHighAccuracy: true, maximumAge: 10000 });
+    } else if (lastKnownLocation) {
+      useCenter(lastKnownLocation.lat, lastKnownLocation.lng);
+    }
+    // 轮询
+    clearInterval(radarPollTimer);
+    radarPollTimer = setInterval(refreshRadarMarkers, RADAR_POLL_MS);
+    refreshRadarMarkers();
+    showToast('📡 雷达模式：扫描附近摄影师', 'success', 2000);
+  }
+
+  /** 退出雷达模式：停轮询、清标记与范围圈、恢复其他标记 */
+  function exitRadarMode() {
+    phoneScreen.classList.remove('radar-mode');
+    phoneScreen.classList.remove('radar-zooming');
+    radarBanner.classList.remove('show');
+    hideRadarCard();
+    clearInterval(radarPollTimer);
+    radarPollTimer = null;
+    if (radarRangeLayer) { map.removeLayer(radarRangeLayer); radarRangeLayer = null; }
+    leafletMarkers = leafletMarkers.filter(function (lm) {
+      if (lm._type === 'radar_marker') { map.removeLayer(lm); return false; }
+      return true;
+    });
+    leafletMarkers.forEach(function (lm) {
+      if (lm.getElement) {
+        var el = lm.getElement();
+        if (el) el.style.display = '';
+      }
+    });
+    showToast('📡 已退出雷达模式');
+  }
+
+  function toggleRadarMode() {
+    radarMode = !radarMode;
+    if (radarMode) enterRadarMode(); else exitRadarMode();
+  }
+
+  radarBannerClose.addEventListener('click', function (e) {
+    e.stopPropagation();
+    toggleRadarMode();
+  });
+
+  // 拖拽/缩放期间禁用平滑过渡（跟手），结束恢复（轮询位移平滑）
+  if (map) {
+    map.on('movestart', function () { phoneScreen.classList.add('radar-zooming'); });
+    map.on('moveend', function () { phoneScreen.classList.remove('radar-zooming'); });
+  }
+
+  // 上报端启动：页面加载即开始（登录+工作模式+未隐身+前台才真正上报）
+  radarReportTimer = setInterval(reportRadarPosition, RADAR_REPORT_MS);
+  setTimeout(reportRadarPosition, 1500);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) reportRadarPosition(); // 回到前台立即补报
+  });
+
+  // 其他页面中心键跳转进入（connect/message/profile 传 ?radar=1）
+  (function () {
+    try {
+      if (new URLSearchParams(location.search).get('radar') === '1') {
+        setTimeout(function () { toggleRadarMode(); }, 900);
+      }
+    } catch (e) {}
+  })();
 
   /**
    * 显示探索弹窗（按作者分组，区别于灵感模式的时间分组）
@@ -9609,8 +10095,6 @@
     setTimeout(() => openUserProfile(photo.author), 200);
   });
 
-
-
   // 图片详情页收藏 → 生成持久红色坐标
   // 右上角关注键（王总 2026-08-13：原收藏键改关注键）
   photoDetailCollect.addEventListener('click', () => {
@@ -9691,9 +10175,127 @@
       // （手机、Windows 125%+ 缩放）会把层 maxZoom 钳到 17 并请求 z19（z19 为空白占位图），
       // 导致最大级白屏/灰屏。故用官方默认 256px 瓦片直连请求。
       // （2026-08-13 曾去掉自定义手动行列换算改官方默认路径，官方默认路径本身无错，本改动不回归）
-      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, maxNativeZoom: 18, updateWhenZooming: false };
+      var TILE_OPTS = { subdomains: ['0','1','2','3','4','5','6','7'], maxZoom: 18, maxNativeZoom: 18, updateWhenZooming: false, keepBuffer: 4 };
       new ResilientTileLayer(TDT_URL, TILE_OPTS).addTo(map);
       new ResilientTileLayer(TDT_LABEL, TILE_OPTS).addTo(map);
+
+      // 400% 预载层（王总 2026-08 要求）：zoomOffset -1 使每张瓦片覆盖当前视野 4 倍面积，
+      // 透明且不拦截交互；地图平移/缩放时自动跟随加载。缩小地图时目标档位瓦片已在
+      // 浏览器缓存中，避免出现大片未加载空白，提升缩放流畅度。
+      // v2：三层预载（zoomOffset -1/-2/-3 = 每张瓦片覆盖 400%/1600%/6400% 面积），
+      // 覆盖细化控件一次跨多档缩小；瓦片 URL 与主层一致（同子域轮换），可直接命中浏览器缓存。
+      var PREFETCH_DEPTHS = [-1, -2, -3];
+      PREFETCH_DEPTHS.forEach(function (off) {
+        L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
+          zoomOffset: off,
+          opacity: 0,
+          interactive: false,
+          className: 'prefetch-tiles',
+          keepBuffer: 6,
+          updateWhenIdle: true,
+          minZoom: 6
+        })).addTo(map);
+      });
+      // 临时版本角标（验证 App 是否加载到新版用，验完可撤）——先建角标再做预载，
+      // 保证预载层任何异常都不会吞掉版本标识（v3 教训）。
+      var __pv = document.createElement('div');
+      __pv.className = 'map-prefetch-badge';
+      __pv.textContent = '预载v4';
+      var __pvHost = document.getElementById('amapContainer');
+      if (__pvHost) __pvHost.appendChild(__pv);
+
+      // v2：相邻级预载（zoomOffset -1..-6）：缩小 1-6 档的目标级瓦片随图自动进缓存。
+      var PREFETCH_DEPTHS = [-1, -2, -3, -4, -5, -6];
+      PREFETCH_DEPTHS.forEach(function (off) {
+        L.tileLayer(TDT_URL, Object.assign({}, TILE_OPTS, {
+          zoomOffset: off,
+          opacity: 0,
+          interactive: false,
+          className: 'prefetch-tiles',
+          keepBuffer: off >= -3 ? 4 : 2,
+          updateWhenIdle: true,
+          minZoom: 6
+        })).addTo(map);
+      });
+
+      // v4：钉级宽区预载——修复 v3 的致命 bug（GridLayer 选项缺 subdomains，
+      // createTile 抛 TypeError 被 initLeafletMap 的 catch 吞掉后 map=null，
+      // 导致定位无响应且预载全没生效）。本层把网格坐标降采样到固定粗档请求瓦片。
+      var WidePrefetchLayer = L.GridLayer.extend({
+        initialize: function (urlTemplate, fixedZoom) {
+          this._tpl = urlTemplate;
+          this._fz = fixedZoom;
+          L.GridLayer.prototype.initialize.call(this, {
+            tileSize: 256, updateWhenIdle: true, keepBuffer: 0,
+            className: 'prefetch-tiles wide-prefetch',
+            subdomains: TILE_OPTS.subdomains
+          });
+        },
+        onAdd: function (m) {
+          L.GridLayer.prototype.onAdd.call(this, m);
+          this._container.style.opacity = '0';      // 只进缓存不显示
+          this._container.style.pointerEvents = 'none'; // 不拦截交互
+        },
+        createTile: function (coords) {
+          var scale = Math.pow(2, this._fz - coords.z);
+          var fx = Math.floor(coords.x * scale);
+          var fy = Math.floor(coords.y * scale);
+          var subs = this.options.subdomains || ['0'];
+          var sub = subs[(((fx + fy) % subs.length) + subs.length) % subs.length];
+          var img = document.createElement('img');
+          img.alt = '';
+          img.setAttribute('role', 'presentation');
+          img.src = L.Util.template(this._tpl, Object.assign({}, this.options, { s: sub, x: fx, y: fy, z: this._fz }));
+          return img;
+        }
+      });
+      [9, 10, 11, 12].forEach(function (fz) {
+        new WidePrefetchLayer(TDT_URL, fz).addTo(map);
+      });
+
+      // v4：宽域直接预取——「视野锚定」预载盖不住跨档缩小（视野面积放大上千倍）。
+      // 绕当前中心把 z9-z12 数十公里半径的瓦片用 Image() 直拉进浏览器缓存
+      // （天地图 max-age 5 天）；中心移动超约 1 公里或换档才触发，URL 去重防重复。
+      var __pfSeen = {};
+      var __pfLastKey = '';
+      function prefetchWideArea() {
+        if (!map || !map.getCenter) return;
+        var c = map.getCenter();
+        var key = c.lat.toFixed(2) + ',' + c.lng.toFixed(2) + ',' + Math.round(map.getZoom() / 2);
+        if (key === __pfLastKey) return;
+        __pfLastKey = key;
+        function tx(lng, z) { return Math.floor((lng + 180) / 360 * Math.pow(2, z)); }
+        function ty(lat, z) {
+          var sn = Math.sin(lat * Math.PI / 180);
+          return Math.floor((0.5 - Math.log((1 + sn) / (1 - sn)) / (4 * Math.PI)) * Math.pow(2, z));
+        }
+        [
+          { z: 9,  rKm: 80, cap: 40 },
+          { z: 10, rKm: 40, cap: 60 },
+          { z: 11, rKm: 20, cap: 90 },
+          { z: 12, rKm: 10, cap: 120 }
+        ].forEach(function (rd) {
+          var cx = tx(c.lng, rd.z), cy = ty(c.lat, rd.z);
+          var kmPerTile = 40075 * Math.cos(c.lat * Math.PI / 180) / Math.pow(2, rd.z);
+          var nx = Math.min(10, Math.ceil(rd.rKm / (kmPerTile || 1)));
+          var cnt = 0;
+          for (var dx = -nx; dx <= nx && cnt < rd.cap; dx++) {
+            for (var dy = -nx; dy <= nx && cnt < rd.cap; dy++) {
+              var x = cx + dx, y = cy + dy;
+              if (y < 0 || y >= Math.pow(2, rd.z)) continue;
+              var subs = TILE_OPTS.subdomains;
+              var sub = subs[(((x + y) % subs.length) + subs.length) % subs.length];
+              var url = TDT_URL.replace('{s}', sub).replace('{z}', rd.z).replace('{x}', x).replace('{y}', y);
+              if (__pfSeen[url]) continue;
+              __pfSeen[url] = 1; cnt++;
+              var im = new Image();
+              im.src = url;
+            }
+          }
+        });
+      }
+      map.on('moveend', function () { setTimeout(prefetchWideArea, 400); });
+      setTimeout(prefetchWideArea, 1500);
 
       // 缩放 → 同步细化程度
       // mapReady 延迟启用，避免地图初始化期间的缩放抖动影响细化程度
@@ -10383,7 +10985,6 @@
 })();
 </script>
 
-
 <script>
 // ===== 未登录登录引导（真实交互：未登录且无本地标记时显示） =====
 (function () {
@@ -10412,7 +11013,6 @@
   } catch (e) {}
 })();
 </script>
-
 
 <script>
   // 三个弹窗挂载拖拽（坐标/灵感/探索——均支持上滑全屏、下滑关闭）
@@ -10500,4 +11100,26 @@
   })();
 </script>
 
+<script>
+// ====== 物理返回键桥接（王总 2026-08-20 批准）：关闭最上层页内面板，与「软件返回」一致 ======
+window.__memomapBack = function () {
+  try {
+    var ids = ['markerPopup','localUploadPopup','searchPopup','explorePopup','inspirePopup','photoDetail','userProfile','photoPreview','chatPanel'];
+    var any = false;
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el && el.classList && el.classList.contains('show')) { any = true; break; }
+    }
+    if (any) {
+      try { if (typeof closeAllOverlays === 'function') { closeAllOverlays(); return true; } } catch (e) {}
+      for (var j = 0; j < ids.length; j++) {
+        var e2 = document.getElementById(ids[j]);
+        if (e2 && e2.classList) { e2.classList.remove('show'); e2.classList.remove('fullscreen'); }
+      }
+      return true;
+    }
+  } catch (e) {}
+  return false;
+};
+</script>
 </body>

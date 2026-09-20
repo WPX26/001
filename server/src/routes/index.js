@@ -24,6 +24,7 @@ import reportRoutes from './report.routes.js';
 import chatRoutes from './chat.routes.js';
 import phonelinkRoutes from './phonelink.routes.js';
 import tetherRoutes from './tether.routes.js';
+import radarRoutes from './radar.routes.js';
 
 const router = Router();
 
@@ -43,5 +44,6 @@ router.use('/report', reportRoutes);
 router.use('/chat', chatRoutes);
 router.use('/phonelink', phonelinkRoutes);
 router.use('/tether', tetherRoutes);
+router.use('/radar', radarRoutes);
 
 export default router;

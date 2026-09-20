@@ -23,6 +23,8 @@ const userSchema = new Schema(
     bio: { type: String, default: '', maxlength: 200 },
     // 生活/工作模式：life 内容进灵感池，work 内容进探索池（需摄影师认证）
     mode: { type: String, enum: ['life', 'work'], default: 'life' },
+    // 雷达隐身（2026-09-20 雷达一期）：true = 不出现在雷达附近列表中（工作模式默认可见）
+    radarHidden: { type: Boolean, default: false },
     isPhotographer: { type: Boolean, default: false },
     memberStatus: { type: String, enum: ['none', 'active', 'expired'], default: 'none' },
     memberExpireAt: { type: Date, default: null },
