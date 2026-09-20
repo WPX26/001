@@ -8551,10 +8551,14 @@
       coords.push(coords[0]);
       return coords;
     }
-    // 王总拍板：同一时刻只显一圈，随缩放联动——放大(z≥14)显 1km，缩小(z≥12)显 3km，再缩小显 5km
+    // 王总拍板：圈直径自适应屏宽 70%~110%（取中值 90%）——随缩放动态换算半径，
+    // 圈在屏幕上保持约 90% 屏宽直径；下限 200m 防病（搜索半径仍按 5km，圈为视觉比例尺）。
     var z = (map.getZoom ? map.getZoom() : 14) || 14;
-    var radius = z >= 14 ? 1000 : (z >= 12 ? 3000 : 5000);
-    var label = (radius / 1000) + 'km';
+    var W = window.innerWidth || document.documentElement.clientWidth || 375;
+    var targetPx = W * 0.9; // 目标直径（CSS 像素）
+    var mPerPx = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+    var radius = Math.max(200, targetPx / 2 * mPerPx);
+    var label = radius >= 1000 ? (radius / 1000).toFixed(1) + 'km' : Math.round(radius) + 'm';
     var seg = radius >= 5000 ? 64 : (radius >= 3000 ? 48 : 32);
     // 先清理旧层
     try {
@@ -8615,7 +8619,7 @@
     if (!map || !map.__ml) { setTimeout(ensureRadarRender, 250); return; }
     if (!__radarZoomBound && map.on) {
       __radarZoomBound = true;
-      // 王总拍板：圈随缩放联动切换（1km→3km→5km），zoomend 后按当前级重画
+      // 王总拍板：圈直径自适应屏宽 70%~110%，zoomend 后按新缩放重画
       map.on('zoomend', function () {
         if (!radarMode || !radarCenter) return;
         drawRadarRange();
