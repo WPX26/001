@@ -8477,7 +8477,8 @@
   var radarLastReportAt = 0;
   var radarReportInFlight = false;
   var radarCenter = null;          // 雷达中心（我最后一次定位）
-  var radarTier = 1000;            // 当前圈档位半径（1/3/5km，滞回切换：直径在屏宽70%~110%内不换圈）
+  var radarTier = 1000;            // 当前圈档位半径（1/3/5km，锯齿换档：直径严格锁在屏宽70%~110%）
+  var lastRadarZoom = null;        // 上一次缩放级别（判定缩放方向用；换档只在真实缩放方向内发生，防抖）
   var radarCardPerson = null;
   var radarDecorMks = [];          // 方位刻度 / 距离标签 / 扫描扇形（随圆心，退出时移除）
   const RADAR_RADIUS = 5000;       // 一期固定 5km（方案已拍板）
@@ -8552,22 +8553,43 @@
       coords.push(coords[0]);
       return coords;
     }
-    // 王总拍板：三档真实半径（1/3/5km）同刻只显一圈；滞回切换——
-    // 圈直径在屏宽 70%~110% 区间内不换圈；缩小到 <70% 才换大档，放大到 >110% 才换小档。
+    // 王总拍板（按图定标）：圈直径严格锁在屏宽【70%, 110%】——70%=图1下限、110%=图2上限。
+    // 锯齿换档：缩小→当前档缩到 <70% 换大档，换后钳到 110% 起步继续缩；
+    //           放大→当前档涨到 >110% 换小档，换后钳到 70% 起步继续涨。
+    // 换档只跟着实际缩放方向走（静止不换档），任意缩放级别直径都不出 [70%,110%]。
     var z = (map.getZoom ? map.getZoom() : 14) || 14;
-    var W = window.innerWidth || document.documentElement.clientWidth || 375;
-    var mPerPx = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+    var W = (map.__ml && map.__ml.getContainer && map.__ml.getContainer().clientWidth) || window.innerWidth || document.documentElement.clientWidth || 375;
+    // 注意：MapLibre 的 zoom 是「512px/世界」约定（每像素地面米数 = 78271.5×cosφ / 2^z），
+    // 与 Leaflet/OSM 的 256px 约定（156543）差一倍——用错会让圈径变成计算值的两倍。
+    var mPerPx = 78271.51696 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
     var tiers = [1000, 3000, 5000];
+    var ratioOf = function (t) { return (2 * t / mPerPx) / W; };
     var idx = tiers.indexOf(radarTier);
     if (idx < 0) idx = 0;
-    var dRatio = (2 * tiers[idx] / mPerPx) / W;
-    // 出区间才换档，一次到位（连续缩放跨多档也能落回区间）
-    while (dRatio < 0.7 && idx < tiers.length - 1) { idx++; dRatio = (2 * tiers[idx] / mPerPx) / W; }
-    while (dRatio > 1.1 && idx > 0) { idx--; dRatio = (2 * tiers[idx] / mPerPx) / W; }
+    var ratio = ratioOf(tiers[idx]);
+    if (lastRadarZoom !== null && z < lastRadarZoom) {
+      // 缩小：圈太小（<69%，留 1% 死区防边界抖动）→ 换大档，直到进区间或已到 5km
+      while (ratio < 0.69 && idx < tiers.length - 1) { idx++; ratio = ratioOf(tiers[idx]); }
+    } else if (lastRadarZoom !== null && z > lastRadarZoom) {
+      // 放大：圈太大（>111%，留 1% 死区）→ 换小档，直到进区间或已到 1km
+      while (ratio > 1.11 && idx > 0) { idx--; ratio = ratioOf(tiers[idx]); }
+    }
     radarTier = tiers[idx];
-    var radius = radarTier;
-    var label = (radius / 1000) + 'km';
-    var seg = radius >= 5000 ? 64 : (radius >= 3000 ? 48 : 32);
+    // 严格钳制：换档后或边界档仍出区间时，按边界比例反算动态半径（平到下沿 70% / 压到上沿 110%）
+    var radius;
+    if (ratio > 1.1) { radius = Math.round(W * 1.1 / 2 * mPerPx); }
+    else if (ratio < 0.7) { radius = Math.round(W * 0.7 / 2 * mPerPx); }
+    else { radius = tiers[idx]; }
+    lastRadarZoom = z;
+    try {
+      var __pTop = ml.project([lng, lat + dLat(radius)]);
+      var __pBot = ml.project([lng, lat - dLat(radius)]);
+      var __diaPx = Math.abs(__pBot.y - __pTop.y);
+      // ratio=公式推算；ratioReal=MapLibre 投影实测的屏上真实占比（防再次算错约定）
+      window.__radarDbg = { z: z, tier: tiers[idx], radius: radius, ratio: (2 * radius / mPerPx) / W, diaPx: __diaPx, ratioReal: __diaPx / W };
+    } catch (_) {}
+    var label = (tiers[idx] / 1000) + 'km';
+    var seg = tiers[idx] >= 5000 ? 64 : (tiers[idx] >= 3000 ? 48 : 32);
     // 先清理旧层
     try {
       if (ml.getSource('radar-range')) {
@@ -8795,6 +8817,7 @@
     clearInterval(radarPollTimer);
     radarPollTimer = null;
     radarTier = 1000; // 复位档位，下次进入从 1km 起
+    lastRadarZoom = null; // 复位缩放方向记忆
     clearRadarDecor(); // 方位/距离/扇形
     // 移除 5km 范围圈（MapLibre geojson 层）
     if (map && map.__ml) {
